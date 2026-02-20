@@ -2,7 +2,7 @@
 <div align="center">
 
   <a href="https://git.io/typing-svg">
-    <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=32&duration=3000&pause=1000&color=3B82F6&center=true&vCenter=true&width=700&lines=%40consilioweb%2Fseo-analyzer;Payload+CMS+SEO+Plugin;50%2B+Checks+%7C+French+Readability;Admin+Dashboard+Suite" alt="Typing SVG" />
+    <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=32&duration=3000&pause=1000&color=3B82F6&center=true&vCenter=true&width=700&lines=%40consilioweb%2Fseo-analyzer;Payload+CMS+SEO+Plugin;50%2B+Checks+%7C+FR+%26+EN+Readability;Admin+Dashboard+Suite" alt="Typing SVG" />
   </a>
 
   <br><br>
@@ -10,7 +10,7 @@
   <!-- Badges -->
   <img src="https://img.shields.io/badge/Payload%20CMS-3.x-0F172A?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTIgMkw0IDdWMTdMMTIgMjJMMjAgMTdWN0wxMiAyWiIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48L3N2Zz4=&logoColor=white" alt="Payload CMS 3">
   <img src="https://img.shields.io/badge/SEO-50%2B%20Checks-10B981?style=for-the-badge" alt="50+ Checks">
-  <img src="https://img.shields.io/badge/French-Readability-3B82F6?style=for-the-badge" alt="French Readability">
+  <img src="https://img.shields.io/badge/i18n-FR%20%7C%20EN-3B82F6?style=for-the-badge" alt="i18n FR | EN">
   <img src="https://img.shields.io/badge/License-MIT-7C3AED?style=for-the-badge" alt="MIT License">
   <img src="https://img.shields.io/badge/TypeScript-5.x-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
 
@@ -20,7 +20,7 @@
 
 ## About
 
-> **@consilioweb/seo-analyzer** — A comprehensive SEO analysis plugin for Payload CMS 3 with 50+ checks, French readability scoring, native Lexical JSON support, and a full admin dashboard suite.
+> **@consilioweb/seo-analyzer** — A comprehensive SEO analysis plugin for Payload CMS 3 with 50+ checks, bilingual readability scoring (French & English), native Lexical JSON support, and a full admin dashboard suite.
 
 <table>
   <tr>
@@ -35,9 +35,9 @@
       <sub>Full dashboard suite</sub>
     </td>
     <td align="center" width="25%">
-      <img src="https://img.icons8.com/color/96/france.png" width="50"/><br>
-      <b>French Readability</b><br>
-      <sub>Flesch-Kincaid FR</sub>
+      <img src="https://img.icons8.com/color/96/translation.png" width="50"/><br>
+      <b>i18n FR & EN</b><br>
+      <sub>Flesch FR/EN + locale-adapted</sub>
     </td>
     <td align="center" width="25%">
       <img src="https://img.icons8.com/color/96/api-settings.png" width="50"/><br>
@@ -51,7 +51,7 @@
 
 ## Overview
 
-`@consilioweb/seo-analyzer` adds a complete SEO toolkit directly into your Payload CMS admin panel. It runs **50+ on-page SEO checks** in real time as editors write content, with specialized support for **French-language readability** (Flesch-Kincaid / Kandel-Moles adaptation) and **native parsing of Payload's Lexical rich text** format.
+`@consilioweb/seo-analyzer` adds a complete SEO toolkit directly into your Payload CMS admin panel. It runs **50+ on-page SEO checks** in real time as editors write content, with **bilingual support (French & English)** — locale-adapted readability formulas (Kandel-Moles FR / Flesch-Kincaid EN), passive voice detection, transition words, and all SEO messages — plus **native parsing of Payload's Lexical rich text** format.
 
 The plugin provides **9 dedicated admin views**, **5 auto-managed collections**, **20+ API endpoints**, and automatic behaviors like slug-change redirect creation and score history tracking — all configured through a single plugin call.
 
@@ -62,6 +62,7 @@ The plugin provides **9 dedicated admin views**, **5 auto-managed collections**,
 - [Features](#features)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
+- [Internationalization (i18n)](#internationalization-i18n)
 - [Configuration](#configuration)
 - [Admin Views](#admin-views)
 - [API Endpoints](#api-endpoints)
@@ -101,17 +102,21 @@ The core analyzer runs **17 rule groups** covering every aspect of on-page SEO:
 - **Accessibility** — short anchors, alt text quality, empty headings, duplicate adjacent links, all-caps headings, link density ratio, camera filename detection, alt-heading redundancy
 - **E-commerce** — price detection, product description length, image count, brand in title, price in meta, review readiness, availability status
 
-### French Readability (Flesch-Kincaid FR)
+### Bilingual Readability (FR & EN)
 
-Adapted Flesch-Kincaid formula for French text using the **Kandel-Moles coefficients**. French naturally produces lower Flesch scores than English due to longer words (suffixes like `-tion`, `-ment`, `-ité`) and structurally longer sentences. The thresholds are calibrated accordingly:
+Locale-adapted readability analysis with different formulas and thresholds per language:
 
-| Level | Score | Equivalent in English |
-|-------|-------|-----------------------|
-| Pass | >= 40 | ~55-65 |
-| Warning | >= 25 | ~35-45 |
-| Fail | < 25 | < 35 |
+| Check | French (Kandel-Moles) | English (Flesch-Kincaid) |
+|-------|----------------------|--------------------------|
+| Flesch pass | >= 40 | >= 60 |
+| Flesch warning | >= 25 | >= 40 |
+| Long sentences | > 25 words | > 20 words |
+| Passive voice max | 15% | 10% |
+| Transition words min | 15% | 20% |
 
-Includes French-specific **passive voice detection** (excludes passé composé with être-verbs) and a curated list of **30+ French transition words**.
+**French** uses the Kandel-Moles coefficients (lower thresholds due to longer words: `-tion`, `-ment`, `-ité`), French passive voice detection (excludes passé composé with être-verbs), and 72 French transition words.
+
+**English** uses the standard Flesch-Kincaid formula, English passive voice detection (be-verb + past participle), and 65 English transition words.
 
 ### Native Lexical JSON Support
 
@@ -177,7 +182,8 @@ The plugin requires Payload CMS 3.x. The following peer dependencies are optiona
 | `@payloadcms/next` | `^3.0.0` | Optional (admin views) |
 | `@payloadcms/ui` | `^3.0.0` | Optional (admin UI) |
 | `react` | `^18.0.0 \|\| ^19.0.0` | Optional (admin UI) |
-| `xlsx` | `>=0.18.0` | Optional (XLSX import in Performance view) |
+
+> **Note:** For XLSX import in the Performance view, install `xlsx` separately (`pnpm add xlsx`). It is loaded dynamically and not required as a peer dependency.
 
 <img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
 
@@ -210,6 +216,46 @@ That's it. The plugin will automatically:
 
 <img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
 
+## Internationalization (i18n)
+
+The plugin supports **French** and **English** via the `locale` option. All 50+ SEO check messages, tips, labels, and linguistic analysis are fully translated.
+
+```ts
+seoPlugin({
+  collections: ['pages', 'posts'],
+  locale: 'en', // 'fr' (default) | 'en'
+})
+```
+
+### What changes with locale
+
+| Feature | `locale: 'fr'` (default) | `locale: 'en'` |
+|---------|--------------------------|-----------------|
+| SEO messages & tips | French | English |
+| Readability formula | Kandel-Moles (FR thresholds) | Flesch-Kincaid (EN thresholds) |
+| Passive voice detection | être + participe passé | be-verb + past participle |
+| Transition words | 72 French expressions | 65 English expressions |
+| Stop words in slug | French stop words | English stop words |
+| Action verbs (CTA) | 30 French verbs | 30 English verbs |
+| Power words | 29 French words | 30 English words |
+| Page type detection | FR slugs (`mentions-legales`, `contact`) | EN slugs (`privacy-policy`, `contact-us`) |
+| Question words (title) | `comment`, `pourquoi`, `quand`... | `how`, `why`, `when`... |
+
+### Backward Compatibility
+
+The `locale` option defaults to `'fr'` — existing installations are unaffected. All legacy exports (`calculateFleschFR`, `getStopWordsFR`, `POWER_WORDS_FR`, etc.) remain available as aliases.
+
+### Programmatic Usage with Locale
+
+```ts
+import { analyzeSeo } from '@consilioweb/seo-analyzer'
+
+const result = analyzeSeo(input, { locale: 'en' })
+// All messages returned in English, EN readability thresholds applied
+```
+
+<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
+
 ## Configuration
 
 ### `SeoPluginConfig`
@@ -218,6 +264,7 @@ That's it. The plugin will automatically:
 seoPlugin({
   // All options are optional — sensible defaults are used
   collections: ['pages', 'posts'],
+  locale: 'fr',
   addDashboardView: true,
   addSitemapAuditView: true,
   disabledRules: [],
@@ -236,6 +283,7 @@ seoPlugin({
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `collections` | `string[]` | `['pages', 'posts']` | Collections to add SEO fields and hooks to |
+| `locale` | `'fr' \| 'en'` | `'fr'` | Language for SEO messages, readability analysis, and linguistic checks |
 | `addDashboardView` | `boolean` | `true` | Register the SEO dashboard and all admin views |
 | `addSitemapAuditView` | `boolean` | `true` | Register the sitemap audit view |
 | `disabledRules` | `RuleGroup[]` | `[]` | Rule groups to skip entirely during analysis |
@@ -298,6 +346,7 @@ export default buildConfig({
   plugins: [
     seoPlugin({
       collections: ['pages', 'posts', 'products'],
+      locale: 'en', // All messages and checks in English
       siteName: 'My Website',
       endpointBasePath: '/seo',
       knownRoutes: ['blog', 'products', 'categories'],
@@ -489,7 +538,7 @@ Each check has a **weight** (1-5) and produces a **status** (`pass`, `warning`, 
 | `slug-length` | 2 | Important | Slug under 75 characters |
 | `slug-format` | 2 | Important | Lowercase, no special characters |
 | `slug-keyword` | 2 | Important | Focus keyword in slug |
-| `slug-stopwords` | 1 | Bonus | No French stop words |
+| `slug-stopwords` | 1 | Bonus | No stop words (FR or EN based on locale) |
 
 </details>
 
@@ -571,11 +620,11 @@ Each check has a **weight** (1-5) and produces a **status** (`pass`, `warning`, 
 
 | Check ID | Weight | Category | Description |
 |----------|--------|----------|-------------|
-| `readability-flesch` | 2 | Important | Flesch FR reading ease score >= 40 |
-| `readability-long-sentences` | 2 | Important | Less than 30% sentences over 25 words |
+| `readability-flesch` | 2 | Important | Flesch reading ease (FR: >= 40, EN: >= 60) |
+| `readability-long-sentences` | 2 | Important | Long sentence ratio < 30% (FR: >25 words, EN: >20 words) |
 | `readability-long-paragraphs` | 2 | Important | No paragraphs over 150 words |
-| `readability-passive` | 2 | Important | Less than 15% passive voice |
-| `readability-transitions` | 1 | Bonus | 15%+ sentences with transition words |
+| `readability-passive` | 2 | Important | Passive voice ratio (FR: < 15%, EN: < 10%) |
+| `readability-transitions` | 1 | Bonus | Transition words (FR: 15%+, EN: 20%+) |
 | `readability-consecutive-starts` | 1 | Bonus | No 3+ consecutive sentences with same first word |
 | `readability-long-sections` | 2 | Important | No sections >400 words without subheadings |
 
@@ -755,13 +804,15 @@ import {
   extractListsFromLexical,
   checkImagesInBlocks,
 
-  // Text analysis
+  // Text analysis (bilingual — pass locale: 'fr' | 'en')
   countWords,
-  countSentences,
-  countSyllablesFR,
-  calculateFleschFR,
-  detectPassiveVoice,
-  hasTransitionWord,
+  countSentences,       // countSentences(text, locale?)
+  countSyllablesFR,     // French syllable counter
+  countSyllablesEN,     // English syllable counter
+  calculateFlesch,      // calculateFlesch(text, locale) — Kandel-Moles (FR) or Flesch-Kincaid (EN)
+  calculateFleschFR,    // Legacy alias for calculateFlesch(text, 'fr')
+  detectPassiveVoice,   // detectPassiveVoice(sentence, locale?)
+  hasTransitionWord,    // hasTransitionWord(sentence, locale?)
   checkHeadingHierarchy,
   countLongSections,
 
@@ -771,13 +822,28 @@ import {
   keywordMatchesText,
   countKeywordOccurrences,
 
-  // Page type detection
-  detectPageType,
+  // Page type detection (bilingual)
+  detectPageType,       // detectPageType(slug, collection?, extra?, locale?)
 
-  // French language utilities
-  getStopWordsFR,
-  getActionVerbsFR,
+  // Bilingual constant accessors — pass locale: 'fr' | 'en'
+  getStopWords,         // getStopWords(locale)
+  getActionVerbs,       // getActionVerbs(locale)
+  getPowerWords,        // getPowerWords(locale)
+  getGenericAnchors,    // getGenericAnchors(locale)
+  getLegalSlugs,        // getLegalSlugs(locale)
+  getUtilitySlugs,      // getUtilitySlugs(locale)
+  getEvergreenSlugs,    // getEvergreenSlugs(locale)
+  getStopWordCompounds, // getStopWordCompounds(locale)
+
+  // Legacy aliases (backward compat)
+  getStopWordsFR,       // = getStopWords('fr')
+  getActionVerbsFR,     // = getActionVerbs('fr')
+  POWER_WORDS_FR,       // = POWER_WORDS.fr
   isStopWordInCompoundExpression,
+
+  // Locale-specific thresholds
+  FLESCH_THRESHOLDS,        // { fr: { pass: 40, warn: 25 }, en: { pass: 60, warn: 40 } }
+  READABILITY_THRESHOLDS,   // { fr: { longSentenceWords: 25, ... }, en: { longSentenceWords: 20, ... } }
 
   // Constants (thresholds, limits)
   TITLE_LENGTH_MIN,     // 30
@@ -789,7 +855,6 @@ import {
   SCORE_EXCELLENT,      // 91
   SCORE_GOOD,           // 71
   SCORE_OK,             // 41
-  POWER_WORDS_FR,       // French power words list
   // ... and more
 } from '@consilioweb/seo-analyzer'
 ```
@@ -800,17 +865,20 @@ import {
 
 The analyzer automatically adapts thresholds and check severity based on the detected page type:
 
-| Page Type | Detection Logic | Adapted Behavior |
-|-----------|-----------------|------------------|
-| `blog` | `isPost: true` | Higher word count threshold (800 words) |
-| `home` | Slug is `home` or empty | Standard checks |
-| `contact` | Slug contains `contact` | Relaxed: images optional, external links optional, freshness lenient |
-| `form` | Slug contains `formulaire`, `devis`, `inscription` | Relaxed: word count min 150, images optional |
-| `legal` | Slug matches legal patterns (`mentions-legales`, `cgv`, etc.) | Relaxed: word count min 200, images optional, freshness 24 months |
-| `local-seo` | Matches configured `localSeoSlugs` | Standard checks with local SEO context |
-| `service` | Slug contains `service`, `prestation` | Standard checks |
-| `resource` | Slug contains `ressource`, `guide`, `tutoriel` | Standard checks |
-| `generic` | Default fallback | Standard checks (300 words min) |
+| Page Type | Detection Logic (FR) | Detection Logic (EN) | Adapted Behavior |
+|-----------|---------------------|----------------------|------------------|
+| `blog` | `isPost: true` | `isPost: true` | Higher word count threshold (800 words) |
+| `home` | Slug is `home` or empty | Slug is `home` or empty | Standard checks |
+| `contact` | `contact` | `contact`, `contact-us`, `get-in-touch` | Relaxed: images optional, external links optional, freshness lenient |
+| `form` | `formulaire`, `devis`, `inscription` | `quote`, `signup`, `register`, `apply` | Relaxed: word count min 150, images optional |
+| `legal` | `mentions-legales`, `cgv`, `politique-de-confidentialite` | `privacy-policy`, `terms`, `tos`, `gdpr`, `cookies` | Relaxed: word count min 200, images optional, freshness 24 months |
+| `local-seo` | Matches configured `localSeoSlugs` | Matches configured `localSeoSlugs` | Standard checks with local SEO context |
+| `service` | `service`, `prestation` | `services`, `our-services` | Standard checks |
+| `resource` | `ressource`, `guide`, `tutoriel` | `resources`, `guide`, `tutorial` | Standard checks |
+| `agency` | `agence`, `a-propos`, `equipe` | `about`, `about-us`, `team` | Standard checks |
+| `generic` | Default fallback | Default fallback | Standard checks (300 words min) |
+
+> **Note:** Page type detection checks both FR and EN slug patterns regardless of locale, so a French site with an `about` slug will still be correctly detected.
 
 <img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
 
