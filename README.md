@@ -72,6 +72,7 @@ The plugin provides **9 dedicated admin views**, **5 auto-managed collections**,
 - [Page Type Detection](#page-type-detection)
 - [Package Exports](#package-exports)
 - [Requirements](#requirements)
+- [Uninstall](#uninstall)
 - [License](#license)
 
 <img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
@@ -852,6 +853,62 @@ import {
 - **Payload CMS** 3.x
 - **React** 18.x or 19.x (for admin UI components)
 - **Database**: Any Payload-supported adapter (SQLite, PostgreSQL, MongoDB)
+
+<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
+
+## Uninstall
+
+To remove the plugin, delete the `seoPlugin()` call from your `payload.config.ts` and uninstall the package:
+
+```bash
+pnpm remove @consilioweb/seo-analyzer
+```
+
+### What happens to your data?
+
+**Your data is safe.** The plugin uses Payload's standard API (`payload.find`, `payload.create`, etc.) with zero raw SQL queries — it is fully **database-agnostic** and works identically with SQLite, PostgreSQL, and MongoDB.
+
+When you remove the plugin:
+
+| What | Status | Action needed |
+|------|--------|---------------|
+| Plugin collections (`seo-score-history`, `seo-performance`, `seo-settings`, `seo-redirects`, `seo-logs`) | **Tables/documents remain in DB** | Delete manually if you want to reclaim space |
+| Fields added to your collections (`focusKeyword`, `focusKeywords`, `isCornerstone`) | **Data remains in DB** | Columns/fields are ignored by Payload but stay in storage |
+| Admin views & API endpoints | **Removed automatically** | No action needed |
+| Hooks (auto-redirect, score tracking) | **Removed automatically** | No action needed |
+
+### Full cleanup (optional)
+
+If you want to remove all plugin data from your database:
+
+**SQLite:**
+```sql
+DROP TABLE IF EXISTS seo_score_history;
+DROP TABLE IF EXISTS seo_performance;
+DROP TABLE IF EXISTS seo_settings;
+DROP TABLE IF EXISTS seo_redirects;
+DROP TABLE IF EXISTS seo_logs;
+```
+
+**PostgreSQL:**
+```sql
+DROP TABLE IF EXISTS "seo-score-history" CASCADE;
+DROP TABLE IF EXISTS "seo-performance" CASCADE;
+DROP TABLE IF EXISTS "seo-settings" CASCADE;
+DROP TABLE IF EXISTS "seo-redirects" CASCADE;
+DROP TABLE IF EXISTS "seo-logs" CASCADE;
+```
+
+**MongoDB:**
+```js
+db.getCollection('seo-score-history').drop()
+db.getCollection('seo-performance').drop()
+db.getCollection('seo-settings').drop()
+db.getCollection('seo-redirects').drop()
+db.getCollection('seo-logs').drop()
+```
+
+> **Note:** The plugin never drops tables or deletes data automatically. This is by design — your SEO history and redirects are valuable data that should only be removed intentionally.
 
 <img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
 
