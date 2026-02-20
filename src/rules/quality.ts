@@ -1,11 +1,13 @@
 /**
  * SEO Rules — Content quality checks (weight: 3, category: critical)
  */
-import type { SeoCheck, SeoInput, AnalysisContext } from '../types'
-import { MIN_WORDS_QUALITY_FAIL, MIN_WORDS_QUALITY_WARN } from '../constants'
+import type { SeoCheck, SeoInput, AnalysisContext } from '../types.js'
+import { MIN_WORDS_QUALITY_FAIL, MIN_WORDS_QUALITY_WARN } from '../constants.js'
+import { getTranslations } from '../i18n.js'
 
 export function checkQuality(_input: SeoInput, ctx: AnalysisContext): SeoCheck[] {
   const checks: SeoCheck[] = []
+  const r = getTranslations(ctx.locale).rules.quality
   const { fullText, wordCount } = ctx
 
   // 45. No duplicate/placeholder content detected
@@ -20,11 +22,9 @@ export function checkQuality(_input: SeoInput, ctx: AnalysisContext): SeoCheck[]
 
   checks.push({
     id: 'quality-no-duplicate',
-    label: 'Contenu original',
+    label: r.noDuplicateLabel,
     status: hasDuplicateContent ? 'fail' : 'pass',
-    message: hasDuplicateContent
-      ? 'Du contenu generique ou duplique a ete detecte — Remplacez par du contenu unique et pertinent.'
-      : 'Le contenu semble original et unique.',
+    message: hasDuplicateContent ? r.noDuplicateFail : r.noDuplicatePass,
     category: 'critical',
     weight: 3,
     group: 'quality',
@@ -34,9 +34,9 @@ export function checkQuality(_input: SeoInput, ctx: AnalysisContext): SeoCheck[]
   if (wordCount < MIN_WORDS_QUALITY_FAIL) {
     checks.push({
       id: 'quality-substantial',
-      label: 'Contenu substantiel',
+      label: r.substantialLabel,
       status: 'fail',
-      message: `Seulement ${wordCount} mots — Contenu insuffisant pour offrir de la valeur au lecteur.`,
+      message: r.substantialFail(wordCount),
       category: 'critical',
       weight: 3,
       group: 'quality',
@@ -44,9 +44,9 @@ export function checkQuality(_input: SeoInput, ctx: AnalysisContext): SeoCheck[]
   } else if (wordCount < MIN_WORDS_QUALITY_WARN) {
     checks.push({
       id: 'quality-substantial',
-      label: 'Contenu substantiel',
+      label: r.substantialLabel,
       status: 'warning',
-      message: `${wordCount} mots — Le contenu est leger. Enrichissez-le pour mieux repondre a l'intention de recherche.`,
+      message: r.substantialWarn(wordCount),
       category: 'critical',
       weight: 3,
       group: 'quality',
@@ -54,9 +54,9 @@ export function checkQuality(_input: SeoInput, ctx: AnalysisContext): SeoCheck[]
   } else {
     checks.push({
       id: 'quality-substantial',
-      label: 'Contenu substantiel',
+      label: r.substantialLabel,
       status: 'pass',
-      message: `${wordCount} mots — Volume de contenu adequat.`,
+      message: r.substantialPass(wordCount),
       category: 'critical',
       weight: 3,
       group: 'quality',

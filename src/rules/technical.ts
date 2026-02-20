@@ -1,10 +1,12 @@
 /**
  * SEO Rules — Technical checks: canonical URL, robots meta (weight: 2, category: important)
  */
-import type { SeoCheck, SeoInput, AnalysisContext } from '../types'
+import type { SeoCheck, SeoInput, AnalysisContext } from '../types.js'
+import { getTranslations } from '../i18n.js'
 
 export function checkTechnical(input: SeoInput, ctx: AnalysisContext): SeoCheck[] {
   const checks: SeoCheck[] = []
+  const r = getTranslations(ctx.locale).rules.technical
 
   // 1. Canonical URL check
   if (input.canonicalUrl !== undefined) {
@@ -13,9 +15,9 @@ export function checkTechnical(input: SeoInput, ctx: AnalysisContext): SeoCheck[
     if (!canonical) {
       checks.push({
         id: 'canonical-missing',
-        label: 'URL canonique',
+        label: r.canonicalMissingLabel,
         status: 'warning',
-        message: 'URL canonique vide — Definissez une URL canonique pour eviter le contenu duplique.',
+        message: r.canonicalMissingMessage,
         category: 'important',
         weight: 2,
         group: 'technical',
@@ -23,9 +25,9 @@ export function checkTechnical(input: SeoInput, ctx: AnalysisContext): SeoCheck[
     } else if (!canonical.startsWith('http://') && !canonical.startsWith('https://')) {
       checks.push({
         id: 'canonical-invalid',
-        label: 'URL canonique',
+        label: r.canonicalInvalidLabel,
         status: 'warning',
-        message: `URL canonique "${canonical}" invalide — Utilisez une URL absolue (https://...).`,
+        message: r.canonicalInvalidMessage(canonical),
         category: 'important',
         weight: 2,
         group: 'technical',
@@ -36,9 +38,9 @@ export function checkTechnical(input: SeoInput, ctx: AnalysisContext): SeoCheck[
       if (siteUrl && !canonical.startsWith(siteUrl)) {
         checks.push({
           id: 'canonical-external',
-          label: 'URL canonique',
+          label: r.canonicalExternalLabel,
           status: 'warning',
-          message: `URL canonique pointe vers un domaine externe — Verifiez que c'est intentionnel.`,
+          message: r.canonicalExternalMessage,
           category: 'important',
           weight: 2,
           group: 'technical',
@@ -46,9 +48,9 @@ export function checkTechnical(input: SeoInput, ctx: AnalysisContext): SeoCheck[
       } else {
         checks.push({
           id: 'canonical-ok',
-          label: 'URL canonique',
+          label: r.canonicalOkLabel,
           status: 'pass',
-          message: 'URL canonique correctement definie.',
+          message: r.canonicalOkMessage,
           category: 'important',
           weight: 2,
           group: 'technical',
@@ -68,11 +70,11 @@ export function checkTechnical(input: SeoInput, ctx: AnalysisContext): SeoCheck[
 
       checks.push({
         id: 'robots-noindex',
-        label: 'Robots noindex',
+        label: r.robotsNoindexLabel,
         status: acceptableNoindex ? 'warning' : 'fail',
         message: acceptableNoindex
-          ? `Page en noindex — Acceptable pour une page ${ctx.pageType}, mais verifiez que c'est voulu.`
-          : 'Page en noindex — Cette page ne sera PAS indexee par Google. Retirez le noindex sauf si c\'est intentionnel.',
+          ? r.robotsNoindexAcceptable(ctx.pageType)
+          : r.robotsNoindexFail,
         category: 'critical',
         weight: 3,
         group: 'technical',
@@ -82,10 +84,9 @@ export function checkTechnical(input: SeoInput, ctx: AnalysisContext): SeoCheck[
     if (robots.includes('nofollow')) {
       checks.push({
         id: 'robots-nofollow',
-        label: 'Robots nofollow',
+        label: r.robotsNofollowLabel,
         status: 'warning',
-        message:
-          'Page en nofollow — Les liens de cette page ne transmettront pas de "link juice". Verifiez que c\'est intentionnel.',
+        message: r.robotsNofollowMessage,
         category: 'important',
         weight: 2,
         group: 'technical',
@@ -95,9 +96,9 @@ export function checkTechnical(input: SeoInput, ctx: AnalysisContext): SeoCheck[
     if (!robots.includes('noindex') && !robots.includes('nofollow')) {
       checks.push({
         id: 'robots-ok',
-        label: 'Robots meta',
+        label: r.robotsOkLabel,
         status: 'pass',
-        message: 'Directives robots correctes — La page est indexable et suivie.',
+        message: r.robotsOkMessage,
         category: 'important',
         weight: 2,
         group: 'technical',

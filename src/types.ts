@@ -132,6 +132,8 @@ export interface SeoConfig {
   overrideWeights?: Partial<Record<RuleGroup, number>>
   /** Custom thresholds (override defaults from constants.ts) */
   thresholds?: SeoThresholds
+  /** Locale for language-specific analysis (default: 'fr') */
+  locale?: 'fr' | 'en'
 }
 
 /** Pre-computed context shared across all rule modules to avoid redundant work */
@@ -158,4 +160,6 @@ export interface AnalysisContext {
   pageType: PageType
   /** SEO configuration (merged defaults + user overrides) */
   config: SeoConfig
+  /** Active locale for language-specific rules */
+  locale: 'fr' | 'en'
 }

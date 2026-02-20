@@ -74,6 +74,8 @@ export interface SeoPluginConfig {
   knownRoutes?: string[]
   /** Secret header value for seo-logs POST endpoint. If set, POST requests must include X-SEO-Secret header with this value. If not set, POST requires authenticated admin user. */
   seoLogsSecret?: string
+  /** Locale for language-specific analysis (default: 'fr') */
+  locale?: 'fr' | 'en'
 }
 
 /** Build a resolved SeoConfig from plugin config for use by analyzeSeo() */
@@ -84,6 +86,7 @@ function buildSeoConfig(pluginConfig: SeoPluginConfig): SeoConfig {
     ...(pluginConfig.disabledRules && { disabledRules: pluginConfig.disabledRules }),
     ...(pluginConfig.overrideWeights && { overrideWeights: pluginConfig.overrideWeights }),
     ...(pluginConfig.thresholds && { thresholds: pluginConfig.thresholds }),
+    ...(pluginConfig.locale && { locale: pluginConfig.locale }),
   }
 }
 

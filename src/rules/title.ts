@@ -1,12 +1,14 @@
 /**
  * SEO Rules — Title tag checks (weight: 3, category: critical)
  */
-import type { SeoCheck, SeoInput, AnalysisContext } from '../types'
-import { normalizeForComparison, keywordMatchesText } from '../helpers'
-import { TITLE_LENGTH_MIN, TITLE_LENGTH_MAX, POWER_WORDS_FR } from '../constants'
+import type { SeoCheck, SeoInput, AnalysisContext } from '../types.js'
+import { normalizeForComparison, keywordMatchesText } from '../helpers.js'
+import { TITLE_LENGTH_MIN, TITLE_LENGTH_MAX, getPowerWords } from '../constants.js'
+import { getTranslations } from '../i18n.js'
 
 export function checkTitle(input: SeoInput, ctx: AnalysisContext): SeoCheck[] {
   const checks: SeoCheck[] = []
+  const r = getTranslations(ctx.locale).rules.title
   const title = input.metaTitle || ''
   const titleLen = title.length
   const kw = ctx.normalizedKeyword
@@ -15,13 +17,13 @@ export function checkTitle(input: SeoInput, ctx: AnalysisContext): SeoCheck[] {
   if (!title) {
     checks.push({
       id: 'title-missing',
-      label: 'Meta title',
+      label: r.missingLabel,
       status: 'fail',
-      message: 'Meta title manquant — Ajoutez un titre pour le referencement.',
+      message: r.missingMessage,
       category: 'critical',
       weight: 3,
       group: 'title',
-      tip: 'Redigez un titre de 30-60 caracteres contenant le mot-cle principal et le nom de marque.',
+      tip: r.missingTip,
     })
     return checks // no point checking further
   }
@@ -30,31 +32,31 @@ export function checkTitle(input: SeoInput, ctx: AnalysisContext): SeoCheck[] {
   if (titleLen < TITLE_LENGTH_MIN) {
     checks.push({
       id: 'title-length',
-      label: 'Longueur du title',
+      label: r.lengthLabel,
       status: 'warning',
-      message: `Meta title (${titleLen} car.) — Trop court. Visez 30 a 60 caracteres.`,
+      message: r.lengthShort(titleLen),
       category: 'critical',
       weight: 3,
       group: 'title',
-      tip: 'Ajoutez des mots descriptifs ou le nom de marque pour atteindre 30 caracteres minimum.',
+      tip: r.lengthShortTip,
     })
   } else if (titleLen > TITLE_LENGTH_MAX) {
     checks.push({
       id: 'title-length',
-      label: 'Longueur du title',
+      label: r.lengthLabel,
       status: 'warning',
-      message: `Meta title (${titleLen} car.) — Trop long, sera coupe dans Google. Reduisez a 60 max.`,
+      message: r.lengthLong(titleLen),
       category: 'critical',
       weight: 3,
       group: 'title',
-      tip: 'Google tronque au-dela de ~60 caracteres. Supprimez les mots superflus et gardez l\'essentiel.',
+      tip: r.lengthLongTip,
     })
   } else {
     checks.push({
       id: 'title-length',
-      label: 'Longueur du title',
+      label: r.lengthLabel,
       status: 'pass',
-      message: `Meta title (${titleLen} car.) — Longueur ideale.`,
+      message: r.lengthPass(titleLen),
       category: 'critical',
       weight: 3,
       group: 'title',
@@ -68,11 +70,11 @@ export function checkTitle(input: SeoInput, ctx: AnalysisContext): SeoCheck[] {
 
     checks.push({
       id: 'title-keyword',
-      label: 'Mot-cle dans le title',
+      label: r.keywordLabel,
       status: kwPresent ? 'pass' : 'warning',
       message: kwPresent
-        ? `Le mot-cle "${input.focusKeyword}" est present dans le meta title.`
-        : `Le mot-cle "${input.focusKeyword}" n'est pas dans le meta title — Ajoutez-le pour un meilleur referencement.`,
+        ? r.keywordPass(input.focusKeyword || kw)
+        : r.keywordFail(input.focusKeyword || kw),
       category: 'critical',
       weight: 3,
       group: 'title',
@@ -86,11 +88,11 @@ export function checkTitle(input: SeoInput, ctx: AnalysisContext): SeoCheck[] {
 
       checks.push({
         id: 'title-keyword-position',
-        label: 'Position du mot-cle',
+        label: r.keywordPositionLabel,
         status: inFirstHalf ? 'pass' : 'warning',
         message: inFirstHalf
-          ? 'Le mot-cle est place en debut de title — Position ideale.'
-          : 'Le mot-cle est en fin de title — Placez-le au debut pour un meilleur impact.',
+          ? r.keywordPositionPass
+          : r.keywordPositionFail,
         category: 'important',
         weight: 2,
         group: 'title',
@@ -104,21 +106,20 @@ export function checkTitle(input: SeoInput, ctx: AnalysisContext): SeoCheck[] {
   if (titleParts.length > 1 && uniqueParts.size < titleParts.length) {
     checks.push({
       id: 'title-duplicate-brand',
-      label: 'Nom de marque duplique',
+      label: r.duplicateBrandLabel,
       status: 'warning',
-      message:
-        'Le title contient une partie dupliquee (ex: "Marque | Marque") — Supprimez le doublon.',
+      message: r.duplicateBrandFail,
       category: 'important',
       weight: 2,
       group: 'title',
-      tip: 'Verifiez que le generateur de meta title n\'ajoute pas automatiquement le nom de marque si vous l\'avez deja inclus.',
+      tip: r.duplicateBrandTip,
     })
   } else {
     checks.push({
       id: 'title-duplicate-brand',
-      label: 'Nom de marque duplique',
+      label: r.duplicateBrandLabel,
       status: 'pass',
-      message: 'Pas de duplication dans le title.',
+      message: r.duplicateBrandPass,
       category: 'important',
       weight: 2,
       group: 'title',
@@ -127,14 +128,14 @@ export function checkTitle(input: SeoInput, ctx: AnalysisContext): SeoCheck[] {
 
   // C2. Power words in title — boost CTR
   const titleNormForPower = normalizeForComparison(title)
-  const foundPowerWords = POWER_WORDS_FR.filter((pw) => titleNormForPower.includes(pw))
+  const foundPowerWords = getPowerWords(ctx.locale || 'fr').filter((pw) => titleNormForPower.includes(pw))
 
   if (foundPowerWords.length > 0) {
     checks.push({
       id: 'title-power-words',
-      label: 'Mots puissants dans le title',
+      label: r.powerWordsLabel,
       status: 'pass',
-      message: `Le title contient ${foundPowerWords.length} mot(s) puissant(s) : ${foundPowerWords.slice(0, 3).join(', ')}`,
+      message: r.powerWordsPass(foundPowerWords.length, foundPowerWords.slice(0, 3).join(', ')),
       category: 'bonus',
       weight: 1,
       group: 'title',
@@ -142,13 +143,13 @@ export function checkTitle(input: SeoInput, ctx: AnalysisContext): SeoCheck[] {
   } else {
     checks.push({
       id: 'title-power-words',
-      label: 'Mots puissants dans le title',
+      label: r.powerWordsLabel,
       status: 'warning',
-      message: 'Le title ne contient aucun mot puissant — Ajoutez un mot comme "gratuit", "guide", "complet" pour booster le CTR.',
+      message: r.powerWordsFail,
       category: 'bonus',
       weight: 1,
       group: 'title',
-      tip: 'Les mots puissants (gratuit, exclusif, guide, complet, essentiel...) attirent l\'attention dans les resultats de recherche.',
+      tip: r.powerWordsTip,
     })
   }
 
@@ -156,50 +157,50 @@ export function checkTitle(input: SeoInput, ctx: AnalysisContext): SeoCheck[] {
   const hasNumber = /\d/.test(title)
   checks.push({
     id: 'title-has-number',
-    label: 'Nombre dans le title',
+    label: r.hasNumberLabel,
     status: hasNumber ? 'pass' : 'warning',
-    message: hasNumber
-      ? 'Le title contient un nombre — Les titres avec chiffres generent +36% de CTR.'
-      : 'Aucun nombre dans le title — Les titres avec chiffres (ex: "5 astuces", "Top 10") attirent plus de clics.',
+    message: hasNumber ? r.hasNumberPass : r.hasNumberFail,
     category: 'bonus',
     weight: 1,
     group: 'title',
-    ...(hasNumber ? {} : { tip: 'Ajoutez un nombre pour creer un titre de type liste (ex: "7 conseils pour...", "Les 3 erreurs a eviter").' }),
+    ...(hasNumber ? {} : { tip: r.hasNumberTip }),
   })
 
   // Headline analyzer — Question title (Featured Snippet friendly)
-  const questionWords = ['comment', 'pourquoi', 'quand', 'quel', 'quelle', 'quels', 'quelles', 'combien', 'ou', 'qui', 'que', 'est-ce']
+  const questionWords = ctx.locale === 'en'
+    ? ['how', 'why', 'when', 'what', 'which', 'where', 'who', 'can', 'do', 'does', 'is', 'are', 'should']
+    : ['comment', 'pourquoi', 'quand', 'quel', 'quelle', 'quels', 'quelles', 'combien', 'ou', 'qui', 'que', 'est-ce']
   const titleLower = title.toLowerCase().trim()
   const isQuestion = questionWords.some(w => titleLower.startsWith(w + ' ') || titleLower.startsWith(w + '-'))
     || title.trim().endsWith('?')
   checks.push({
     id: 'title-is-question',
-    label: 'Title interrogatif',
+    label: r.isQuestionLabel,
     status: isQuestion ? 'pass' : 'warning',
-    message: isQuestion
-      ? 'Le title est formule en question — Ideal pour les Featured Snippets Google.'
-      : 'Le title n\'est pas une question — Les titres interrogatifs favorisent les extraits en vedette.',
+    message: isQuestion ? r.isQuestionPass : r.isQuestionFail,
     category: 'bonus',
     weight: 1,
     group: 'title',
-    ...(isQuestion ? {} : { tip: 'Reformulez en question si pertinent (ex: "Comment optimiser votre SEO ?").' }),
+    ...(isQuestion ? {} : { tip: r.isQuestionTip }),
   })
 
   // Headline analyzer — Sentiment/emotional words
-  const sentimentWords = ['erreur', 'secret', 'incroyable', 'danger', 'urgent', 'choquant', 'terrible', 'extraordinaire', 'fascinant', 'etonnant', 'surprenant', 'impressionnant', 'remarquable', 'crucial', 'vital', 'indispensable', 'interdit', 'impossible', 'revolutionnaire']
+  const sentimentWords = ctx.locale === 'en'
+    ? ['mistake', 'secret', 'incredible', 'danger', 'urgent', 'shocking', 'terrible', 'extraordinary', 'fascinating', 'astonishing', 'surprising', 'impressive', 'remarkable', 'crucial', 'vital', 'essential', 'forbidden', 'impossible', 'revolutionary']
+    : ['erreur', 'secret', 'incroyable', 'danger', 'urgent', 'choquant', 'terrible', 'extraordinaire', 'fascinant', 'etonnant', 'surprenant', 'impressionnant', 'remarquable', 'crucial', 'vital', 'indispensable', 'interdit', 'impossible', 'revolutionnaire']
   const titleNormForSentiment = normalizeForComparison(title)
   const foundSentiment = sentimentWords.filter(w => titleNormForSentiment.includes(w))
   checks.push({
     id: 'title-sentiment',
-    label: 'Mots emotionnels dans le title',
+    label: r.sentimentLabel,
     status: foundSentiment.length > 0 ? 'pass' : 'warning',
     message: foundSentiment.length > 0
-      ? `Le title contient ${foundSentiment.length} mot(s) emotionnel(s) : ${foundSentiment.slice(0, 3).join(', ')}`
-      : 'Le title ne contient aucun mot emotionnel — Les mots a forte emotion augmentent le taux de clic.',
+      ? r.sentimentPass(foundSentiment.length, foundSentiment.slice(0, 3).join(', '))
+      : r.sentimentFail,
     category: 'bonus',
     weight: 1,
     group: 'title',
-    ...(foundSentiment.length > 0 ? {} : { tip: 'Ajoutez un mot emotionnel pour capter l\'attention (ex: "erreur", "secret", "incroyable").' }),
+    ...(foundSentiment.length > 0 ? {} : { tip: r.sentimentTip }),
   })
 
   return checks

@@ -1,11 +1,13 @@
 /**
  * SEO Rules — Open Graph / Twitter social checks (weight: 2, category: important)
  */
-import type { SeoCheck, SeoInput, AnalysisContext } from '../types'
-import { SOCIAL_TITLE_MAX, SOCIAL_DESC_MAX } from '../constants'
+import type { SeoCheck, SeoInput, AnalysisContext } from '../types.js'
+import { SOCIAL_TITLE_MAX, SOCIAL_DESC_MAX } from '../constants.js'
+import { getTranslations } from '../i18n.js'
 
-export function checkSocial(input: SeoInput, _ctx: AnalysisContext): SeoCheck[] {
+export function checkSocial(input: SeoInput, ctx: AnalysisContext): SeoCheck[] {
   const checks: SeoCheck[] = []
+  const r = getTranslations(ctx.locale).rules.social
 
   // 34. OG/meta image defined
   const hasMetaImage =
@@ -16,10 +18,9 @@ export function checkSocial(input: SeoInput, _ctx: AnalysisContext): SeoCheck[] 
   if (!hasMetaImage) {
     checks.push({
       id: 'social-og-image',
-      label: 'Image OG (meta)',
+      label: r.ogImageLabel,
       status: 'warning',
-      message:
-        'Aucune image meta definie — Ajoutez une image pour le partage sur les reseaux sociaux.',
+      message: r.ogImageFail,
       category: 'important',
       weight: 2,
       group: 'social',
@@ -27,9 +28,9 @@ export function checkSocial(input: SeoInput, _ctx: AnalysisContext): SeoCheck[] 
   } else {
     checks.push({
       id: 'social-og-image',
-      label: 'Image OG (meta)',
+      label: r.ogImageLabel,
       status: 'pass',
-      message: 'Image meta definie — Parfait pour le partage social.',
+      message: r.ogImagePass,
       category: 'important',
       weight: 2,
       group: 'social',
@@ -41,9 +42,9 @@ export function checkSocial(input: SeoInput, _ctx: AnalysisContext): SeoCheck[] 
   if (title && title.length > SOCIAL_TITLE_MAX) {
     checks.push({
       id: 'social-title-truncation',
-      label: 'Title sur les reseaux',
+      label: r.titleTruncLabel,
       status: 'warning',
-      message: `Le title (${title.length} car.) sera tronque sur certains reseaux sociaux (max ~65 car.).`,
+      message: r.titleTruncFail(title.length),
       category: 'bonus',
       weight: 1,
       group: 'social',
@@ -51,9 +52,9 @@ export function checkSocial(input: SeoInput, _ctx: AnalysisContext): SeoCheck[] 
   } else if (title) {
     checks.push({
       id: 'social-title-truncation',
-      label: 'Title sur les reseaux',
+      label: r.titleTruncLabel,
       status: 'pass',
-      message: 'Le title ne sera pas tronque sur les reseaux sociaux.',
+      message: r.titleTruncPass,
       category: 'bonus',
       weight: 1,
       group: 'social',
@@ -65,9 +66,9 @@ export function checkSocial(input: SeoInput, _ctx: AnalysisContext): SeoCheck[] 
   if (desc && desc.length > SOCIAL_DESC_MAX) {
     checks.push({
       id: 'social-desc-length',
-      label: 'Description sociale',
+      label: r.descLengthLabel,
       status: 'warning',
-      message: `La description (${desc.length} car.) sera tronquee sur Facebook/LinkedIn (max ~155 car.).`,
+      message: r.descLengthFail(desc.length),
       category: 'bonus',
       weight: 1,
       group: 'social',
@@ -75,9 +76,9 @@ export function checkSocial(input: SeoInput, _ctx: AnalysisContext): SeoCheck[] 
   } else if (desc) {
     checks.push({
       id: 'social-desc-length',
-      label: 'Description sociale',
+      label: r.descLengthLabel,
       status: 'pass',
-      message: 'La description est adaptee au partage social.',
+      message: r.descLengthPass,
       category: 'bonus',
       weight: 1,
       group: 'social',

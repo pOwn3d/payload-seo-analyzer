@@ -7,16 +7,17 @@
  * 3. Year reference — mentions of current/past years in content
  * 4. Thin content aging — thin + old content is penalised harder
  */
-import type { SeoCheck, SeoInput, AnalysisContext } from '../types'
+import type { SeoCheck, SeoInput, AnalysisContext } from '../types.js'
 import {
   MS_PER_DAY,
   FRESHNESS_DAYS_EVERGREEN,
   FRESHNESS_DAYS_FAIL,
   FRESHNESS_DAYS_WARN,
   REVIEW_DAYS_WARN,
-  EVERGREEN_PAGE_SLUGS,
+  getEvergreenSlugs,
   THIN_AGING_MIN_WORDS,
-} from '../constants'
+} from '../constants.js'
+import { getTranslations } from '../i18n.js'
 
 function daysSince(dateStr: string | undefined): number {
   if (!dateStr) return Infinity
@@ -27,11 +28,14 @@ function daysSince(dateStr: string | undefined): number {
 
 function isEvergreenPage(slug: string | undefined): boolean {
   if (!slug) return false
-  return EVERGREEN_PAGE_SLUGS.some((s) => slug === s || slug.endsWith(`/${s}`))
+  // Check both FR and EN evergreen slugs — a site may mix languages
+  const allEvergreen = [...getEvergreenSlugs('fr'), ...getEvergreenSlugs('en')]
+  return allEvergreen.some((s) => slug === s || slug.endsWith(`/${s}`))
 }
 
 export function checkFreshness(input: SeoInput, ctx: AnalysisContext): SeoCheck[] {
   const checks: SeoCheck[] = []
+  const r = getTranslations(ctx.locale).rules.freshness
   const evergreen = isEvergreenPage(input.slug)
 
   // 1. Content age (based on updatedAt)
@@ -44,9 +48,9 @@ export function checkFreshness(input: SeoInput, ctx: AnalysisContext): SeoCheck[
     if (daysOld > FRESHNESS_DAYS_EVERGREEN) {
       checks.push({
         id: 'freshness-age',
-        label: 'Anciennete du contenu',
+        label: r.ageLabel,
         status: 'warning',
-        message: `Contenu non mis a jour depuis ${daysOld} jours (>${'\u00A0'}24 mois) — Verifiez que les informations legales sont toujours a jour.`,
+        message: r.ageEvergreenWarn(daysOld),
         category: 'bonus',
         weight: 1,
         group: 'freshness',
@@ -54,9 +58,9 @@ export function checkFreshness(input: SeoInput, ctx: AnalysisContext): SeoCheck[
     } else {
       checks.push({
         id: 'freshness-age',
-        label: 'Anciennete du contenu',
+        label: r.ageLabel,
         status: 'pass',
-        message: `Page evergreen — Mis a jour il y a ${daysOld} jour${daysOld !== 1 ? 's' : ''}.`,
+        message: r.ageEvergreenPass(daysOld),
         category: 'bonus',
         weight: 1,
         group: 'freshness',
@@ -65,9 +69,9 @@ export function checkFreshness(input: SeoInput, ctx: AnalysisContext): SeoCheck[
   } else if (daysOld > FRESHNESS_DAYS_FAIL) {
     checks.push({
       id: 'freshness-age',
-      label: 'Anciennete du contenu',
+      label: r.ageLabel,
       status: 'fail',
-      message: `Contenu non mis a jour depuis ${daysOld} jours (>${'\u00A0'}12 mois) — Ce contenu est potentiellement obsolete.`,
+      message: r.ageFail(daysOld),
       category: 'important',
       weight: 3,
       group: 'freshness',
@@ -75,9 +79,9 @@ export function checkFreshness(input: SeoInput, ctx: AnalysisContext): SeoCheck[
   } else if (daysOld > FRESHNESS_DAYS_WARN) {
     checks.push({
       id: 'freshness-age',
-      label: 'Anciennete du contenu',
+      label: r.ageLabel,
       status: 'warning',
-      message: `Contenu non mis a jour depuis ${daysOld} jours (>${'\u00A0'}6 mois) — Pensez a le rafraichir.`,
+      message: r.ageWarn(daysOld),
       category: 'important',
       weight: 3,
       group: 'freshness',
@@ -85,9 +89,9 @@ export function checkFreshness(input: SeoInput, ctx: AnalysisContext): SeoCheck[
   } else {
     checks.push({
       id: 'freshness-age',
-      label: 'Anciennete du contenu',
+      label: r.ageLabel,
       status: 'pass',
-      message: `Contenu mis a jour il y a ${daysOld} jour${daysOld !== 1 ? 's' : ''}.`,
+      message: r.agePass(daysOld),
       category: 'important',
       weight: 3,
       group: 'freshness',
@@ -101,9 +105,9 @@ export function checkFreshness(input: SeoInput, ctx: AnalysisContext): SeoCheck[
     if (daysReviewed > REVIEW_DAYS_WARN) {
       checks.push({
         id: 'freshness-reviewed',
-        label: 'Revision du contenu',
+        label: r.reviewLabel,
         status: 'warning',
-        message: `Derniere revision il y a ${daysReviewed} jours (>${'\u00A0'}6 mois) — Verifiez que le contenu est toujours d'actualite.`,
+        message: r.reviewWarn(daysReviewed),
         category: 'bonus',
         weight: 2,
         group: 'freshness',
@@ -111,9 +115,9 @@ export function checkFreshness(input: SeoInput, ctx: AnalysisContext): SeoCheck[
     } else {
       checks.push({
         id: 'freshness-reviewed',
-        label: 'Revision du contenu',
+        label: r.reviewLabel,
         status: 'pass',
-        message: `Contenu revise il y a ${daysReviewed} jour${daysReviewed !== 1 ? 's' : ''}.`,
+        message: r.reviewPass(daysReviewed),
         category: 'bonus',
         weight: 2,
         group: 'freshness',
@@ -140,9 +144,9 @@ export function checkFreshness(input: SeoInput, ctx: AnalysisContext): SeoCheck[
     const oldest = Math.min(...olderYears)
     checks.push({
       id: 'freshness-year-ref',
-      label: 'References temporelles',
+      label: r.yearRefLabel,
       status: 'warning',
-      message: `Le contenu mentionne l'annee ${oldest} sans reference a ${currentYear} ou ${lastYear} — Contenu potentiellement obsolete.`,
+      message: r.yearRefWarn(oldest, currentYear, lastYear),
       category: 'important',
       weight: 2,
       group: 'freshness',
@@ -150,9 +154,9 @@ export function checkFreshness(input: SeoInput, ctx: AnalysisContext): SeoCheck[
   } else if (mentionsCurrent) {
     checks.push({
       id: 'freshness-year-ref',
-      label: 'References temporelles',
+      label: r.yearRefLabel,
       status: 'pass',
-      message: `Le contenu fait reference a l'annee en cours (${currentYear}).`,
+      message: r.yearRefPass(currentYear),
       category: 'important',
       weight: 2,
       group: 'freshness',
@@ -164,9 +168,9 @@ export function checkFreshness(input: SeoInput, ctx: AnalysisContext): SeoCheck[
   if (!evergreen && ctx.wordCount < THIN_AGING_MIN_WORDS && daysOld > FRESHNESS_DAYS_WARN) {
     checks.push({
       id: 'freshness-thin-aging',
-      label: 'Contenu leger et ancien',
+      label: r.thinAgingLabel,
       status: 'fail',
-      message: `Seulement ${ctx.wordCount} mots et non mis a jour depuis ${daysOld} jours — Un contenu leger ancien perd rapidement en pertinence.`,
+      message: r.thinAgingFail(ctx.wordCount, daysOld),
       category: 'important',
       weight: 3,
       group: 'freshness',

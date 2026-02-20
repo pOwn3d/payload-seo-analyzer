@@ -2,22 +2,24 @@
  * SEO Rules — Cornerstone / pillar content checks.
  * These checks only run when `isCornerstone` is true on the document.
  */
-import type { SeoCheck, SeoInput, AnalysisContext } from '../types'
-import { CORNERSTONE_MIN_WORDS, CORNERSTONE_MIN_INTERNAL_LINKS, META_DESC_LENGTH_MIN, META_DESC_LENGTH_MAX } from '../constants'
+import type { SeoCheck, SeoInput, AnalysisContext } from '../types.js'
+import { CORNERSTONE_MIN_WORDS, CORNERSTONE_MIN_INTERNAL_LINKS, META_DESC_LENGTH_MIN, META_DESC_LENGTH_MAX } from '../constants.js'
+import { getTranslations } from '../i18n.js'
 
 export function checkCornerstone(input: SeoInput, ctx: AnalysisContext): SeoCheck[] {
   // Skip entirely if the content is not marked as cornerstone
   if (!input.isCornerstone) return []
 
   const checks: SeoCheck[] = []
+  const r = getTranslations(ctx.locale).rules.cornerstone
 
   // 1. Word count >= CORNERSTONE_MIN_WORDS (cornerstone should be comprehensive)
   if (ctx.wordCount >= CORNERSTONE_MIN_WORDS) {
     checks.push({
       id: 'cornerstone-wordcount',
-      label: 'Longueur du contenu pilier',
+      label: r.wordcountLabel,
       status: 'pass',
-      message: `${ctx.wordCount} mots — Le contenu pilier est suffisamment complet.`,
+      message: r.wordcountPass(ctx.wordCount),
       category: 'important',
       weight: 4,
       group: 'cornerstone',
@@ -25,9 +27,9 @@ export function checkCornerstone(input: SeoInput, ctx: AnalysisContext): SeoChec
   } else {
     checks.push({
       id: 'cornerstone-wordcount',
-      label: 'Longueur du contenu pilier',
+      label: r.wordcountLabel,
       status: 'warning',
-      message: `${ctx.wordCount} mots — Un contenu pilier devrait contenir au moins 1500 mots pour etre vraiment complet.`,
+      message: r.wordcountFail(ctx.wordCount),
       category: 'important',
       weight: 4,
       group: 'cornerstone',
@@ -42,9 +44,9 @@ export function checkCornerstone(input: SeoInput, ctx: AnalysisContext): SeoChec
   if (internalLinks.length >= CORNERSTONE_MIN_INTERNAL_LINKS) {
     checks.push({
       id: 'cornerstone-internal-links',
-      label: 'Maillage interne du contenu pilier',
+      label: r.internalLinksLabel,
       status: 'pass',
-      message: `${internalLinks.length} liens internes — Bon maillage pour un contenu pilier.`,
+      message: r.internalLinksPass(internalLinks.length),
       category: 'important',
       weight: 4,
       group: 'cornerstone',
@@ -52,9 +54,9 @@ export function checkCornerstone(input: SeoInput, ctx: AnalysisContext): SeoChec
   } else {
     checks.push({
       id: 'cornerstone-internal-links',
-      label: 'Maillage interne du contenu pilier',
+      label: r.internalLinksLabel,
       status: 'warning',
-      message: `${internalLinks.length} lien(s) interne(s) — Un contenu pilier devrait avoir au moins 5 liens internes vers du contenu associe.`,
+      message: r.internalLinksFail(internalLinks.length),
       category: 'important',
       weight: 4,
       group: 'cornerstone',
@@ -65,9 +67,9 @@ export function checkCornerstone(input: SeoInput, ctx: AnalysisContext): SeoChec
   if (ctx.normalizedKeyword) {
     checks.push({
       id: 'cornerstone-focus-keyword',
-      label: 'Mot-cle principal du contenu pilier',
+      label: r.focusKeywordLabel,
       status: 'pass',
-      message: 'Un mot-cle principal est defini pour ce contenu pilier.',
+      message: r.focusKeywordPass,
       category: 'critical',
       weight: 5,
       group: 'cornerstone',
@@ -75,9 +77,9 @@ export function checkCornerstone(input: SeoInput, ctx: AnalysisContext): SeoChec
   } else {
     checks.push({
       id: 'cornerstone-focus-keyword',
-      label: 'Mot-cle principal du contenu pilier',
+      label: r.focusKeywordLabel,
       status: 'fail',
-      message: 'Un contenu pilier DOIT avoir un mot-cle principal — Definissez-le dans la sidebar.',
+      message: r.focusKeywordFail,
       category: 'critical',
       weight: 5,
       group: 'cornerstone',
@@ -89,9 +91,9 @@ export function checkCornerstone(input: SeoInput, ctx: AnalysisContext): SeoChec
   if (metaDesc.length >= META_DESC_LENGTH_MIN && metaDesc.length <= META_DESC_LENGTH_MAX) {
     checks.push({
       id: 'cornerstone-meta-description',
-      label: 'Meta description du contenu pilier',
+      label: r.metaDescLabel,
       status: 'pass',
-      message: `Meta description de ${metaDesc.length} caracteres — Optimale pour un contenu pilier.`,
+      message: r.metaDescPass(metaDesc.length),
       category: 'critical',
       weight: 5,
       group: 'cornerstone',
@@ -99,9 +101,9 @@ export function checkCornerstone(input: SeoInput, ctx: AnalysisContext): SeoChec
   } else if (metaDesc.length > 0) {
     checks.push({
       id: 'cornerstone-meta-description',
-      label: 'Meta description du contenu pilier',
+      label: r.metaDescLabel,
       status: 'warning',
-      message: `Meta description de ${metaDesc.length} caracteres — Visez entre 120 et 160 caracteres pour un contenu pilier.`,
+      message: r.metaDescWarn(metaDesc.length),
       category: 'critical',
       weight: 5,
       group: 'cornerstone',
@@ -109,9 +111,9 @@ export function checkCornerstone(input: SeoInput, ctx: AnalysisContext): SeoChec
   } else {
     checks.push({
       id: 'cornerstone-meta-description',
-      label: 'Meta description du contenu pilier',
+      label: r.metaDescLabel,
       status: 'fail',
-      message: 'Un contenu pilier DOIT avoir une meta description — C\'est essentiel pour le CTR dans les SERP.',
+      message: r.metaDescFail,
       category: 'critical',
       weight: 5,
       group: 'cornerstone',
