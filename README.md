@@ -1,21 +1,61 @@
-# @consilioweb/seo-analyzer
+<!-- Header Banner -->
+<div align="center">
 
-[![npm version](https://img.shields.io/npm/v/@consilioweb/seo-analyzer)](https://www.npmjs.com/package/@consilioweb/seo-analyzer)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Payload CMS 3](https://img.shields.io/badge/Payload%20CMS-3.x-blue)](https://payloadcms.com/)
-[![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933)](https://nodejs.org/)
+  <a href="https://git.io/typing-svg">
+    <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=32&duration=3000&pause=1000&color=3B82F6&center=true&vCenter=true&width=700&lines=%40consilioweb%2Fseo-analyzer;Payload+CMS+SEO+Plugin;50%2B+Checks+%7C+French+Readability;Admin+Dashboard+Suite" alt="Typing SVG" />
+  </a>
 
-**A comprehensive SEO analysis plugin for Payload CMS 3 -- 50+ checks, French readability scoring, native Lexical JSON support, and a full admin dashboard suite.**
+  <br><br>
 
----
+  <!-- Badges -->
+  <img src="https://img.shields.io/badge/Payload%20CMS-3.x-0F172A?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTIgMkw0IDdWMTdMMTIgMjJMMjAgMTdWN0wxMiAyWiIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48L3N2Zz4=&logoColor=white" alt="Payload CMS 3">
+  <img src="https://img.shields.io/badge/SEO-50%2B%20Checks-10B981?style=for-the-badge" alt="50+ Checks">
+  <img src="https://img.shields.io/badge/French-Readability-3B82F6?style=for-the-badge" alt="French Readability">
+  <img src="https://img.shields.io/badge/License-MIT-7C3AED?style=for-the-badge" alt="MIT License">
+  <img src="https://img.shields.io/badge/TypeScript-5.x-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
+
+</div>
+
+<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
+
+## About
+
+> **@consilioweb/seo-analyzer** — A comprehensive SEO analysis plugin for Payload CMS 3 with 50+ checks, French readability scoring, native Lexical JSON support, and a full admin dashboard suite.
+
+<table>
+  <tr>
+    <td align="center" width="25%">
+      <img src="https://img.icons8.com/color/96/seo.png" width="50"/><br>
+      <b>50+ SEO Checks</b><br>
+      <sub>17 rule groups</sub>
+    </td>
+    <td align="center" width="25%">
+      <img src="https://img.icons8.com/color/96/dashboard-layout.png" width="50"/><br>
+      <b>9 Admin Views</b><br>
+      <sub>Full dashboard suite</sub>
+    </td>
+    <td align="center" width="25%">
+      <img src="https://img.icons8.com/color/96/france.png" width="50"/><br>
+      <b>French Readability</b><br>
+      <sub>Flesch-Kincaid FR</sub>
+    </td>
+    <td align="center" width="25%">
+      <img src="https://img.icons8.com/color/96/api-settings.png" width="50"/><br>
+      <b>20+ Endpoints</b><br>
+      <sub>REST API</sub>
+    </td>
+  </tr>
+</table>
+
+<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
 
 ## Overview
 
 `@consilioweb/seo-analyzer` adds a complete SEO toolkit directly into your Payload CMS admin panel. It runs **50+ on-page SEO checks** in real time as editors write content, with specialized support for **French-language readability** (Flesch-Kincaid / Kandel-Moles adaptation) and **native parsing of Payload's Lexical rich text** format.
 
-The plugin provides **9 dedicated admin views**, **5 auto-managed collections**, **20+ API endpoints**, and automatic behaviors like slug-change redirect creation and score history tracking -- all configured through a single plugin call.
+The plugin provides **9 dedicated admin views**, **5 auto-managed collections**, **20+ API endpoints**, and automatic behaviors like slug-change redirect creation and score history tracking — all configured through a single plugin call.
 
----
+<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
 
 ## Table of Contents
 
@@ -34,7 +74,7 @@ The plugin provides **9 dedicated admin views**, **5 auto-managed collections**,
 - [Requirements](#requirements)
 - [License](#license)
 
----
+<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
 
 ## Features
 
@@ -42,27 +82,27 @@ The plugin provides **9 dedicated admin views**, **5 auto-managed collections**,
 
 The core analyzer runs **17 rule groups** covering every aspect of on-page SEO:
 
-- **Title** -- length (30-60 chars), keyword presence and position, duplicate brand detection, power words, numbers, questions, emotional words
-- **Meta Description** -- length (120-160 chars), keyword presence, call-to-action verbs
-- **URL / Slug** -- length, format validation, keyword presence, French stop word detection
-- **Headings** -- unique H1, keyword in H1/H2, heading hierarchy, H1 vs title differentiation, heading frequency
-- **Content** -- word count by page type, keyword in introduction, keyword density (0.5%-2.5%), placeholder detection, thin content, keyword distribution across content tiers, list detection
-- **Images** -- alt text coverage (80%+ threshold), keyword in alt, image presence and quantity
-- **Linking** -- internal links (3+ recommended), external links, generic anchor detection, empty link detection
-- **Social** -- OG image, title truncation on social platforms, description length for Facebook/LinkedIn
-- **Schema** -- structured data readiness (title + description + image)
-- **Readability** -- Flesch FR score, long sentences, long paragraphs, passive voice, transition words, consecutive same-start sentences, long sections without subheadings
-- **Quality** -- duplicate/placeholder content detection, substantial content validation
-- **Secondary Keywords** -- presence in title, description, content, and H2/H3 headings (up to 3 secondary keywords)
-- **Cornerstone** -- enhanced checks for pillar content (1500+ words, 5+ internal links, mandatory keyword)
-- **Freshness** -- content age tracking, review dates, year references, thin content aging penalty
-- **Technical** -- canonical URL validation, robots meta directives (noindex/nofollow)
-- **Accessibility** -- short anchors, alt text quality, empty headings, duplicate adjacent links, all-caps headings, link density ratio, camera filename detection, alt-heading redundancy
-- **E-commerce** -- price detection, product description length, image count, brand in title, price in meta, review readiness, availability status
+- **Title** — length (30-60 chars), keyword presence and position, duplicate brand detection, power words, numbers, questions, emotional words
+- **Meta Description** — length (120-160 chars), keyword presence, call-to-action verbs
+- **URL / Slug** — length, format validation, keyword presence, French stop word detection
+- **Headings** — unique H1, keyword in H1/H2, heading hierarchy, H1 vs title differentiation, heading frequency
+- **Content** — word count by page type, keyword in introduction, keyword density (0.5%-2.5%), placeholder detection, thin content, keyword distribution across content tiers, list detection
+- **Images** — alt text coverage (80%+ threshold), keyword in alt, image presence and quantity
+- **Linking** — internal links (3+ recommended), external links, generic anchor detection, empty link detection
+- **Social** — OG image, title truncation on social platforms, description length for Facebook/LinkedIn
+- **Schema** — structured data readiness (title + description + image)
+- **Readability** — Flesch FR score, long sentences, long paragraphs, passive voice, transition words, consecutive same-start sentences, long sections without subheadings
+- **Quality** — duplicate/placeholder content detection, substantial content validation
+- **Secondary Keywords** — presence in title, description, content, and H2/H3 headings (up to 3 secondary keywords)
+- **Cornerstone** — enhanced checks for pillar content (1500+ words, 5+ internal links, mandatory keyword)
+- **Freshness** — content age tracking, review dates, year references, thin content aging penalty
+- **Technical** — canonical URL validation, robots meta directives (noindex/nofollow)
+- **Accessibility** — short anchors, alt text quality, empty headings, duplicate adjacent links, all-caps headings, link density ratio, camera filename detection, alt-heading redundancy
+- **E-commerce** — price detection, product description length, image count, brand in title, price in meta, review readiness, availability status
 
 ### French Readability (Flesch-Kincaid FR)
 
-Adapted Flesch-Kincaid formula for French text using the **Kandel-Moles coefficients**. French naturally produces lower Flesch scores than English due to longer words (suffixes like `-tion`, `-ment`, `-ite`) and structurally longer sentences (articles, prepositions, relative clauses). The thresholds are calibrated accordingly:
+Adapted Flesch-Kincaid formula for French text using the **Kandel-Moles coefficients**. French naturally produces lower Flesch scores than English due to longer words (suffixes like `-tion`, `-ment`, `-ité`) and structurally longer sentences. The thresholds are calibrated accordingly:
 
 | Level | Score | Equivalent in English |
 |-------|-------|-----------------------|
@@ -70,7 +110,7 @@ Adapted Flesch-Kincaid formula for French text using the **Kandel-Moles coeffici
 | Warning | >= 25 | ~35-45 |
 | Fail | < 25 | < 35 |
 
-Includes French-specific **passive voice detection** (excludes passe compose with etre-verbs) and a curated list of **30+ French transition words**.
+Includes French-specific **passive voice detection** (excludes passé composé with être-verbs) and a curated list of **30+ French transition words**.
 
 ### Native Lexical JSON Support
 
@@ -81,7 +121,7 @@ Natively parses Payload CMS Lexical rich text JSON structures with:
 - Link extraction (internal/external) with anchor text
 - Image extraction with alt text analysis
 - List detection (ordered/unordered) for featured snippet optimization
-- Support for nested blocks, columns, and all standard Payload block types (Content, CTA, Services, Testimonials, Portfolio, LatestPosts, etc.)
+- Support for nested blocks, columns, and all standard Payload block types
 
 ### Admin Dashboard Suite (9 Views)
 
@@ -99,19 +139,19 @@ Natively parses Payload CMS Lexical rich text JSON structures with:
 
 ### Editor Sidebar Components
 
-- **SeoAnalyzer** -- Real-time SEO scoring widget in the document editor sidebar with pass/warning/fail indicators, actionable tips, and grouped checks
-- **Score History Chart** -- Inline score trend visualization over time
-- **Content Decay Section** -- Freshness and aging indicators
-- **Social Preview** -- Facebook and Twitter card preview
+- **SeoAnalyzer** — Real-time SEO scoring widget in the document editor sidebar with pass/warning/fail indicators, actionable tips, and grouped checks
+- **Score History Chart** — Inline score trend visualization over time
+- **Content Decay Section** — Freshness and aging indicators
+- **Social Preview** — Facebook and Twitter card preview
 
 ### Automatic Behaviors
 
-- **Auto-redirect on slug change** -- Creates a 301 redirect when a document's slug is modified (with redirect chain detection)
-- **Score history tracking** -- Records SEO score snapshots on every document save via afterChange hook
-- **Cache warm-up** -- Pre-loads collection data on startup and hourly for instant dashboard response
-- **SEO Logs (404 monitoring)** -- Tracks 404 errors with hit count, referrer, and user agent for proactive redirect management
+- **Auto-redirect on slug change** — Creates a 301 redirect when a document's slug is modified (with redirect chain detection)
+- **Score history tracking** — Records SEO score snapshots on every document save via afterChange hook
+- **Cache warm-up** — Pre-loads collection data on startup and hourly for instant dashboard response
+- **SEO Logs (404 monitoring)** — Tracks 404 errors with hit count, referrer, and user agent for proactive redirect management
 
----
+<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
 
 ## Installation
 
@@ -136,8 +176,9 @@ The plugin requires Payload CMS 3.x. The following peer dependencies are optiona
 | `@payloadcms/next` | `^3.0.0` | Optional (admin views) |
 | `@payloadcms/ui` | `^3.0.0` | Optional (admin UI) |
 | `react` | `^18.0.0 \|\| ^19.0.0` | Optional (admin UI) |
+| `xlsx` | `>=0.18.0` | Optional (XLSX import in Performance view) |
 
----
+<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
 
 ## Quick Start
 
@@ -166,7 +207,7 @@ That's it. The plugin will automatically:
 5. Attach `beforeChange` (auto-redirect) and `afterChange` (score tracking) hooks to target collections
 6. Start background cache warm-up on server init
 
----
+<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
 
 ## Configuration
 
@@ -174,7 +215,7 @@ That's it. The plugin will automatically:
 
 ```ts
 seoPlugin({
-  // All options are optional -- sensible defaults are used
+  // All options are optional — sensible defaults are used
   collections: ['pages', 'posts'],
   addDashboardView: true,
   addSitemapAuditView: true,
@@ -204,7 +245,7 @@ seoPlugin({
 | `endpointBasePath` | `string` | `'/seo-plugin'` | Base path prefix for all API endpoints |
 | `trackScoreHistory` | `boolean` | `true` | Enable score history collection and afterChange tracking hook |
 | `redirectsCollection` | `string` | `'seo-redirects'` | Slug for the auto-created redirects collection |
-| `knownRoutes` | `string[]` | `[]` | Dynamic routes that should not be flagged as broken links (e.g., `['blog', 'posts']`) |
+| `knownRoutes` | `string[]` | `[]` | Dynamic routes that should not be flagged as broken links |
 | `seoLogsSecret` | `string` | `undefined` | Shared secret for the SEO logs POST endpoint (middleware auth) |
 
 ### `SeoThresholds`
@@ -276,7 +317,7 @@ export default buildConfig({
 })
 ```
 
----
+<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
 
 ## Admin Views
 
@@ -285,20 +326,27 @@ export default buildConfig({
 The main dashboard displays a sortable, filterable table of all pages and posts with their SEO scores. Features include:
 
 - Color-coded score badges (excellent/good/ok/poor)
-- Sortable columns: score, title, word count, focus keyword, etc.
-- Inline editing of focus keywords
-- Bulk analysis and export
+- Sortable columns: score, title, word count, focus keyword, H1, OG image, links, readability
+- Quick filters: missing meta, missing H1, low readability
+- Inline editing of meta title and description
+- Bulk actions: export CSV, mark/unmark cornerstone
+- Checkboxes for multi-selection
+- Score trend indicators (up/down arrows)
+- Multi-keyword display
 - Quick links to edit each document
 
 ### Sitemap Audit (`/admin/sitemap-audit`)
 
 Analyzes your site's internal structure to identify:
 
-- **Orphan pages** -- pages with no internal links pointing to them
-- **Weak pages** -- pages with low link equity
-- **Broken internal links** -- links pointing to non-existent pages
-- **Hub pages** -- pages with the most outgoing internal links
-- **Link graph data** -- complete internal linking map
+- **Orphan pages** — pages with no internal links pointing to them
+- **Weak pages** — pages with few incoming links (with anchor text display)
+- **Broken internal links** — links pointing to non-existent pages (with fix suggestions)
+- **Hub pages** — pages with the most outgoing internal links
+- **One-click 301 redirect creation** for broken links
+- **SEO scores** alongside orphan and weak pages
+- **Hover previews** with contextual information
+- **Export** — JSON and CSV download of the full link graph
 
 ### SEO Configuration (`/admin/seo-config`)
 
@@ -328,7 +376,7 @@ Identifies pages competing for the same keywords by detecting documents that sha
 
 Import and visualize Google Search Console data:
 
-- CSV and XLSX file import
+- CSV and XLSX file import (supports French GSC headers)
 - Click, impression, CTR, and position tracking
 - Trend visualization over time
 - Per-URL and per-query breakdowns
@@ -352,7 +400,7 @@ Interactive visualization of your site's internal linking structure:
 - Hub and orphan page identification
 - Link equity flow analysis
 
----
+<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
 
 ## API Endpoints
 
@@ -371,7 +419,7 @@ All endpoints are prefixed with the configured `endpointBasePath` (default: `/se
 | `GET` `POST` `PATCH` `DELETE` | `/redirects` | Full CRUD for redirect management |
 | `POST` | `/ai-generate` | AI-powered meta title/description generation |
 | `GET` | `/cannibalization` | Detect keyword cannibalization |
-| `POST` | `/external-links` | Check external link status (live HTTP checks) |
+| `POST` | `/external-links` | Check external link status (live HTTP checks with SSRF protection) |
 | `GET` | `/sitemap-config` | Sitemap configuration data |
 | `GET` `POST` | `/performance` | Read or import performance data (CSV/XLSX) |
 | `GET` | `/keyword-research` | Keyword suggestions and gap analysis |
@@ -379,7 +427,7 @@ All endpoints are prefixed with the configured `endpointBasePath` (default: `/se
 | `GET` | `/link-graph` | Internal link graph data |
 | `GET` `POST` `DELETE` | `/seo-logs` | 404 log management (POST supports secret-header auth) |
 
----
+<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
 
 ## SEO Rules Reference
 
@@ -387,9 +435,9 @@ All endpoints are prefixed with the configured `endpointBasePath` (default: `/se
 
 Each check has a **weight** (1-5) and produces a **status** (`pass`, `warning`, or `fail`):
 
-- **Pass** -- earns 100% of weight points
-- **Warning** -- earns 50% of weight points
-- **Fail** -- earns 0 points
+- **Pass** — earns 100% of weight points
+- **Warning** — earns 50% of weight points
+- **Fail** — earns 0 points
 
 **Final score** = `round(earnedPoints / maxPoints * 100)`
 
@@ -620,7 +668,7 @@ Each check has a **weight** (1-5) and produces a **status** (`pass`, `warning`, 
 
 </details>
 
----
+<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
 
 ## Collections
 
@@ -634,7 +682,7 @@ The plugin automatically creates and manages these collections (all hidden from 
 | **SEO Redirects** | `seo-redirects` | 301/302 redirect rules (from, to, type). Slug is configurable via `redirectsCollection` |
 | **SEO Logs** | `seo-logs` | 404 error tracking (URL, type, hit count, last seen, referrer, user agent, ignored flag) |
 
----
+<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
 
 ## Fields Added to Collections
 
@@ -647,7 +695,7 @@ The plugin adds the following fields to each target collection specified in `col
 | `seoAnalyzer` | `ui` | Sidebar | Real-time SEO analysis widget with score, checks, and actionable tips |
 | `focusKeywords` | `array` (max 3) | Collapsible group | Secondary focus keywords for additional coverage |
 
----
+<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
 
 ## Programmatic Usage
 
@@ -745,7 +793,7 @@ import {
 } from '@consilioweb/seo-analyzer'
 ```
 
----
+<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
 
 ## Page Type Detection
 
@@ -763,17 +811,17 @@ The analyzer automatically adapts thresholds and check severity based on the det
 | `resource` | Slug contains `ressource`, `guide`, `tutoriel` | Standard checks |
 | `generic` | Default fallback | Standard checks (300 words min) |
 
----
+<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
 
 ## Package Exports
 
 The package provides three entry points for different use contexts:
 
 ```ts
-// Main entry -- plugin, analyzer, types, helpers, constants
+// Main entry — plugin, analyzer, types, helpers, constants
 import { seoPlugin, analyzeSeo, seoFields } from '@consilioweb/seo-analyzer'
 
-// Client components -- React components for Payload admin UI
+// Client components — React components for Payload admin UI
 import {
   SeoAnalyzerField,
   SeoNavLink,
@@ -782,7 +830,7 @@ import {
   SeoSocialPreview,
 } from '@consilioweb/seo-analyzer/client'
 
-// Server views -- admin views wrapped in DefaultTemplate
+// Server views — admin views wrapped in DefaultTemplate
 import {
   SeoView,
   SitemapAuditView,
@@ -796,7 +844,7 @@ import {
 } from '@consilioweb/seo-analyzer/views'
 ```
 
----
+<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
 
 ## Requirements
 
@@ -805,14 +853,32 @@ import {
 - **React** 18.x or 19.x (for admin UI components)
 - **Database**: Any Payload-supported adapter (SQLite, PostgreSQL, MongoDB)
 
----
+<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
 
 ## License
 
 [MIT](LICENSE)
 
----
+<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
 
-## Author
+<div align="center">
 
-**[ConsilioWEB](https://consilioweb.fr)** -- Agence web & mobile, Montpellier
+### Author
+
+**Made with passion by [ConsilioWEB](https://consilioweb.fr)**
+
+<a href="https://www.linkedin.com/in/christophe-lopez/">
+  <img src="https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white" alt="LinkedIn">
+</a>
+<a href="https://github.com/pOwn3d">
+  <img src="https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white" alt="GitHub">
+</a>
+<a href="https://consilioweb.fr">
+  <img src="https://img.shields.io/badge/Website-consilioweb.fr-3B82F6?style=for-the-badge&logo=google-chrome&logoColor=white" alt="Website">
+</a>
+
+<br><br>
+
+<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20&height=100&section=footer" width="100%"/>
+
+</div>
