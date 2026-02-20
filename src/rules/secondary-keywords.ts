@@ -7,12 +7,14 @@
  * - Keyword in content (presence only, no density/first-paragraph)
  * - Keyword in any H2/H3 heading
  */
-import type { SeoCheck, SeoInput, AnalysisContext } from '../types'
-import { countWords, normalizeForComparison } from '../helpers'
+import type { SeoCheck, SeoInput, AnalysisContext } from '../types.js'
+import { countWords, normalizeForComparison } from '../helpers.js'
+import { getTranslations } from '../i18n.js'
 
 
 export function checkSecondaryKeywords(input: SeoInput, ctx: AnalysisContext): SeoCheck[] {
   const checks: SeoCheck[] = []
+  const r = getTranslations(ctx.locale).rules.secondaryKeywords
   const { secondaryNormalizedKeywords } = ctx
 
   if (secondaryNormalizedKeywords.length === 0) return checks
@@ -35,11 +37,9 @@ export function checkSecondaryKeywords(input: SeoInput, ctx: AnalysisContext): S
     const kwInTitle = titleLower.includes(kw)
     checks.push({
       id: `secondary-kw-title-${i}`,
-      label: `Mot-cle secondaire dans le title${suffix}`,
+      label: r.titleLabel(suffix),
       status: kwInTitle ? 'pass' : 'warning',
-      message: kwInTitle
-        ? `Le mot-cle secondaire "${displayKw}" est present dans le meta title.`
-        : `Le mot-cle secondaire "${displayKw}" n'est pas dans le meta title.`,
+      message: kwInTitle ? r.titlePass(displayKw as string) : r.titleFail(displayKw as string),
       category: 'bonus',
       weight: 1,
       group: 'secondary-keywords',
@@ -49,11 +49,9 @@ export function checkSecondaryKeywords(input: SeoInput, ctx: AnalysisContext): S
     const kwInDesc = descLower.includes(kw)
     checks.push({
       id: `secondary-kw-desc-${i}`,
-      label: `Mot-cle secondaire dans la description${suffix}`,
+      label: r.descLabel(suffix),
       status: kwInDesc ? 'pass' : 'warning',
-      message: kwInDesc
-        ? `Le mot-cle secondaire "${displayKw}" est present dans la meta description.`
-        : `Le mot-cle secondaire "${displayKw}" n'est pas dans la meta description.`,
+      message: kwInDesc ? r.descPass(displayKw as string) : r.descFail(displayKw as string),
       category: 'bonus',
       weight: 1,
       group: 'secondary-keywords',
@@ -75,9 +73,9 @@ export function checkSecondaryKeywords(input: SeoInput, ctx: AnalysisContext): S
 
       checks.push({
         id: `secondary-kw-content-${i}`,
-        label: `Mot-cle secondaire dans le contenu${suffix}`,
+        label: r.contentLabel(suffix),
         status: 'pass',
-        message: `Le mot-cle secondaire "${displayKw}" apparait ${kwCount} fois (${density.toFixed(1)}%).`,
+        message: r.contentPass(displayKw as string, kwCount, density.toFixed(1)),
         category: 'bonus',
         weight: 1,
         group: 'secondary-keywords',
@@ -85,9 +83,9 @@ export function checkSecondaryKeywords(input: SeoInput, ctx: AnalysisContext): S
     } else {
       checks.push({
         id: `secondary-kw-content-${i}`,
-        label: `Mot-cle secondaire dans le contenu${suffix}`,
+        label: r.contentLabel(suffix),
         status: 'warning',
-        message: `Le mot-cle secondaire "${displayKw}" n'apparait pas dans le contenu.`,
+        message: r.contentFail(displayKw as string),
         category: 'bonus',
         weight: 1,
         group: 'secondary-keywords',
@@ -98,11 +96,9 @@ export function checkSecondaryKeywords(input: SeoInput, ctx: AnalysisContext): S
     const kwInHeading = h2h3.some((h) => normalizeForComparison(h.text).includes(kw))
     checks.push({
       id: `secondary-kw-heading-${i}`,
-      label: `Mot-cle secondaire dans un H2/H3${suffix}`,
+      label: r.headingLabel(suffix),
       status: kwInHeading ? 'pass' : 'warning',
-      message: kwInHeading
-        ? `Le mot-cle secondaire "${displayKw}" est present dans un sous-titre H2 ou H3.`
-        : `Ajoutez le mot-cle secondaire "${displayKw}" dans un sous-titre H2 ou H3.`,
+      message: kwInHeading ? r.headingPass(displayKw as string) : r.headingFail(displayKw as string),
       category: 'bonus',
       weight: 1,
       group: 'secondary-keywords',

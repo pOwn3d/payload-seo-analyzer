@@ -1,8 +1,9 @@
 /**
  * SEO Rules — Accessibility checks (weight: 1-3, category: bonus/important/critical)
  */
-import type { SeoCheck, SeoInput, AnalysisContext } from '../types'
-import { normalizeForComparison } from '../helpers'
+import type { SeoCheck, SeoInput, AnalysisContext } from '../types.js'
+import { normalizeForComparison } from '../helpers.js'
+import { getTranslations } from '../i18n.js'
 
 /** Patterns that indicate a generic/placeholder alt text */
 const GENERIC_ALT_PATTERN = /^(image|photo|img|picture|screenshot|capture|untitled)\d*$/i
@@ -15,6 +16,7 @@ const CAMERA_FILENAME_PATTERN = /\b(IMG_\d+|DSC_\d+|DCIM|photo-\d+|image-\d+|scr
 
 export function checkAccessibility(input: SeoInput, ctx: AnalysisContext): SeoCheck[] {
   const checks: SeoCheck[] = []
+  const r = getTranslations(ctx.locale).rules.accessibility
 
   // 1. a11y-short-anchors — Links with text < 3 characters
   const shortAnchors = ctx.allLinks.filter(
@@ -23,18 +25,16 @@ export function checkAccessibility(input: SeoInput, ctx: AnalysisContext): SeoCh
 
   checks.push({
     id: 'a11y-short-anchors',
-    label: 'Liens avec ancre courte',
+    label: r.shortAnchorsLabel,
     status: shortAnchors.length > 0 ? 'fail' : 'pass',
     message:
       shortAnchors.length > 0
-        ? `${shortAnchors.length} lien(s) avec un texte d'ancre de moins de 3 caracteres (ex: "${shortAnchors[0].text.trim()}") — Les lecteurs d'ecran ne peuvent pas interpreter ces liens.`
-        : 'Tous les liens ont un texte d\'ancre suffisamment long.',
+        ? r.shortAnchorsFail(shortAnchors.length, shortAnchors[0].text.trim())
+        : r.shortAnchorsPass,
     category: 'important',
     weight: 2,
     group: 'accessibility',
-    ...(shortAnchors.length > 0
-      ? { tip: 'Remplacez les ancres courtes par un texte descriptif (ex: "en savoir plus sur nos services" au lieu de "->").' }
-      : {}),
+    ...(shortAnchors.length > 0 ? { tip: r.shortAnchorsTip } : {}),
   })
 
   // 2. a11y-alt-quality — Alt text equals filename or is generic
@@ -48,18 +48,16 @@ export function checkAccessibility(input: SeoInput, ctx: AnalysisContext): SeoCh
 
   checks.push({
     id: 'a11y-alt-quality',
-    label: 'Qualite des textes alternatifs',
+    label: r.altQualityLabel,
     status: genericAlts.length > 0 ? 'warning' : 'pass',
     message:
       genericAlts.length > 0
-        ? `${genericAlts.length} image(s) avec un alt generique ou de type nom de fichier (ex: "${genericAlts[0]}") — Un alt descriptif ameliore l'accessibilite.`
-        : 'Tous les textes alternatifs sont descriptifs.',
+        ? r.altQualityFail(genericAlts.length, genericAlts[0])
+        : r.altQualityPass,
     category: 'important',
     weight: 2,
     group: 'accessibility',
-    ...(genericAlts.length > 0
-      ? { tip: 'Redigez un alt qui decrit le contenu de l\'image (ex: "Logo de l\'entreprise" au lieu de "image1").' }
-      : {}),
+    ...(genericAlts.length > 0 ? { tip: r.altQualityTip } : {}),
   })
 
   // 3. a11y-empty-headings — Empty headings (h2-h6)
@@ -69,18 +67,16 @@ export function checkAccessibility(input: SeoInput, ctx: AnalysisContext): SeoCh
 
   checks.push({
     id: 'a11y-empty-headings',
-    label: 'Titres vides',
+    label: r.emptyHeadingsLabel,
     status: emptyHeadings.length > 0 ? 'fail' : 'pass',
     message:
       emptyHeadings.length > 0
-        ? `${emptyHeadings.length} titre(s) vide(s) detecte(s) (${emptyHeadings.map((h) => h.tag).join(', ')}) — Les titres vides perturbent la navigation par lecteur d'ecran.`
-        : 'Aucun titre vide detecte.',
+        ? r.emptyHeadingsFail(emptyHeadings.length, emptyHeadings.map((h) => h.tag).join(', '))
+        : r.emptyHeadingsPass,
     category: 'critical',
     weight: 3,
     group: 'accessibility',
-    ...(emptyHeadings.length > 0
-      ? { tip: 'Ajoutez du texte dans chaque titre ou supprimez les titres vides.' }
-      : {}),
+    ...(emptyHeadings.length > 0 ? { tip: r.emptyHeadingsTip } : {}),
   })
 
   // 4. a11y-duplicate-links — Adjacent links to same URL
@@ -93,18 +89,16 @@ export function checkAccessibility(input: SeoInput, ctx: AnalysisContext): SeoCh
 
   checks.push({
     id: 'a11y-duplicate-links',
-    label: 'Liens adjacents dupliques',
+    label: r.duplicateLinksLabel,
     status: adjacentDuplicates > 0 ? 'warning' : 'pass',
     message:
       adjacentDuplicates > 0
-        ? `${adjacentDuplicates} paire(s) de liens adjacents pointant vers la meme URL — Fusionnez-les pour simplifier la navigation.`
-        : 'Aucun lien adjacent duplique.',
+        ? r.duplicateLinksFail(adjacentDuplicates)
+        : r.duplicateLinksPass,
     category: 'bonus',
     weight: 1,
     group: 'accessibility',
-    ...(adjacentDuplicates > 0
-      ? { tip: 'Combinez les liens adjacents en un seul lien englobant (ex: image + texte dans un meme <a>).' }
-      : {}),
+    ...(adjacentDuplicates > 0 ? { tip: r.duplicateLinksTip } : {}),
   })
 
   // 5. a11y-all-caps — Headings in ALL CAPS
@@ -117,18 +111,16 @@ export function checkAccessibility(input: SeoInput, ctx: AnalysisContext): SeoCh
 
   checks.push({
     id: 'a11y-all-caps',
-    label: 'Titres en majuscules',
+    label: r.allCapsLabel,
     status: allCapsHeadings.length > 0 ? 'warning' : 'pass',
     message:
       allCapsHeadings.length > 0
-        ? `${allCapsHeadings.length} titre(s) en MAJUSCULES (ex: "${allCapsHeadings[0].text.trim()}") — Les lecteurs d'ecran peuvent epeler chaque lettre.`
-        : 'Aucun titre en majuscules detecte.',
+        ? r.allCapsFail(allCapsHeadings.length, allCapsHeadings[0].text.trim())
+        : r.allCapsPass,
     category: 'bonus',
     weight: 1,
     group: 'accessibility',
-    ...(allCapsHeadings.length > 0
-      ? { tip: 'Utilisez la casse normale et appliquez text-transform: uppercase en CSS si besoin.' }
-      : {}),
+    ...(allCapsHeadings.length > 0 ? { tip: r.allCapsTip } : {}),
   })
 
   // 6. a11y-link-density — Link text ratio > 30% of content
@@ -143,31 +135,30 @@ export function checkAccessibility(input: SeoInput, ctx: AnalysisContext): SeoCh
 
   if (textLength > 0) {
     const ratio = totalLinkTextLength / textLength
+    const pct = Math.round(ratio * 100)
 
     if (ratio > 0.5) {
       linkDensityStatus = 'fail'
-      linkDensityMessage = `Le texte des liens represente ${Math.round(ratio * 100)}% du contenu — Ratio trop eleve, la page ressemble a une page de spam.`
+      linkDensityMessage = r.linkDensityFail(pct)
     } else if (ratio > 0.3) {
       linkDensityStatus = 'warning'
-      linkDensityMessage = `Le texte des liens represente ${Math.round(ratio * 100)}% du contenu — Ratio eleve, reduisez le nombre de liens ou augmentez le contenu textuel.`
+      linkDensityMessage = r.linkDensityWarn(pct)
     } else {
-      linkDensityMessage = `Le texte des liens represente ${Math.round(ratio * 100)}% du contenu — Ratio equilibre.`
+      linkDensityMessage = r.linkDensityPass(pct)
     }
   } else {
-    linkDensityMessage = 'Pas de contenu textuel pour calculer la densite de liens.'
+    linkDensityMessage = r.linkDensityNoContent
   }
 
   checks.push({
     id: 'a11y-link-density',
-    label: 'Densite de liens',
+    label: r.linkDensityLabel,
     status: linkDensityStatus,
     message: linkDensityMessage,
     category: 'important',
     weight: 2,
     group: 'accessibility',
-    ...(linkDensityStatus !== 'pass'
-      ? { tip: 'Reduisez le nombre de liens ou enrichissez le contenu textuel pour equilibrer le ratio.' }
-      : {}),
+    ...(linkDensityStatus !== 'pass' ? { tip: r.linkDensityTip } : {}),
   })
 
   // 7. a11y-image-filename — Files named like camera defaults
@@ -180,18 +171,16 @@ export function checkAccessibility(input: SeoInput, ctx: AnalysisContext): SeoCh
 
   checks.push({
     id: 'a11y-image-filename',
-    label: 'Noms de fichiers dans les alt',
+    label: r.imageFilenameLabel,
     status: cameraAlts.length > 0 ? 'warning' : 'pass',
     message:
       cameraAlts.length > 0
-        ? `${cameraAlts.length} image(s) avec un alt ressemblant a un nom de fichier (ex: "${cameraAlts[0]}") — Redigez une description du contenu de l'image.`
-        : 'Aucun alt de type nom de fichier detecte.',
+        ? r.imageFilenameFail(cameraAlts.length, cameraAlts[0])
+        : r.imageFilenamePass,
     category: 'important',
     weight: 2,
     group: 'accessibility',
-    ...(cameraAlts.length > 0
-      ? { tip: 'Remplacez les noms de fichiers (IMG_001, DSC_234) par une description utile de l\'image.' }
-      : {}),
+    ...(cameraAlts.length > 0 ? { tip: r.imageFilenameTip } : {}),
   })
 
   // 8. a11y-alt-duplicates-context — Alt identical to adjacent heading
@@ -206,18 +195,16 @@ export function checkAccessibility(input: SeoInput, ctx: AnalysisContext): SeoCh
 
   checks.push({
     id: 'a11y-alt-duplicates-context',
-    label: 'Alt identique a un titre',
+    label: r.altDuplicatesLabel,
     status: redundantAlts.length > 0 ? 'warning' : 'pass',
     message:
       redundantAlts.length > 0
-        ? `${redundantAlts.length} image(s) dont l'alt est identique a un titre de la page (ex: "${redundantAlts[0]}") — L'information est redondante pour les lecteurs d'ecran.`
-        : 'Aucun alt redondant avec les titres de la page.',
+        ? r.altDuplicatesFail(redundantAlts.length, redundantAlts[0])
+        : r.altDuplicatesPass,
     category: 'bonus',
     weight: 1,
     group: 'accessibility',
-    ...(redundantAlts.length > 0
-      ? { tip: 'Differenciez le texte alternatif des titres en decrivant specifiquement ce que montre l\'image.' }
-      : {}),
+    ...(redundantAlts.length > 0 ? { tip: r.altDuplicatesTip } : {}),
   })
 
   return checks

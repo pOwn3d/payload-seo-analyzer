@@ -1,12 +1,14 @@
 /**
  * SEO Rules — Headings H1-H6 checks (weight: 2, category: important)
  */
-import type { SeoCheck, SeoInput, AnalysisContext } from '../types'
-import { checkHeadingHierarchy, normalizeForComparison, keywordMatchesText } from '../helpers'
-import { WORDS_PER_HEADING } from '../constants'
+import type { SeoCheck, SeoInput, AnalysisContext } from '../types.js'
+import { checkHeadingHierarchy, normalizeForComparison, keywordMatchesText } from '../helpers.js'
+import { WORDS_PER_HEADING } from '../constants.js'
+import { getTranslations } from '../i18n.js'
 
 export function checkHeadings(input: SeoInput, ctx: AnalysisContext): SeoCheck[] {
   const checks: SeoCheck[] = []
+  const r = getTranslations(ctx.locale).rules.headings
   const { allHeadings, normalizedKeyword, wordCount } = ctx
 
   // 15. H1 unique — count from heading nodes (includes post title added by buildContext)
@@ -15,20 +17,20 @@ export function checkHeadings(input: SeoInput, ctx: AnalysisContext): SeoCheck[]
   if (h1Count === 0) {
     checks.push({
       id: 'h1-missing',
-      label: 'Titre H1',
+      label: r.h1MissingLabel,
       status: 'fail',
-      message: 'Aucun titre H1 detecte — Ajoutez un titre principal dans le hero.',
+      message: r.h1MissingMessage,
       category: 'important',
       weight: 2,
       group: 'headings',
-      tip: 'Le H1 est le titre principal de la page. Il doit contenir le mot-cle et resumer le sujet en une phrase.',
+      tip: r.h1MissingTip,
     })
   } else if (h1Count > 1) {
     checks.push({
       id: 'h1-unique',
-      label: 'Titre H1 unique',
+      label: r.h1UniqueLabel,
       status: 'warning',
-      message: `${h1Count} titres H1 detectes — Gardez un seul H1 par page.`,
+      message: r.h1MultipleMessage(h1Count),
       category: 'important',
       weight: 2,
       group: 'headings',
@@ -36,9 +38,9 @@ export function checkHeadings(input: SeoInput, ctx: AnalysisContext): SeoCheck[]
   } else {
     checks.push({
       id: 'h1-unique',
-      label: 'Titre H1 unique',
+      label: r.h1UniqueLabel,
       status: 'pass',
-      message: 'Un seul H1 detecte — Parfait.',
+      message: r.h1UniquePass,
       category: 'important',
       weight: 2,
       group: 'headings',
@@ -53,11 +55,11 @@ export function checkHeadings(input: SeoInput, ctx: AnalysisContext): SeoCheck[]
 
     checks.push({
       id: 'h1-keyword',
-      label: 'Mot-cle dans le H1',
+      label: r.h1KeywordLabel,
       status: kwInH1 ? 'pass' : 'warning',
       message: kwInH1
-        ? 'Le mot-cle est present dans le titre H1.'
-        : `Le mot-cle "${input.focusKeyword}" n'est pas dans le H1 — Integrez-le au titre principal.`,
+        ? r.h1KeywordPass
+        : r.h1KeywordFail(input.focusKeyword || normalizedKeyword),
       category: 'important',
       weight: 2,
       group: 'headings',
@@ -68,11 +70,9 @@ export function checkHeadings(input: SeoInput, ctx: AnalysisContext): SeoCheck[]
   const goodHierarchy = checkHeadingHierarchy(allHeadings)
   checks.push({
     id: 'heading-hierarchy',
-    label: 'Hierarchie des titres',
+    label: r.hierarchyLabel,
     status: goodHierarchy ? 'pass' : 'warning',
-    message: goodHierarchy
-      ? 'La hierarchie des titres est correcte (h2 avant h3, etc.).'
-      : 'La hierarchie des titres n\'est pas respectee — Utilisez h2 avant h3, h3 avant h4, etc.',
+    message: goodHierarchy ? r.hierarchyPass : r.hierarchyFail,
     category: 'important',
     weight: 2,
     group: 'headings',
@@ -86,11 +86,11 @@ export function checkHeadings(input: SeoInput, ctx: AnalysisContext): SeoCheck[]
     if (h2s.length > 0) {
       checks.push({
         id: 'h2-keyword',
-        label: 'Mot-cle dans un H2',
+        label: r.h2KeywordLabel,
         status: kwInH2 ? 'pass' : 'warning',
         message: kwInH2
-          ? 'Le mot-cle est present dans au moins un sous-titre H2.'
-          : `Ajoutez le mot-cle "${input.focusKeyword}" dans l'un des sous-titres H2.`,
+          ? r.h2KeywordPass
+          : r.h2KeywordFail(input.focusKeyword || normalizedKeyword),
         category: 'important',
         weight: 2,
         group: 'headings',
@@ -106,15 +106,15 @@ export function checkHeadings(input: SeoInput, ctx: AnalysisContext): SeoCheck[]
 
     checks.push({
       id: 'heading-frequency',
-      label: 'Frequence des sous-titres',
+      label: r.frequencyLabel,
       status: hasEnoughHeadings ? 'pass' : 'warning',
       message: hasEnoughHeadings
-        ? `${nonH1Headings.length} sous-titre(s) pour ${wordCount} mots — Bonne structure.`
-        : `Seulement ${nonH1Headings.length} sous-titre(s) pour ${wordCount} mots — Ajoutez un sous-titre tous les ~300 mots.`,
+        ? r.frequencyPass(nonH1Headings.length, wordCount)
+        : r.frequencyFail(nonH1Headings.length, wordCount),
       category: 'bonus',
       weight: 1,
       group: 'headings',
-      ...(!hasEnoughHeadings && { tip: 'Decoupez les longs paragraphes avec des sous-titres H2/H3 qui resument chaque section.' }),
+      ...(!hasEnoughHeadings && { tip: r.frequencyTip }),
     })
   }
 
@@ -128,20 +128,20 @@ export function checkHeadings(input: SeoInput, ctx: AnalysisContext): SeoCheck[]
       if (h1Norm && titleNorm && h1Norm === titleNorm) {
         checks.push({
           id: 'h1-title-different',
-          label: 'H1 different du meta title',
+          label: r.h1TitleDiffLabel,
           status: 'warning',
-          message: 'Le H1 et le meta title sont identiques — Differenciez-les pour couvrir plus de variations de mots-cles.',
+          message: r.h1TitleDiffFail,
           category: 'important',
           weight: 1,
           group: 'headings',
-          tip: 'Le meta title est optimise pour Google (avec le nom de marque). Le H1 peut etre plus descriptif ou accrocheur pour le visiteur.',
+          tip: r.h1TitleDiffTip,
         })
       } else {
         checks.push({
           id: 'h1-title-different',
-          label: 'H1 different du meta title',
+          label: r.h1TitleDiffLabel,
           status: 'pass',
-          message: 'Le H1 et le meta title sont differents — Bonne pratique pour la diversite semantique.',
+          message: r.h1TitleDiffPass,
           category: 'important',
           weight: 1,
           group: 'headings',

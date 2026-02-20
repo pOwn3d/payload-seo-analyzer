@@ -10,6 +10,7 @@ import {
   STOP_WORD_COMPOUNDS,
   LOCAL_SEO_SLUGS,
   LEGAL_SLUGS,
+  LEGAL_SLUGS_MAP,
   MAX_RECURSION_DEPTH,
 } from './constants'
 
@@ -152,6 +153,7 @@ export function detectPageType(
   slug: string,
   collection?: string,
   extraLocalSeoSlugs?: string[],
+  locale?: 'fr' | 'en',
 ): PageType {
   // 1. Collection-based detection
   if (collection === 'posts') return 'blog'
@@ -161,8 +163,9 @@ export function detectPageType(
 
   const s = slug.toLowerCase()
 
-  // 3. Legal pages (explicit slug list + broad pattern)
-  if (LEGAL_SLUGS.includes(s as (typeof LEGAL_SLUGS)[number])) return 'legal'
+  // 3. Legal pages (explicit slug list + broad pattern — FR + EN)
+  const allLegalSlugs = [...LEGAL_SLUGS_MAP.fr, ...LEGAL_SLUGS_MAP.en]
+  if (allLegalSlugs.includes(s)) return 'legal'
   if (
     s.includes('mentions-legales') ||
     s.includes('politique-de-confidentialite') ||
@@ -172,18 +175,32 @@ export function detectPageType(
     s.includes('accessibilite') ||
     s.includes('cookies')
   ) return 'legal'
+  // Legal pages — EN patterns
+  if (
+    s.includes('privacy-policy') ||
+    s.includes('terms-of-service') ||
+    s.includes('terms-and-conditions') ||
+    s.includes('cookie-policy') ||
+    s === 'legal' ||
+    s === 'privacy' ||
+    s === 'terms' ||
+    s === 'tos' ||
+    s === 'gdpr'
+  ) return 'legal'
 
-  // 4. Contact
+  // 4. Contact (FR + EN)
   if (s === 'contact' || s.endsWith('/contact')) return 'contact'
+  if (s === 'contact-us' || s === 'get-in-touch') return 'contact'
 
-  // 5. Form pages
+  // 5. Form pages (FR + EN)
   if (
     s.includes('devis') ||
     s.includes('inscription') ||
     s.includes('support')
   ) return 'form'
+  if (s.includes('quote') || s.includes('signup') || s.includes('register') || s.includes('apply')) return 'form'
 
-  // 6. Local SEO pages: explicit list + extra config slugs + pattern matching
+  // 6. Local SEO pages: explicit list + extra config slugs + pattern matching (FR)
   if (LOCAL_SEO_SLUGS.includes(s)) return 'local-seo'
   if (extraLocalSeoSlugs?.includes(s)) return 'local-seo'
   if (
@@ -195,18 +212,26 @@ export function detectPageType(
     s.includes('developpeur-web-') ||
     s.includes('zone-intervention')
   ) return 'local-seo'
+  // Local SEO — EN patterns
+  if (
+    s.match(/^(web-agency|web-design|web-developer|seo-agency|digital-agency|logo-design|webmaster)-/) ||
+    s.includes('web-agency-') || s.includes('web-design-') || s.includes('web-developer-')
+  ) return 'local-seo'
 
-  // 7. Service sub-pages
+  // 7. Service sub-pages (FR + EN)
   if (s.startsWith('services/') || s.startsWith('nos-services') || s.startsWith('services-')) return 'service'
+  if (s.startsWith('our-services')) return 'service'
 
-  // 8. Resource pages
+  // 8. Resource pages (FR + EN)
   if (s.startsWith('ressources/') || s.startsWith('ressources-')) return 'resource'
+  if (s.startsWith('resources/') || s.startsWith('resources-')) return 'resource'
 
-  // 9. Agency
+  // 9. Agency (FR + EN)
   if (
     s.includes('a-propos') || s.includes('equipe') || s.includes('portfolio') ||
     s.startsWith('agence/') || s.startsWith('agence-') || s === 'agence'
   ) return 'agency'
+  if (s.includes('about-us') || s === 'about') return 'agency'
 
   // 10. Blog (slug-based fallback when collection is not provided)
   if (s.startsWith('posts/') || s.startsWith('blog/')) return 'blog'
@@ -461,29 +486,67 @@ export function countWords(text: string): number {
 }
 
 /**
- * Split text into sentences (French-aware).
- * Handles common abbreviations (M., Mme., etc.) to avoid false splits.
+ * Split text into sentences (French/English-aware).
+ * Handles common abbreviations (M., Mme., Mr., Mrs., etc.) to avoid false splits.
  */
-export function countSentences(text: string): string[] {
+export function countSentences(text: string, locale?: 'fr' | 'en'): string[] {
   if (!text.trim()) return []
 
-  // Replace common French abbreviations to avoid false sentence breaks
-  const normalized = text
-    .replace(/\bM\.\s/g, 'M_ ')
-    .replace(/\bMme\.\s/g, 'Mme_ ')
-    .replace(/\bMlle\.\s/g, 'Mlle_ ')
-    .replace(/\bDr\.\s/g, 'Dr_ ')
-    .replace(/\betc\.\s/g, 'etc_ ')
-    .replace(/\bcf\.\s/g, 'cf_ ')
-    .replace(/\bex\.\s/g, 'ex_ ')
-    .replace(/\bn°\s/g, 'n_ ')
+  const lang = locale || 'fr'
+
+  let normalized = text
+
+  if (lang === 'en') {
+    // English abbreviations
+    normalized = normalized
+      .replace(/\bMr\.\s/g, 'Mr_ ')
+      .replace(/\bMrs\.\s/g, 'Mrs_ ')
+      .replace(/\bMs\.\s/g, 'Ms_ ')
+      .replace(/\bDr\.\s/g, 'Dr_ ')
+      .replace(/\bJr\.\s/g, 'Jr_ ')
+      .replace(/\bSr\.\s/g, 'Sr_ ')
+      .replace(/\betc\.\s/g, 'etc_ ')
+      .replace(/\bvs\.\s/g, 'vs_ ')
+      .replace(/\be\.g\.\s/g, 'eg_ ')
+      .replace(/\bi\.e\.\s/g, 'ie_ ')
+      .replace(/\bSt\.\s/g, 'St_ ')
+      .replace(/\bInc\.\s/g, 'Inc_ ')
+      .replace(/\bLtd\.\s/g, 'Ltd_ ')
+      .replace(/\bCo\.\s/g, 'Co_ ')
+      .replace(/\bNo\.\s/g, 'No_ ')
+  } else {
+    // French abbreviations
+    normalized = normalized
+      .replace(/\bM\.\s/g, 'M_ ')
+      .replace(/\bMme\.\s/g, 'Mme_ ')
+      .replace(/\bMlle\.\s/g, 'Mlle_ ')
+      .replace(/\bDr\.\s/g, 'Dr_ ')
+      .replace(/\betc\.\s/g, 'etc_ ')
+      .replace(/\bcf\.\s/g, 'cf_ ')
+      .replace(/\bex\.\s/g, 'ex_ ')
+      .replace(/\bn°\s/g, 'n_ ')
+  }
 
   // Split on sentence-ending punctuation followed by a space or end of string
   const raw = normalized.split(/(?<=[.!?])\s+/)
 
   return raw
-    .map((s) =>
-      s
+    .map((s) => {
+      // Restore abbreviations for both languages
+      return s
+        .replace(/Mr_/g, 'Mr.')
+        .replace(/Mrs_/g, 'Mrs.')
+        .replace(/Ms_/g, 'Ms.')
+        .replace(/Jr_/g, 'Jr.')
+        .replace(/Sr_/g, 'Sr.')
+        .replace(/vs_/g, 'vs.')
+        .replace(/eg_/g, 'e.g.')
+        .replace(/ie_/g, 'i.e.')
+        .replace(/St_/g, 'St.')
+        .replace(/Inc_/g, 'Inc.')
+        .replace(/Ltd_/g, 'Ltd.')
+        .replace(/Co_/g, 'Co.')
+        .replace(/No_/g, 'No.')
         .replace(/M_/g, 'M.')
         .replace(/Mme_/g, 'Mme.')
         .replace(/Mlle_/g, 'Mlle.')
@@ -492,8 +555,8 @@ export function countSentences(text: string): string[] {
         .replace(/cf_/g, 'cf.')
         .replace(/ex_/g, 'ex.')
         .replace(/n_/g, 'n°')
-        .trim(),
-    )
+        .trim()
+    })
     .filter((s) => s.length > 0)
 }
 
@@ -531,6 +594,54 @@ export function countSyllablesFR(word: string): number {
 }
 
 /**
+ * Count syllables in an English word.
+ * Handles silent-e, -ed/-es endings, common exceptions.
+ */
+export function countSyllablesEN(word: string): number {
+  const lower = word.toLowerCase().replace(/[^a-z]/g, '')
+  if (!lower || lower.length <= 2) return 1
+
+  // Common irregular words
+  const special: Record<string, number> = {
+    'the': 1, 'are': 1, 'were': 1, 'here': 1, 'there': 1,
+    'where': 1, 'gone': 1, 'done': 1, 'once': 1, 'give': 1,
+    'have': 1, 'come': 1, 'some': 1, 'love': 1, 'move': 1,
+    'live': 1, 'like': 1, 'make': 1, 'take': 1, 'use': 1,
+    'more': 1, 'fire': 2, 'hire': 2, 'tire': 2, 'wire': 2,
+    'every': 3, 'different': 3, 'business': 3, 'beautiful': 3,
+    'interesting': 4, 'comfortable': 4, 'experience': 4,
+    'area': 3, 'idea': 3, 'real': 1, 'being': 2,
+    'create': 2, 'created': 3, 'people': 2,
+  }
+  if (special[lower] !== undefined) return special[lower]
+
+  let count = 0
+  const vowels = 'aeiouy'
+  let prevVowel = false
+
+  for (let i = 0; i < lower.length; i++) {
+    const isVowel = vowels.includes(lower[i])
+    if (isVowel && !prevVowel) count++
+    prevVowel = isVowel
+  }
+
+  // Silent-e at end (but not -le which adds a syllable like "table")
+  if (lower.endsWith('e') && !lower.endsWith('le') && count > 1) {
+    count--
+  }
+
+  // -ed ending: usually not a separate syllable (except -ted, -ded)
+  if (lower.endsWith('ed') && lower.length > 3) {
+    const beforeEd = lower[lower.length - 3]
+    if (beforeEd !== 't' && beforeEd !== 'd') {
+      if (count > 1) count--
+    }
+  }
+
+  return Math.max(1, count)
+}
+
+/**
  * Calculate Flesch reading ease adapted for French (Kandel-Moles formula).
  * Flesch FR = 207 - 1.015 * (words/sentences) - 73.6 * (syllables/words)
  *
@@ -558,6 +669,26 @@ export function calculateFleschFR(text: string): number {
 }
 
 /**
+ * Calculate Flesch reading ease — bilingual.
+ * FR: Kandel-Moles (207 - 1.015xASL - 73.6xASW)
+ * EN: Flesch-Kincaid (206.835 - 1.015xASL - 84.6xASW)
+ */
+export function calculateFlesch(text: string, locale: 'fr' | 'en' = 'fr'): number {
+  if (locale === 'fr') return calculateFleschFR(text)
+
+  const sentences = countSentences(text, 'en')
+  const words = text.replace(/\s+/g, ' ').trim().split(' ').filter(w => w.length > 0)
+  if (sentences.length === 0 || words.length === 0) return 0
+
+  const totalSyllables = words.reduce((sum, w) => sum + countSyllablesEN(w), 0)
+  const avgWordsPerSentence = words.length / sentences.length
+  const avgSyllablesPerWord = totalSyllables / words.length
+
+  const score = 206.835 - 1.015 * avgWordsPerSentence - 84.6 * avgSyllablesPerWord
+  return Math.max(0, Math.min(100, Math.round(score)))
+}
+
+/**
  * Detect passive voice in a French sentence.
  * Looks for "être" conjugations followed by a past participle,
  * while excluding common passé composé verbs (aller, venir, arriver, etc.)
@@ -566,7 +697,13 @@ export function calculateFleschFR(text: string): number {
  * Also excludes state descriptions ("est basé à", "est situé à") that are
  * natural in French B2B copy and not true passive constructions.
  */
-export function detectPassiveVoice(sentence: string): boolean {
+export function detectPassiveVoice(sentence: string, locale?: 'fr' | 'en'): boolean {
+  if ((locale || 'fr') === 'en') {
+    // English passive voice: be-verb + past participle
+    const enPassiveRegex = /\b(is|are|was|were|been|being|be|gets|got|gotten)\s+(\w+(?:ed|en|wn|ht|lt|nt|pt|ft|ng|xt|un))\b/i
+    return enPassiveRegex.test(sentence)
+  }
+
   // Common past participles that use "être" as auxiliary (NOT passive voice)
   const ETRE_VERBS_PARTICIPLES =
     /\b(?:allé|allée|allés|allées|venu|venue|venus|venues|arrivé|arrivée|arrivés|arrivées|parti|partie|partis|parties|resté|restée|restés|restées|devenu|devenue|devenus|devenues|né|née|nés|nées|mort|morte|morts|mortes|tombé|tombée|tombés|tombées|passé|passée|passés|passées|sorti|sortie|sortis|sorties|entré|entrée|entrés|entrées|monté|montée|montés|montées|descendu|descendue|descendus|descendues|retourné|retournée|retournés|retournées)\b/i
@@ -672,12 +809,45 @@ const TRANSITION_WORDS_FR: string[] = [
 ]
 
 /**
+ * English transition words / phrases.
+ * Used to check whether sentences start with connective phrases.
+ */
+const TRANSITION_WORDS_EN: string[] = [
+  // Addition
+  'furthermore', 'moreover', 'additionally', 'also', 'besides',
+  'in addition', 'what is more', 'not only', 'likewise',
+  // Contrast
+  'however', 'nevertheless', 'nonetheless', 'on the other hand',
+  'in contrast', 'whereas', 'although', 'even though', 'yet',
+  'still', 'despite this', 'on the contrary', 'conversely',
+  // Cause / consequence
+  'therefore', 'consequently', 'as a result', 'thus', 'hence',
+  'because', 'since', 'due to', 'owing to', 'thanks to',
+  'for this reason', 'accordingly',
+  // Purpose
+  'in order to', 'so that', 'so as to', 'with the aim of',
+  // Sequence
+  'then', 'next', 'finally', 'first', 'firstly', 'secondly',
+  'thirdly', 'lastly', 'in conclusion', 'to begin with',
+  'first of all', 'to start with', 'to sum up', 'meanwhile',
+  // Illustration / emphasis
+  'for example', 'for instance', 'that is', 'in other words',
+  'in fact', 'actually', 'especially', 'particularly', 'notably',
+  'namely', 'specifically', 'indeed',
+  // Condition
+  'provided that', 'as long as', 'in case of', 'if',
+  // Conclusion
+  'in short', 'in summary', 'to conclude', 'overall',
+  'all in all', 'in brief', 'all things considered',
+]
+
+/**
  * Check whether a sentence contains a transition word/phrase.
  */
-export function hasTransitionWord(sentence: string): boolean {
+export function hasTransitionWord(sentence: string, locale?: 'fr' | 'en'): boolean {
   const lower = sentence.toLowerCase().trim()
-  return TRANSITION_WORDS_FR.some((tw) => {
-    // Match at the beginning of the sentence (common) or anywhere inside
+  const words = (locale || 'fr') === 'en' ? TRANSITION_WORDS_EN : TRANSITION_WORDS_FR
+  return words.some((tw) => {
     return lower.startsWith(tw) || lower.includes(`, ${tw}`) || lower.includes(` ${tw} `)
   })
 }

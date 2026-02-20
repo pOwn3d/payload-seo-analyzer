@@ -41,6 +41,8 @@ export {
   countSentences,
   countSyllablesFR,
   calculateFleschFR,
+  calculateFlesch,
+  countSyllablesEN,
   detectPassiveVoice,
   hasTransitionWord,
   checkHeadingHierarchy,
@@ -92,6 +94,24 @@ export {
   WARNING_MULTIPLIER,
   MAX_RECURSION_DEPTH,
   POWER_WORDS_FR,
+  POWER_WORDS,
+  STOP_WORDS,
+  ACTION_VERBS,
+  GENERIC_ANCHORS,
+  LEGAL_SLUGS_MAP,
+  UTILITY_SLUGS,
+  EVERGREEN_SLUGS,
+  STOP_WORD_COMPOUNDS_MAP,
+  FLESCH_THRESHOLDS,
+  READABILITY_THRESHOLDS,
+  getStopWords,
+  getActionVerbs,
+  getPowerWords,
+  getGenericAnchors,
+  getLegalSlugs,
+  getUtilitySlugs,
+  getEvergreenSlugs,
+  getStopWordCompounds,
 } from './constants'
 
 import type {
@@ -378,6 +398,7 @@ function buildContext(data: SeoInput, config: SeoConfig): AnalysisContext {
       ? 'blog'
       : detectPageType(data.slug || '', undefined, config.localSeoSlugs),
     config,
+    locale: (config.locale || 'fr') as 'fr' | 'en',
   }
 }
 

@@ -1,7 +1,7 @@
 {
   "name": "@consilioweb/seo-analyzer",
-  "version": "1.3.0",
-  "description": "Payload CMS SEO plugin — 50+ checks, dashboard, Lexical JSON support, Flesch FR readability",
+  "version": "1.4.0",
+  "description": "Payload CMS SEO plugin — 50+ checks, dashboard, Lexical JSON support, Flesch FR/EN readability, i18n",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -58,7 +58,9 @@
     "flesch",
     "readability",
     "lexical",
-    "next.js"
+    "next.js",
+    "i18n",
+    "english"
   ],
   "author": "ConsilioWEB",
   "license": "MIT",
@@ -66,8 +68,7 @@
     "@payloadcms/next": "^3.0.0",
     "@payloadcms/ui": "^3.0.0",
     "payload": "^3.0.0",
-    "react": "^18.0.0 || ^19.0.0",
-    "xlsx": ">=0.18.0"
+    "react": "^18.0.0 || ^19.0.0"
   },
   "peerDependenciesMeta": {
     "@payloadcms/ui": {
@@ -77,9 +78,6 @@
       "optional": true
     },
     "react": {
-      "optional": true
-    },
-    "xlsx": {
       "optional": true
     }
   },

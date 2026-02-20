@@ -1,12 +1,14 @@
 /**
  * SEO Rules — Meta description checks (weight: 3, category: critical)
  */
-import type { SeoCheck, SeoInput, AnalysisContext } from '../types'
-import { getActionVerbsFR, normalizeForComparison, keywordMatchesText } from '../helpers'
-import { META_DESC_LENGTH_MIN, META_DESC_LENGTH_MAX } from '../constants'
+import type { SeoCheck, SeoInput, AnalysisContext } from '../types.js'
+import { normalizeForComparison, keywordMatchesText } from '../helpers.js'
+import { META_DESC_LENGTH_MIN, META_DESC_LENGTH_MAX, getActionVerbs } from '../constants.js'
+import { getTranslations } from '../i18n.js'
 
 export function checkMetaDescription(input: SeoInput, ctx: AnalysisContext): SeoCheck[] {
   const checks: SeoCheck[] = []
+  const r = getTranslations(ctx.locale).rules.metaDescription
   const desc = input.metaDescription || ''
   const descLen = desc.length
   const kw = ctx.normalizedKeyword
@@ -15,13 +17,13 @@ export function checkMetaDescription(input: SeoInput, ctx: AnalysisContext): Seo
   if (!desc) {
     checks.push({
       id: 'meta-desc-missing',
-      label: 'Meta description',
+      label: r.missingLabel,
       status: 'fail',
-      message: 'Meta description manquante — Ajoutez une description pour le referencement.',
+      message: r.missingMessage,
       category: 'critical',
       weight: 3,
       group: 'meta-description',
-      tip: 'Redigez une phrase de 120-160 caracteres qui resume la page et incite au clic. Incluez le mot-cle principal.',
+      tip: r.missingTip,
     })
     return checks
   }
@@ -30,31 +32,31 @@ export function checkMetaDescription(input: SeoInput, ctx: AnalysisContext): Seo
   if (descLen < META_DESC_LENGTH_MIN) {
     checks.push({
       id: 'meta-desc-length',
-      label: 'Longueur de la description',
+      label: r.lengthLabel,
       status: 'warning',
-      message: `Meta description (${descLen} car.) — Trop courte. Visez 120 a 160 caracteres.`,
+      message: r.lengthShort(descLen),
       category: 'critical',
       weight: 3,
       group: 'meta-description',
-      tip: 'Completez avec les benefices de la page ou un appel a l\'action (ex: "Devis gratuit en 24h").',
+      tip: r.lengthShortTip,
     })
   } else if (descLen > META_DESC_LENGTH_MAX) {
     checks.push({
       id: 'meta-desc-length',
-      label: 'Longueur de la description',
+      label: r.lengthLabel,
       status: 'warning',
-      message: `Meta description (${descLen} car.) — Trop longue, sera coupee. Reduisez a 160 max.`,
+      message: r.lengthLong(descLen),
       category: 'critical',
       weight: 3,
       group: 'meta-description',
-      tip: 'Google tronque au-dela de ~160 caracteres. Supprimez les details secondaires et gardez l\'essentiel.',
+      tip: r.lengthLongTip,
     })
   } else {
     checks.push({
       id: 'meta-desc-length',
-      label: 'Longueur de la description',
+      label: r.lengthLabel,
       status: 'pass',
-      message: `Meta description (${descLen} car.) — Longueur ideale.`,
+      message: r.lengthPass(descLen),
       category: 'critical',
       weight: 3,
       group: 'meta-description',
@@ -67,11 +69,11 @@ export function checkMetaDescription(input: SeoInput, ctx: AnalysisContext): Seo
     const descContainsKw = keywordMatchesText(kw, descNorm)
     checks.push({
       id: 'meta-desc-keyword',
-      label: 'Mot-cle dans la description',
+      label: r.keywordLabel,
       status: descContainsKw ? 'pass' : 'warning',
       message: descContainsKw
-        ? `Le mot-cle "${input.focusKeyword}" est present dans la meta description.`
-        : `Le mot-cle "${input.focusKeyword}" n'est pas dans la meta description.`,
+        ? r.keywordPass(input.focusKeyword || kw)
+        : r.keywordFail(input.focusKeyword || kw),
       category: 'critical',
       weight: 3,
       group: 'meta-description',
@@ -79,26 +81,27 @@ export function checkMetaDescription(input: SeoInput, ctx: AnalysisContext): Seo
   }
 
   // 9. Contains an action verb or alternative CTA pattern
-  // Accepts: imperative verbs ("découvrez"), numeric patterns ("5 raisons"),
-  // or interrogative hooks ("comment", "pourquoi") as valid CTAs
-  const actionVerbs = getActionVerbsFR()
+  const locale = ctx.locale || 'fr'
+  const actionVerbs = getActionVerbs(locale)
   const descLower = desc.toLowerCase()
   const hasActionVerb = actionVerbs.some((verb) => descLower.includes(verb))
-  const hasNumericCta = /\b\d+\s+(?:raisons?|étapes?|astuces?|conseils?|erreurs?|avantages?|clés?|points?|façons?|méthodes?|techniques?|outils?|secrets?)\b/i.test(desc)
-  const hasInterrogativeCta = /\b(?:comment|pourquoi|quand|quel|quelle|quels|quelles)\b/i.test(desc)
+  const hasNumericCta = locale === 'en'
+    ? /\b\d+\s+(?:reasons?|steps?|tips?|tricks?|mistakes?|benefits?|keys?|points?|ways?|methods?|techniques?|tools?|secrets?)\b/i.test(desc)
+    : /\b\d+\s+(?:raisons?|étapes?|astuces?|conseils?|erreurs?|avantages?|clés?|points?|façons?|méthodes?|techniques?|outils?|secrets?)\b/i.test(desc)
+  const hasInterrogativeCta = locale === 'en'
+    ? /\b(?:how|why|when|what|which|where|who)\b/i.test(desc)
+    : /\b(?:comment|pourquoi|quand|quel|quelle|quels|quelles)\b/i.test(desc)
   const hasAction = hasActionVerb || hasNumericCta || hasInterrogativeCta
 
   checks.push({
     id: 'meta-desc-cta',
-    label: 'Verbe d\'action (CTA)',
+    label: r.ctaLabel,
     status: hasAction ? 'pass' : 'warning',
-    message: hasAction
-      ? 'La meta description contient un element incitatif — Bon pour le taux de clic.'
-      : 'Ajoutez un verbe d\'action (decouvrez, contactez, obtenez...) pour inciter au clic.',
+    message: hasAction ? r.ctaPass : r.ctaFail,
     category: 'important',
     weight: 2,
     group: 'meta-description',
-    ...(!hasAction && { tip: 'Commencez par un verbe a l\'imperatif (Decouvrez, Profitez, Obtenez) ou utilisez un chiffre ("5 raisons de...").' }),
+    ...(!hasAction && { tip: r.ctaTip }),
   })
 
   return checks

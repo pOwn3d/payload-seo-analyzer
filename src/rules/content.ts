@@ -1,8 +1,8 @@
 /**
  * SEO Rules — Content checks (weight: 2, category: important)
  */
-import type { SeoCheck, SeoInput, AnalysisContext } from '../types'
-import { normalizeForComparison, keywordMatchesText, countKeywordOccurrences, extractListsFromLexical } from '../helpers'
+import type { SeoCheck, SeoInput, AnalysisContext } from '../types.js'
+import { normalizeForComparison, keywordMatchesText, countKeywordOccurrences, extractListsFromLexical } from '../helpers.js'
 import {
   MIN_WORDS_POST,
   MIN_WORDS_FORM,
@@ -13,10 +13,12 @@ import {
   KEYWORD_DENSITY_WARN,
   KEYWORD_DENSITY_MIN,
   PLACEHOLDER_PATTERNS,
-} from '../constants'
+} from '../constants.js'
+import { getTranslations } from '../i18n.js'
 
 export function checkContent(input: SeoInput, ctx: AnalysisContext): SeoCheck[] {
   const checks: SeoCheck[] = []
+  const r = getTranslations(ctx.locale).rules.content
   const { fullText, wordCount, normalizedKeyword, isPost, pageType } = ctx
 
   // Adapted min words by page type
@@ -24,42 +26,42 @@ export function checkContent(input: SeoInput, ctx: AnalysisContext): SeoCheck[] 
   const isLegalPage = pageType === 'legal'
   const minWords = isPost ? MIN_WORDS_POST : isFormPage ? MIN_WORDS_FORM : isLegalPage ? MIN_WORDS_LEGAL : MIN_WORDS_GENERIC
   const minLabel = isPost
-    ? '800 mots (article)'
+    ? r.minWordsPost
     : isFormPage
-      ? '150 mots (page formulaire)'
+      ? r.minWordsForm
       : isLegalPage
-        ? '200 mots (page legale)'
-        : '300 mots (page)'
+        ? r.minWordsLegal
+        : r.minWordsGeneric
 
   // 20. Minimum word count
   if (wordCount < MIN_WORDS_THIN) {
     checks.push({
       id: 'content-wordcount',
-      label: 'Volume de contenu',
+      label: r.wordcountLabel,
       status: 'fail',
-      message: `Seulement ${wordCount} mots — Visez au moins ${minLabel} pour un bon referencement.`,
+      message: r.wordcountFail(wordCount, minLabel),
       category: 'important',
       weight: 2,
       group: 'content',
-      tip: 'Ajoutez des sections avec des sous-titres H2, des exemples concrets, une FAQ ou des temoignages.',
+      tip: r.wordcountFailTip,
     })
   } else if (wordCount < minWords) {
     checks.push({
       id: 'content-wordcount',
-      label: 'Volume de contenu',
+      label: r.wordcountLabel,
       status: 'warning',
-      message: `${wordCount} mots — Correct mais insuffisant. Visez ${minLabel}.`,
+      message: r.wordcountWarn(wordCount, minLabel),
       category: 'important',
       weight: 2,
       group: 'content',
-      tip: 'Developpez le contenu avec des paragraphes explicatifs, des exemples ou une section FAQ.',
+      tip: r.wordcountWarnTip,
     })
   } else {
     checks.push({
       id: 'content-wordcount',
-      label: 'Volume de contenu',
+      label: r.wordcountLabel,
       status: 'pass',
-      message: `${wordCount} mots — Volume de contenu suffisant.`,
+      message: r.wordcountPass(wordCount),
       category: 'important',
       weight: 2,
       group: 'content',
@@ -77,11 +79,11 @@ export function checkContent(input: SeoInput, ctx: AnalysisContext): SeoCheck[] 
 
     checks.push({
       id: 'content-keyword-intro',
-      label: 'Mot-cle dans l\'introduction',
+      label: r.keywordIntroLabel,
       status: kwInFirstPara ? 'pass' : 'warning',
       message: kwInFirstPara
-        ? 'Le mot-cle apparait dans le premier paragraphe — Bonne pratique.'
-        : `Ajoutez le mot-cle "${input.focusKeyword}" dans les premieres phrases du contenu.`,
+        ? r.keywordIntroPass
+        : r.keywordIntroFail(input.focusKeyword || normalizedKeyword),
       category: 'important',
       weight: 2,
       group: 'content',
@@ -99,9 +101,9 @@ export function checkContent(input: SeoInput, ctx: AnalysisContext): SeoCheck[] 
     if (density > KEYWORD_DENSITY_MAX) {
       checks.push({
         id: 'content-keyword-density',
-        label: 'Densite du mot-cle',
+        label: r.densityLabel,
         status: 'fail',
-        message: `Densite du mot-cle : ${density.toFixed(1)}% — Trop eleve (>3%), risque de suroptimisation (keyword stuffing).`,
+        message: r.densityOverstuffed(density.toFixed(1)),
         category: 'critical',
         weight: 3,
         group: 'content',
@@ -109,9 +111,9 @@ export function checkContent(input: SeoInput, ctx: AnalysisContext): SeoCheck[] 
     } else if (density > KEYWORD_DENSITY_WARN) {
       checks.push({
         id: 'content-keyword-density',
-        label: 'Densite du mot-cle',
+        label: r.densityLabel,
         status: 'warning',
-        message: `Densite du mot-cle : ${density.toFixed(1)}% — Legerement elevee. Restez entre 0,5% et 2,5%.`,
+        message: r.densityHigh(density.toFixed(1)),
         category: 'important',
         weight: 2,
         group: 'content',
@@ -119,11 +121,11 @@ export function checkContent(input: SeoInput, ctx: AnalysisContext): SeoCheck[] 
     } else if (density >= KEYWORD_DENSITY_MIN) {
       checks.push({
         id: 'content-keyword-density',
-        label: 'Densite du mot-cle',
+        label: r.densityLabel,
         status: 'pass',
         message: exactCount > 0
-          ? `Densite du mot-cle : ${density.toFixed(1)}% — Equilibre ideal.`
-          : `Les composants du mot-cle sont presents dans le contenu (densite estimee : ${density.toFixed(1)}%).`,
+          ? r.densityPass(density.toFixed(1))
+          : r.densityPassWordLevel(density.toFixed(1)),
         category: 'important',
         weight: 2,
         group: 'content',
@@ -132,9 +134,9 @@ export function checkContent(input: SeoInput, ctx: AnalysisContext): SeoCheck[] 
       // Individual words present but low density
       checks.push({
         id: 'content-keyword-density',
-        label: 'Densite du mot-cle',
+        label: r.densityLabel,
         status: 'warning',
-        message: `Les composants du mot-cle sont presents mais peu frequents (densite estimee : ${density.toFixed(1)}%). Renforcez leur presence.`,
+        message: r.densityLowWordLevel(density.toFixed(1)),
         category: 'important',
         weight: 2,
         group: 'content',
@@ -142,9 +144,9 @@ export function checkContent(input: SeoInput, ctx: AnalysisContext): SeoCheck[] 
     } else if (exactCount > 0) {
       checks.push({
         id: 'content-keyword-density',
-        label: 'Densite du mot-cle',
+        label: r.densityLabel,
         status: 'warning',
-        message: `Densite du mot-cle : ${density.toFixed(1)}% — Trop faible. Visez 0,5% a 2,5%.`,
+        message: r.densityLow(density.toFixed(1)),
         category: 'important',
         weight: 2,
         group: 'content',
@@ -152,9 +154,9 @@ export function checkContent(input: SeoInput, ctx: AnalysisContext): SeoCheck[] 
     } else {
       checks.push({
         id: 'content-keyword-density',
-        label: 'Densite du mot-cle',
+        label: r.densityLabel,
         status: 'fail',
-        message: `Le mot-cle "${input.focusKeyword}" n'apparait jamais dans le contenu.`,
+        message: r.densityMissing(input.focusKeyword || normalizedKeyword),
         category: 'important',
         weight: 2,
         group: 'content',
@@ -167,35 +169,33 @@ export function checkContent(input: SeoInput, ctx: AnalysisContext): SeoCheck[] 
 
   checks.push({
     id: 'content-no-placeholder',
-    label: 'Contenu placeholder',
+    label: r.placeholderLabel,
     status: hasPlaceholder ? 'fail' : 'pass',
-    message: hasPlaceholder
-      ? 'Du contenu placeholder a ete detecte (lorem ipsum, TODO, etc.) — Remplacez par du vrai contenu.'
-      : 'Aucun contenu placeholder detecte.',
+    message: hasPlaceholder ? r.placeholderFail : r.placeholderPass,
     category: 'critical',
     weight: 3,
     group: 'content',
-    ...(hasPlaceholder && { tip: 'Recherchez "lorem", "TODO", "TBD" dans l\'editeur et remplacez par du vrai contenu metier.' }),
+    ...(hasPlaceholder && { tip: r.placeholderTip }),
   })
 
   // 25. Not thin content (>MIN_WORDS_THIN words of unique text)
   if (wordCount > 0 && wordCount <= MIN_WORDS_THIN) {
     checks.push({
       id: 'content-thin',
-      label: 'Contenu trop fin',
+      label: r.thinWarnLabel,
       status: 'warning',
-      message: `Seulement ${wordCount} mots de contenu — Les pages avec moins de 100 mots risquent d'etre ignorees par Google.`,
+      message: r.thinWarn(wordCount),
       category: 'important',
       weight: 2,
       group: 'content',
-      tip: 'Developpez le contenu avec des paragraphes explicatifs, des exemples concrets ou une FAQ.',
+      tip: r.thinWarnTip,
     })
   } else if (wordCount > MIN_WORDS_THIN) {
     checks.push({
       id: 'content-thin',
-      label: 'Contenu substantiel',
+      label: r.thinPassLabel,
       status: 'pass',
-      message: 'Le contenu est suffisamment riche pour etre indexe.',
+      message: r.thinPass,
       category: 'important',
       weight: 2,
       group: 'content',
@@ -217,9 +217,9 @@ export function checkContent(input: SeoInput, ctx: AnalysisContext): SeoCheck[] 
     if (tiersWithKw >= 2) {
       checks.push({
         id: 'content-keyword-distribution',
-        label: 'Distribution du mot-cle',
+        label: r.distributionLabel,
         status: 'pass',
-        message: `Mot-cle present dans ${tiersWithKw}/3 sections du contenu — Bonne repartition.`,
+        message: r.distributionPass(tiersWithKw),
         category: 'important',
         weight: 2,
         group: 'content',
@@ -227,24 +227,24 @@ export function checkContent(input: SeoInput, ctx: AnalysisContext): SeoCheck[] 
     } else if (tiersWithKw === 1) {
       checks.push({
         id: 'content-keyword-distribution',
-        label: 'Distribution du mot-cle',
+        label: r.distributionLabel,
         status: 'warning',
-        message: `Mot-cle present dans seulement 1/3 du contenu — Repartissez-le dans tout le texte.`,
+        message: r.distributionWarn,
         category: 'important',
         weight: 2,
         group: 'content',
-        tip: 'Utilisez le mot-cle naturellement dans l\'introduction, le corps et la conclusion du texte.',
+        tip: r.distributionWarnTip,
       })
     } else {
       checks.push({
         id: 'content-keyword-distribution',
-        label: 'Distribution du mot-cle',
+        label: r.distributionLabel,
         status: 'fail',
-        message: 'Mot-cle absent des sections du contenu — Il doit apparaitre dans au moins 2 des 3 tiers.',
+        message: r.distributionFail,
         category: 'important',
         weight: 2,
         group: 'content',
-        tip: 'Inserez le mot-cle dans l\'introduction, dans au moins un sous-titre H2 et dans la conclusion.',
+        tip: r.distributionFailTip,
       })
     }
   }
@@ -279,9 +279,9 @@ export function checkContent(input: SeoInput, ctx: AnalysisContext): SeoCheck[] 
     if (allLists.length > 0) {
       checks.push({
         id: 'content-has-lists',
-        label: 'Listes dans le contenu',
+        label: r.listsLabel,
         status: 'pass',
-        message: `${allLists.length} liste(s) detectee(s) — Les listes ameliorent la lisibilite et les chances de featured snippet.`,
+        message: r.listsPass(allLists.length),
         category: 'bonus',
         weight: 1,
         group: 'content',
@@ -289,13 +289,13 @@ export function checkContent(input: SeoInput, ctx: AnalysisContext): SeoCheck[] 
     } else {
       checks.push({
         id: 'content-has-lists',
-        label: 'Listes dans le contenu',
+        label: r.listsLabel,
         status: 'warning',
-        message: 'Aucune liste detectee — Ajoutez des listes a puces ou numerotees pour structurer le contenu.',
+        message: r.listsFail,
         category: 'bonus',
         weight: 1,
         group: 'content',
-        tip: 'Utilisez des listes pour enumerer des etapes, des avantages ou des fonctionnalites. Google les utilise souvent pour les featured snippets.',
+        tip: r.listsTip,
       })
     }
   }

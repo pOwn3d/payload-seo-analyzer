@@ -12,7 +12,8 @@
  *   7. product-availability          (weight: 2) — availability status mentioned
  */
 
-import type { SeoCheck, SeoInput, AnalysisContext } from '../types'
+import type { SeoCheck, SeoInput, AnalysisContext } from '../types.js'
+import { getTranslations } from '../i18n.js'
 
 // Regex patterns for price detection in French/European formats
 const PRICE_REGEX = /(?:\d+(?:[.,]\d{1,2})?\s*(?:\u20AC|EUR|euros?|\$|USD))|(?:(?:\u20AC|EUR|euros?|\$|USD)\s*\d+(?:[.,]\d{1,2})?)|(?:\u00E0\s+partir\s+de\s+\d+)|(?:prix\s*:\s*\d+)|(?:tarif\s*:\s*\d+)/i
@@ -22,41 +23,35 @@ const AVAILABILITY_REGEX = /(?:en\s+stock|disponible|rupture\s+de\s+stock|sur\s+
 
 export function checkEcommerce(input: SeoInput, ctx: AnalysisContext): SeoCheck[] {
   const checks: SeoCheck[] = []
+  const r = getTranslations(ctx.locale).rules.ecommerce
 
   // 1. Product price mentioned in content
   const hasPriceInContent = PRICE_REGEX.test(ctx.fullText)
   checks.push({
     id: 'product-price-mentioned',
-    label: 'Prix dans le contenu',
+    label: r.priceLabel,
     status: hasPriceInContent ? 'pass' : 'warning',
-    message: hasPriceInContent
-      ? 'Le contenu mentionne un prix — Les utilisateurs peuvent identifier le cout du produit.'
-      : 'Aucun prix detecte dans le contenu — Mentionnez le prix ou une indication tarifaire pour ameliorer le taux de conversion.',
+    message: hasPriceInContent ? r.pricePass : r.priceFail,
     category: 'important',
     weight: 2,
     group: 'ecommerce',
-    tip: hasPriceInContent
-      ? undefined
-      : 'Ajoutez le prix du produit ou une mention "a partir de X\u20AC" dans la description.',
+    tip: hasPriceInContent ? undefined : r.priceTip,
   })
 
   // 2. Product description word count (>= 100 words)
   const minProductWords = 100
   checks.push({
     id: 'product-short-description',
-    label: 'Longueur description produit',
+    label: r.descriptionLabel,
     status: ctx.wordCount >= minProductWords ? 'pass' : ctx.wordCount >= 50 ? 'warning' : 'fail',
     message:
       ctx.wordCount >= minProductWords
-        ? `Description produit de ${ctx.wordCount} mots — Suffisamment detaillee pour le SEO.`
-        : `Description produit de ${ctx.wordCount} mots (minimum recommande : ${minProductWords}) — Les descriptions longues ameliorent le positionnement et la conversion.`,
+        ? r.descriptionPass(ctx.wordCount)
+        : r.descriptionFail(ctx.wordCount, minProductWords),
     category: 'important',
     weight: 2,
     group: 'ecommerce',
-    tip:
-      ctx.wordCount >= minProductWords
-        ? undefined
-        : 'Enrichissez la description avec les caracteristiques, avantages, cas d\'utilisation et specifications du produit.',
+    tip: ctx.wordCount >= minProductWords ? undefined : r.descriptionTip,
   })
 
   // 3. Product has enough images (>= 2)
@@ -64,21 +59,18 @@ export function checkEcommerce(input: SeoInput, ctx: AnalysisContext): SeoCheck[
   const imageCount = ctx.imageStats.total
   checks.push({
     id: 'product-has-images',
-    label: 'Images produit',
+    label: r.imagesLabel,
     status: imageCount >= minImages ? 'pass' : imageCount >= 1 ? 'warning' : 'fail',
     message:
       imageCount >= minImages
-        ? `${imageCount} image(s) trouvee(s) — Bon nombre d'images pour presenter le produit.`
+        ? r.imagesPass(imageCount)
         : imageCount >= 1
-          ? `${imageCount} seule image trouvee (recommande : ${minImages}+) — Ajoutez des images supplementaires pour montrer le produit sous differents angles.`
-          : `Aucune image trouvee — Les produits sans photo sont tres difficiles a vendre en ligne.`,
+          ? r.imagesWarn(imageCount, minImages)
+          : r.imagesFail,
     category: 'critical',
     weight: 3,
     group: 'ecommerce',
-    tip:
-      imageCount >= minImages
-        ? undefined
-        : 'Ajoutez des photos sous differents angles, des zooms sur les details et une photo d\'ambiance.',
+    tip: imageCount >= minImages ? undefined : r.imagesTip,
   })
 
   // 4. Product title includes brand/name
@@ -87,19 +79,17 @@ export function checkEcommerce(input: SeoInput, ctx: AnalysisContext): SeoCheck[
   const hasBrandInTitle = focusKeyword ? title.includes(focusKeyword) : false
   checks.push({
     id: 'product-title-includes-brand',
-    label: 'Marque dans le titre',
-    status: hasBrandInTitle ? 'pass' : focusKeyword ? 'warning' : 'warning',
+    label: r.brandLabel,
+    status: hasBrandInTitle ? 'pass' : 'warning',
     message: hasBrandInTitle
-      ? 'Le titre contient le mot-cle produit/marque — Bon pour le referencement produit.'
+      ? r.brandPass
       : focusKeyword
-        ? `Le titre ne contient pas le mot-cle "${focusKeyword}" — Incluez le nom du produit ou de la marque dans le titre.`
-        : 'Aucun mot-cle focus defini — Definissez le nom du produit comme mot-cle focus pour optimiser le titre.',
+        ? r.brandFailKw(focusKeyword)
+        : r.brandFailNoKw,
     category: 'bonus',
     weight: 1,
     group: 'ecommerce',
-    tip: hasBrandInTitle
-      ? undefined
-      : 'Placez le nom du produit ou de la marque au debut du meta titre.',
+    tip: hasBrandInTitle ? undefined : r.brandTip,
   })
 
   // 5. Meta description includes price
@@ -107,17 +97,13 @@ export function checkEcommerce(input: SeoInput, ctx: AnalysisContext): SeoCheck[
   const hasPriceInMeta = PRICE_REGEX.test(metaDesc)
   checks.push({
     id: 'product-meta-includes-price',
-    label: 'Prix dans la meta description',
+    label: r.metaPriceLabel,
     status: hasPriceInMeta ? 'pass' : 'warning',
-    message: hasPriceInMeta
-      ? 'La meta description mentionne le prix — Ameliore le taux de clic dans les resultats de recherche.'
-      : 'La meta description ne mentionne pas le prix — Inclure le prix ou "a partir de X\u20AC" ameliore le CTR.',
+    message: hasPriceInMeta ? r.metaPricePass : r.metaPriceFail,
     category: 'bonus',
     weight: 1,
     group: 'ecommerce',
-    tip: hasPriceInMeta
-      ? undefined
-      : 'Ajoutez le prix ou une fourchette tarifaire dans votre meta description (ex: "a partir de 29\u20AC").',
+    tip: hasPriceInMeta ? undefined : r.metaPriceTip,
   })
 
   // 6. Review readiness (structured data / review mentions)
@@ -125,34 +111,26 @@ export function checkEcommerce(input: SeoInput, ctx: AnalysisContext): SeoCheck[
   const hasReviewContent = reviewKeywords.test(ctx.fullText)
   checks.push({
     id: 'product-review-readiness',
-    label: 'Avis et evaluations',
+    label: r.reviewLabel,
     status: hasReviewContent ? 'pass' : 'warning',
-    message: hasReviewContent
-      ? 'Le contenu fait reference a des avis/evaluations — Bon signal de confiance pour les acheteurs.'
-      : 'Aucune mention d\'avis ou d\'evaluations detectee — Les avis clients augmentent la confiance et le taux de conversion.',
+    message: hasReviewContent ? r.reviewPass : r.reviewFail,
     category: 'bonus',
     weight: 1,
     group: 'ecommerce',
-    tip: hasReviewContent
-      ? undefined
-      : 'Ajoutez une section avis clients ou integrez des donnees structurees Review/AggregateRating.',
+    tip: hasReviewContent ? undefined : r.reviewTip,
   })
 
   // 7. Availability status mentioned
   const hasAvailability = AVAILABILITY_REGEX.test(ctx.fullText)
   checks.push({
     id: 'product-availability',
-    label: 'Disponibilite produit',
+    label: r.availabilityLabel,
     status: hasAvailability ? 'pass' : 'warning',
-    message: hasAvailability
-      ? 'Information de disponibilite detectee — Les acheteurs savent si le produit est disponible.'
-      : 'Aucune information de disponibilite detectee — Indiquez clairement si le produit est en stock, sur commande, etc.',
+    message: hasAvailability ? r.availabilityPass : r.availabilityFail,
     category: 'important',
     weight: 2,
     group: 'ecommerce',
-    tip: hasAvailability
-      ? undefined
-      : 'Ajoutez une mention de disponibilite (en stock, sur commande, delai de livraison).',
+    tip: hasAvailability ? undefined : r.availabilityTip,
   })
 
   return checks

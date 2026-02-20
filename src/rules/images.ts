@@ -1,11 +1,13 @@
 /**
  * SEO Rules — Images checks (weight: 2, category: important)
  */
-import type { SeoCheck, SeoInput, AnalysisContext } from '../types'
-import { ALT_TEXT_MIN_RATIO, ALT_TEXT_MIN_LENGTH } from '../constants'
+import type { SeoCheck, SeoInput, AnalysisContext } from '../types.js'
+import { ALT_TEXT_MIN_RATIO, ALT_TEXT_MIN_LENGTH } from '../constants.js'
+import { getTranslations } from '../i18n.js'
 
 export function checkImages(_input: SeoInput, ctx: AnalysisContext): SeoCheck[] {
   const checks: SeoCheck[] = []
+  const r = getTranslations(ctx.locale).rules.images
   const { imageStats, normalizedKeyword, isPost, pageType } = ctx
 
   // Legal, contact and form pages don't need images — auto-pass
@@ -16,11 +18,11 @@ export function checkImages(_input: SeoInput, ctx: AnalysisContext): SeoCheck[] 
       const missing = imageStats.total - imageStats.withAlt
       checks.push({
         id: 'images-alt',
-        label: 'Alt text images',
+        label: r.altLabel,
         status: altRate === 1 ? 'pass' : 'warning',
         message: altRate === 1
-          ? `${imageStats.total} image(s) avec alt text — Parfait.`
-          : `${missing}/${imageStats.total} image(s) sans texte alternatif.`,
+          ? r.altAllPass(imageStats.total)
+          : r.altSomeFail(missing, imageStats.total),
         category: 'important',
         weight: 2,
         group: 'images',
@@ -28,9 +30,9 @@ export function checkImages(_input: SeoInput, ctx: AnalysisContext): SeoCheck[] 
     }
     checks.push({
       id: 'images-present',
-      label: 'Presence d\'images',
+      label: r.presentLabel,
       status: 'pass',
-      message: 'Page utilitaire — Les images ne sont pas indispensables.',
+      message: r.presentUtilityPass,
       category: 'bonus',
       weight: 1,
       group: 'images',
@@ -46,12 +48,12 @@ export function checkImages(_input: SeoInput, ctx: AnalysisContext): SeoCheck[] 
     if (altRate >= ALT_TEXT_MIN_RATIO) {
       checks.push({
         id: 'images-alt',
-        label: 'Alt text images',
+        label: r.altLabel,
         status: altRate === 1 ? 'pass' : 'warning',
         message:
           altRate === 1
-            ? `${imageStats.total} image(s) avec alt text — Parfait.`
-            : `${missing}/${imageStats.total} image(s) sans texte alternatif — Ajoutez des alt texts descriptifs.`,
+            ? r.altAllPass(imageStats.total)
+            : r.altSomeFail(missing, imageStats.total),
         category: 'important',
         weight: 2,
         group: 'images',
@@ -59,9 +61,9 @@ export function checkImages(_input: SeoInput, ctx: AnalysisContext): SeoCheck[] 
     } else {
       checks.push({
         id: 'images-alt',
-        label: 'Alt text images',
+        label: r.altLabel,
         status: 'fail',
-        message: `${missing}/${imageStats.total} image(s) sans texte alternatif — L'accessibilite et le SEO en souffrent.`,
+        message: r.altMostFail(missing, imageStats.total),
         category: 'important',
         weight: 2,
         group: 'images',
@@ -79,18 +81,15 @@ export function checkImages(_input: SeoInput, ctx: AnalysisContext): SeoCheck[] 
       // Word-level: any significant keyword word (>3 chars) in alt
       const kwWords = kwNorm.split(/\s+/).filter((w) => w.length > 3)
       if (kwWords.length > 0 && kwWords.some((w) => altNorm.includes(w))) return true
-      // Descriptive alt (>ALT_TEXT_MIN_LENGTH chars) is acceptable — Google values
-      // descriptive alt over keyword-stuffed alt. Shared media can't contain every keyword.
+      // Descriptive alt (>ALT_TEXT_MIN_LENGTH chars) is acceptable
       return alt.trim().length >= ALT_TEXT_MIN_LENGTH
     })
 
     checks.push({
       id: 'images-alt-keyword',
-      label: 'Mot-cle dans un alt',
+      label: r.altKeywordLabel,
       status: kwInAlt ? 'pass' : 'warning',
-      message: kwInAlt
-        ? 'Le mot-cle ou un alt descriptif est present sur au moins une image.'
-        : 'Integrez le mot-cle dans le texte alternatif d\'au moins une image.',
+      message: kwInAlt ? r.altKeywordPass : r.altKeywordFail,
       category: 'bonus',
       weight: 1,
       group: 'images',
@@ -101,10 +100,9 @@ export function checkImages(_input: SeoInput, ctx: AnalysisContext): SeoCheck[] 
   if (imageStats.total === 0) {
     checks.push({
       id: 'images-present',
-      label: 'Presence d\'images',
+      label: r.presentLabel,
       status: 'warning',
-      message:
-        'Aucune image detectee — Ajoutez des visuels pour enrichir le contenu.',
+      message: r.presentFail,
       category: 'important',
       weight: 2,
       group: 'images',
@@ -112,9 +110,9 @@ export function checkImages(_input: SeoInput, ctx: AnalysisContext): SeoCheck[] 
   } else {
     checks.push({
       id: 'images-present',
-      label: 'Presence d\'images',
+      label: r.presentLabel,
       status: 'pass',
-      message: `${imageStats.total} image(s) detectee(s).`,
+      message: r.presentPass(imageStats.total),
       category: 'important',
       weight: 2,
       group: 'images',
@@ -126,9 +124,9 @@ export function checkImages(_input: SeoInput, ctx: AnalysisContext): SeoCheck[] 
     if (imageStats.total >= 1) {
       checks.push({
         id: 'images-quantity',
-        label: 'Nombre d\'images',
+        label: r.quantityLabel,
         status: 'pass',
-        message: `${imageStats.total} image(s) — Visuels presents.`,
+        message: r.quantityPass(imageStats.total),
         category: 'bonus',
         weight: 1,
         group: 'images',
@@ -136,9 +134,9 @@ export function checkImages(_input: SeoInput, ctx: AnalysisContext): SeoCheck[] 
     } else {
       checks.push({
         id: 'images-quantity',
-        label: 'Nombre d\'images',
+        label: r.quantityLabel,
         status: 'fail',
-        message: 'Aucune image dans cet article — Les articles sans images sont moins engageants.',
+        message: r.quantityFail,
         category: 'important',
         weight: 2,
         group: 'images',

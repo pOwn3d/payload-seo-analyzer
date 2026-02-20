@@ -1,11 +1,13 @@
 /**
  * SEO Rules — Internal/external linking checks (weight: 2, category: important)
  */
-import type { SeoCheck, SeoInput, AnalysisContext } from '../types'
-import { GENERIC_ANCHOR_TEXTS } from '../constants'
+import type { SeoCheck, SeoInput, AnalysisContext } from '../types.js'
+import { getGenericAnchors } from '../constants.js'
+import { getTranslations } from '../i18n.js'
 
 export function checkLinking(_input: SeoInput, ctx: AnalysisContext): SeoCheck[] {
   const checks: SeoCheck[] = []
+  const r = getTranslations(ctx.locale).rules.linking
   const { allLinks } = ctx
 
   // Separate internal from external links
@@ -19,9 +21,9 @@ export function checkLinking(_input: SeoInput, ctx: AnalysisContext): SeoCheck[]
   if (internalLinks.length === 0) {
     checks.push({
       id: 'linking-internal',
-      label: 'Liens internes',
+      label: r.internalLabel,
       status: 'warning',
-      message: 'Aucun lien interne detecte — Ajoutez des liens vers d\'autres pages du site.',
+      message: r.internalNone,
       category: 'important',
       weight: 2,
       group: 'linking',
@@ -29,9 +31,9 @@ export function checkLinking(_input: SeoInput, ctx: AnalysisContext): SeoCheck[]
   } else if (internalLinks.length < 3) {
     checks.push({
       id: 'linking-internal',
-      label: 'Liens internes',
+      label: r.internalLabel,
       status: 'pass',
-      message: `${internalLinks.length} lien(s) interne(s) — Correct. Visez 3+ pour renforcer le maillage.`,
+      message: r.internalFew(internalLinks.length),
       category: 'important',
       weight: 2,
       group: 'linking',
@@ -39,9 +41,9 @@ export function checkLinking(_input: SeoInput, ctx: AnalysisContext): SeoCheck[]
   } else {
     checks.push({
       id: 'linking-internal',
-      label: 'Liens internes',
+      label: r.internalLabel,
       status: 'pass',
-      message: `${internalLinks.length} liens internes — Excellent maillage interne.`,
+      message: r.internalGood(internalLinks.length),
       category: 'important',
       weight: 2,
       group: 'linking',
@@ -53,9 +55,9 @@ export function checkLinking(_input: SeoInput, ctx: AnalysisContext): SeoCheck[]
   if (skipExternalCheck) {
     checks.push({
       id: 'linking-external',
-      label: 'Liens externes',
+      label: r.externalLabel,
       status: 'pass',
-      message: 'Page utilitaire — Les liens externes ne sont pas indispensables.',
+      message: r.externalUtilityPass,
       category: 'bonus',
       weight: 1,
       group: 'linking',
@@ -63,10 +65,9 @@ export function checkLinking(_input: SeoInput, ctx: AnalysisContext): SeoCheck[]
   } else if (externalLinks.length === 0) {
     checks.push({
       id: 'linking-external',
-      label: 'Liens externes',
+      label: r.externalLabel,
       status: 'warning',
-      message:
-        'Aucun lien externe — Ajoutez des liens vers des sources fiables pour renforcer la credibilite.',
+      message: r.externalNone,
       category: 'bonus',
       weight: 1,
       group: 'linking',
@@ -74,27 +75,28 @@ export function checkLinking(_input: SeoInput, ctx: AnalysisContext): SeoCheck[]
   } else {
     checks.push({
       id: 'linking-external',
-      label: 'Liens externes',
+      label: r.externalLabel,
       status: 'pass',
-      message: `${externalLinks.length} lien(s) externe(s) detecte(s).`,
+      message: r.externalPass(externalLinks.length),
       category: 'bonus',
       weight: 1,
       group: 'linking',
     })
   }
 
-  // 32. No generic anchor texts
+  // 32. No generic anchor texts (check both FR + EN)
+  const allGenericAnchors = [...getGenericAnchors('fr'), ...getGenericAnchors('en')]
   const genericAnchors = allLinks.filter((link) => {
     const text = link.text.toLowerCase().trim()
-    return (GENERIC_ANCHOR_TEXTS as readonly string[]).includes(text)
+    return allGenericAnchors.includes(text)
   })
 
   if (genericAnchors.length > 0) {
     checks.push({
       id: 'linking-generic-anchors',
-      label: 'Ancres generiques',
+      label: r.genericAnchorsLabel,
       status: 'warning',
-      message: `${genericAnchors.length} lien(s) avec des ancres generiques ("cliquez ici", "ici"...) — Utilisez des textes descriptifs.`,
+      message: r.genericAnchorsFail(genericAnchors.length),
       category: 'important',
       weight: 2,
       group: 'linking',
@@ -102,9 +104,9 @@ export function checkLinking(_input: SeoInput, ctx: AnalysisContext): SeoCheck[]
   } else if (allLinks.length > 0) {
     checks.push({
       id: 'linking-generic-anchors',
-      label: 'Ancres descriptives',
+      label: r.genericAnchorsPassLabel,
       status: 'pass',
-      message: 'Tous les liens utilisent des textes d\'ancrage descriptifs.',
+      message: r.genericAnchorsPass,
       category: 'important',
       weight: 2,
       group: 'linking',
@@ -120,9 +122,9 @@ export function checkLinking(_input: SeoInput, ctx: AnalysisContext): SeoCheck[]
   if (emptyLinks.length > 0) {
     checks.push({
       id: 'linking-empty',
-      label: 'Liens vides',
+      label: r.emptyLinksLabel,
       status: 'warning',
-      message: `${emptyLinks.length} lien(s) vide(s) detecte(s) (href="" ou href="#") — Ajoutez des destinations valides.`,
+      message: r.emptyLinksFail(emptyLinks.length),
       category: 'important',
       weight: 2,
       group: 'linking',
@@ -130,9 +132,9 @@ export function checkLinking(_input: SeoInput, ctx: AnalysisContext): SeoCheck[]
   } else if (allLinks.length > 0) {
     checks.push({
       id: 'linking-empty',
-      label: 'Liens valides',
+      label: r.emptyLinksPassLabel,
       status: 'pass',
-      message: 'Aucun lien vide detecte.',
+      message: r.emptyLinksPass,
       category: 'important',
       weight: 2,
       group: 'linking',

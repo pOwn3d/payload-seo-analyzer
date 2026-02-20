@@ -1,57 +1,56 @@
 /**
  * SEO Rules — Readability checks (weight: 2, category: important)
- * French-adapted readability analysis (Kandel-Moles / Flesch FR).
+ * Locale-adapted readability analysis (FR: Kandel-Moles / Flesch FR, EN: standard Flesch).
  */
-import type { SeoCheck, SeoInput, AnalysisContext } from '../types'
+import type { SeoCheck, SeoInput, AnalysisContext } from '../types.js'
 import {
-  calculateFleschFR,
+  calculateFlesch,
   countWords,
   countLongSections,
   detectPassiveVoice,
   hasTransitionWord,
   extractTextFromLexical,
-} from '../helpers'
+} from '../helpers.js'
 import {
-  FLESCH_SCORE_PASS,
-  FLESCH_SCORE_WARN,
-  LONG_SENTENCE_WORDS,
+  FLESCH_THRESHOLDS,
+  READABILITY_THRESHOLDS,
   LONG_SENTENCE_MAX_RATIO,
   LONG_PARAGRAPH_WORDS,
-  PASSIVE_VOICE_MAX_RATIO,
-  TRANSITION_WORDS_MIN_RATIO,
   CONSECUTIVE_SAME_START_MAX,
   LONG_SECTION_THRESHOLD,
-} from '../constants'
+} from '../constants.js'
+import { getTranslations } from '../i18n.js'
 
 export function checkReadability(input: SeoInput, ctx: AnalysisContext): SeoCheck[] {
   const checks: SeoCheck[] = []
+  const r = getTranslations(ctx.locale).rules.readability
+  const locale = ctx.locale || 'fr'
+  const ft = FLESCH_THRESHOLDS[locale]
+  const rt = READABILITY_THRESHOLDS[locale]
   const { fullText, sentences, wordCount } = ctx
 
   // Only run readability checks if there's enough content
   if (wordCount < 50) return checks
 
-  // 38. Flesch reading ease (French adaptation — Kandel-Moles)
-  // Thresholds adapted for French: words have more syllables (suffixes -tion, -ment,
-  // -ité) and sentences are structurally longer (articles, prepositions, relatives).
-  // A score of 40-50 in French is equivalent to 55-65 in English.
-  const fleschScore = calculateFleschFR(fullText)
+  // 38. Flesch reading ease (locale-adapted: FR = Kandel-Moles, EN = Flesch-Kincaid)
+  const fleschScore = calculateFlesch(fullText, locale)
 
-  if (fleschScore >= FLESCH_SCORE_PASS) {
+  if (fleschScore >= ft.pass) {
     checks.push({
       id: 'readability-flesch',
-      label: 'Score de lisibilite',
+      label: r.fleschLabel,
       status: 'pass',
-      message: `Score Flesch FR : ${fleschScore}/100 — Texte accessible.`,
+      message: r.fleschPass(fleschScore),
       category: 'important',
       weight: 2,
       group: 'readability',
     })
-  } else if (fleschScore >= FLESCH_SCORE_WARN) {
+  } else if (fleschScore >= ft.warn) {
     checks.push({
       id: 'readability-flesch',
-      label: 'Score de lisibilite',
+      label: r.fleschLabel,
       status: 'warning',
-      message: `Score Flesch FR : ${fleschScore}/100 — Texte assez difficile. Simplifiez les phrases.`,
+      message: r.fleschWarn(fleschScore),
       category: 'important',
       weight: 2,
       group: 'readability',
@@ -59,9 +58,9 @@ export function checkReadability(input: SeoInput, ctx: AnalysisContext): SeoChec
   } else {
     checks.push({
       id: 'readability-flesch',
-      label: 'Score de lisibilite',
+      label: r.fleschLabel,
       status: 'fail',
-      message: `Score Flesch FR : ${fleschScore}/100 — Texte difficile a lire. Raccourcissez les phrases et simplifiez le vocabulaire.`,
+      message: r.fleschFail(fleschScore),
       category: 'important',
       weight: 2,
       group: 'readability',
@@ -69,19 +68,16 @@ export function checkReadability(input: SeoInput, ctx: AnalysisContext): SeoChec
   }
 
   // 39. Long sentences (>25 words) — max 30% of sentences
-  // Adapted for French: articles (le/la/les), prepositions (de/du/à/en) and
-  // pronouns (qui/que/dont) make French sentences structurally longer than English.
-  // A 25-word French sentence carries roughly the same info as a 20-word English one.
   if (sentences.length > 0) {
-    const longSentences = sentences.filter((s) => countWords(s) > LONG_SENTENCE_WORDS)
+    const longSentences = sentences.filter((s) => countWords(s) > rt.longSentenceWords)
     const longRatio = longSentences.length / sentences.length
 
     if (longRatio > LONG_SENTENCE_MAX_RATIO) {
       checks.push({
         id: 'readability-long-sentences',
-        label: 'Phrases trop longues',
+        label: r.longSentencesLabelFail,
         status: 'warning',
-        message: `${longSentences.length}/${sentences.length} phrases de plus de 25 mots (${Math.round(longRatio * 100)}%) — Max recommande : 30%.`,
+        message: r.longSentencesFail(longSentences.length, sentences.length, Math.round(longRatio * 100)),
         category: 'important',
         weight: 2,
         group: 'readability',
@@ -89,9 +85,9 @@ export function checkReadability(input: SeoInput, ctx: AnalysisContext): SeoChec
     } else {
       checks.push({
         id: 'readability-long-sentences',
-        label: 'Longueur des phrases',
+        label: r.longSentencesLabelPass,
         status: 'pass',
-        message: `${Math.round(longRatio * 100)}% de phrases longues — Bonne distribution.`,
+        message: r.longSentencesPass(Math.round(longRatio * 100)),
         category: 'important',
         weight: 2,
         group: 'readability',
@@ -140,30 +136,25 @@ export function checkReadability(input: SeoInput, ctx: AnalysisContext): SeoChec
 
   checks.push({
     id: 'readability-long-paragraphs',
-    label: 'Paragraphes longs',
+    label: r.longParagraphsLabel,
     status: hasLongParagraph ? 'warning' : 'pass',
-    message: hasLongParagraph
-      ? 'Des paragraphes de plus de 150 mots ont ete detectes — Decoupez-les pour faciliter la lecture.'
-      : 'Aucun paragraphe excessivement long.',
+    message: hasLongParagraph ? r.longParagraphsFail : r.longParagraphsPass,
     category: 'important',
     weight: 2,
     group: 'readability',
   })
 
   // 41. Passive voice — max 15% of sentences
-  // Raised from 10% to 15%: French naturally uses more "être + participe passé"
-  // constructions than English (state descriptions, impersonal forms in B2B copy).
-  // The regex also now excludes passé composé with être-verbs (aller, venir, etc.)
   if (sentences.length > 0) {
-    const passiveSentences = sentences.filter((s) => detectPassiveVoice(s))
+    const passiveSentences = sentences.filter((s) => detectPassiveVoice(s, locale))
     const passiveRatio = passiveSentences.length / sentences.length
 
-    if (passiveRatio > PASSIVE_VOICE_MAX_RATIO) {
+    if (passiveRatio > rt.passiveMax) {
       checks.push({
         id: 'readability-passive',
-        label: 'Voix passive',
+        label: r.passiveLabelFail,
         status: 'warning',
-        message: `${passiveSentences.length}/${sentences.length} phrases a la voix passive (${Math.round(passiveRatio * 100)}%) — Max recommande : 15%.`,
+        message: r.passiveFail(passiveSentences.length, sentences.length, Math.round(passiveRatio * 100)),
         category: 'important',
         weight: 2,
         group: 'readability',
@@ -171,9 +162,9 @@ export function checkReadability(input: SeoInput, ctx: AnalysisContext): SeoChec
     } else {
       checks.push({
         id: 'readability-passive',
-        label: 'Voix active',
+        label: r.passiveLabelPass,
         status: 'pass',
-        message: `${Math.round(passiveRatio * 100)}% de voix passive — Bon usage de la voix active.`,
+        message: r.passivePass(Math.round(passiveRatio * 100)),
         category: 'important',
         weight: 2,
         group: 'readability',
@@ -182,18 +173,16 @@ export function checkReadability(input: SeoInput, ctx: AnalysisContext): SeoChec
   }
 
   // 42. Transition words — at least 15% of sentences
-  // Lowered from 30% → 20% → 15%: French web copy (especially service pages,
-  // landing pages) uses short punchy sentences that don't always need connectors.
   if (sentences.length > 0) {
-    const withTransition = sentences.filter((s) => hasTransitionWord(s))
+    const withTransition = sentences.filter((s) => hasTransitionWord(s, locale))
     const transitionRatio = withTransition.length / sentences.length
 
-    if (transitionRatio < TRANSITION_WORDS_MIN_RATIO) {
+    if (transitionRatio < rt.transitionsMin) {
       checks.push({
         id: 'readability-transitions',
-        label: 'Mots de transition',
+        label: r.transitionsLabel,
         status: 'warning',
-        message: `${Math.round(transitionRatio * 100)}% des phrases contiennent des mots de transition — Visez 15%+.`,
+        message: r.transitionsFail(Math.round(transitionRatio * 100)),
         category: 'bonus',
         weight: 1,
         group: 'readability',
@@ -201,9 +190,9 @@ export function checkReadability(input: SeoInput, ctx: AnalysisContext): SeoChec
     } else {
       checks.push({
         id: 'readability-transitions',
-        label: 'Mots de transition',
+        label: r.transitionsLabel,
         status: 'pass',
-        message: `${Math.round(transitionRatio * 100)}% des phrases avec mots de transition — Bonne fluidite.`,
+        message: r.transitionsPass(Math.round(transitionRatio * 100)),
         category: 'bonus',
         weight: 1,
         group: 'readability',
@@ -231,9 +220,9 @@ export function checkReadability(input: SeoInput, ctx: AnalysisContext): SeoChec
     if (maxConsecutive >= CONSECUTIVE_SAME_START_MAX) {
       checks.push({
         id: 'readability-consecutive-starts',
-        label: 'Debuts de phrases repetitifs',
+        label: r.consecutiveLabelFail,
         status: 'warning',
-        message: `${maxConsecutive} phrases consecutives commencent par le meme mot — Variez les debuts de phrases.`,
+        message: r.consecutiveFail(maxConsecutive),
         category: 'bonus',
         weight: 1,
         group: 'readability',
@@ -241,9 +230,9 @@ export function checkReadability(input: SeoInput, ctx: AnalysisContext): SeoChec
     } else {
       checks.push({
         id: 'readability-consecutive-starts',
-        label: 'Variete des phrases',
+        label: r.consecutiveLabelPass,
         status: 'pass',
-        message: 'Les debuts de phrases sont suffisamment varies.',
+        message: r.consecutivePass,
         category: 'bonus',
         weight: 1,
         group: 'readability',
@@ -260,9 +249,9 @@ export function checkReadability(input: SeoInput, ctx: AnalysisContext): SeoChec
   if (totalLongSections > 0) {
     checks.push({
       id: 'readability-long-sections',
-      label: 'Sections sans sous-titre',
+      label: r.longSectionsLabelFail,
       status: 'warning',
-      message: `${totalLongSections} section(s) de plus de 400 mots sans sous-titre — Decoupez avec des h2/h3.`,
+      message: r.longSectionsFail(totalLongSections),
       category: 'important',
       weight: 2,
       group: 'readability',
@@ -270,9 +259,9 @@ export function checkReadability(input: SeoInput, ctx: AnalysisContext): SeoChec
   } else if (wordCount > 300) {
     checks.push({
       id: 'readability-long-sections',
-      label: 'Structure en sections',
+      label: r.longSectionsLabelPass,
       status: 'pass',
-      message: 'Les sections sont bien decoupees avec des sous-titres.',
+      message: r.longSectionsPass,
       category: 'important',
       weight: 2,
       group: 'readability',
