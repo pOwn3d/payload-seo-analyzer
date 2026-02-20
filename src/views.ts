@@ -1,0 +1,10 @@
+// Server-side view exports — wrapped in DefaultTemplate for admin layout
+export { SeoView } from './views/SeoView.js'
+export { SeoConfigView } from './views/SeoConfigView.js'
+export { SitemapAuditView } from './views/SitemapAuditView.js'
+export { RedirectManagerView } from './views/RedirectManagerView.js'
+export { CannibalizationView } from './views/CannibalizationView.js'
+export { PerformanceView } from './views/PerformanceView.js'
+export { KeywordResearchView } from './views/KeywordResearchView.js'
+export { SchemaBuilderView } from './views/SchemaBuilderView.js'
+export { LinkGraphView } from './views/LinkGraphView.js'
