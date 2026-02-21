@@ -15,6 +15,7 @@
   <img src="https://img.shields.io/badge/i18n-39%20Languages-3B82F6?style=for-the-badge" alt="i18n 39 Languages">
   <a href="https://github.com/pOwn3d/payload-seo-analyzer/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-7C3AED?style=for-the-badge" alt="MIT License"></a>
   <img src="https://img.shields.io/badge/TypeScript-5.x-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
+  <a href="https://github.com/pOwn3d/payload-seo-analyzer/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/pOwn3d/payload-seo-analyzer/ci.yml?branch=main&style=for-the-badge&logo=github-actions&logoColor=white" alt="CI"></a>
   <a href="https://github.com/pOwn3d/payload-seo-analyzer"><img src="https://img.shields.io/github/stars/pOwn3d/payload-seo-analyzer?style=for-the-badge&logo=github&color=181717" alt="GitHub stars"></a>
 
 </div>
