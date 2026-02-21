@@ -10,7 +10,7 @@ import { getDashboardT } from '../dashboard-i18n.js'
 // The xlsx package is an optional peerDependency — users must install it separately
 // to enable XLSX import functionality.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type XLSXModule = typeof import('xlsx')
+type XLSXModule = any
 
 // ---------------------------------------------------------------------------
 // Design tokens — uses Payload CSS variables for theme compatibility
@@ -250,7 +250,8 @@ export function PerformanceView() {
       const reader = new FileReader()
       reader.onload = async (evt) => {
         try {
-          const xlsxMod: XLSXModule = await import('xlsx')
+          // @ts-ignore — xlsx is an optional dependency loaded dynamically
+          const xlsxMod: XLSXModule = await import(/* webpackIgnore: true */ 'xlsx')
           const data = new Uint8Array(evt.target?.result as ArrayBuffer)
           const workbook = xlsxMod.read(data, { type: 'array' })
 
@@ -260,8 +261,7 @@ export function PerformanceView() {
 
           for (const sheetName of workbook.SheetNames) {
             const sheet = workbook.Sheets[sheetName]
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const rows = xlsxMod.utils.sheet_to_json<Record<string, any>>(sheet)
+            const rows = xlsxMod.utils.sheet_to_json(sheet) as Record<string, any>[]
 
             for (const row of rows) {
               // Normalize header keys to lowercase
