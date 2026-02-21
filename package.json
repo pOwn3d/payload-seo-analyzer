@@ -1,6 +1,6 @@
 {
   "name": "@consilioweb/seo-analyzer",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Payload CMS SEO plugin — 50+ checks, dashboard, Lexical JSON support, Flesch FR/EN readability, i18n",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -38,9 +38,14 @@
       }
     }
   },
+  "bin": {
+    "seo-analyzer-uninstall": "./scripts/uninstall.mjs"
+  },
   "files": [
     "dist",
-    "README.md"
+    "scripts",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsup",
@@ -51,18 +56,42 @@
   },
   "keywords": [
     "seo",
-    "analyzer",
+    "seo-analyzer",
+    "seo-plugin",
+    "seo-audit",
+    "on-page-seo",
+    "payload",
     "payload-cms",
+    "payload-cms-plugin",
     "payload-plugin",
-    "french",
-    "flesch",
+    "cms-seo",
+    "meta-tags",
+    "content-analysis",
     "readability",
+    "readability-score",
+    "flesch",
     "lexical",
     "next.js",
+    "nextjs",
     "i18n",
-    "english"
+    "french",
+    "english",
+    "structured-data",
+    "json-ld",
+    "sitemap",
+    "seo-dashboard",
+    "redirects",
+    "typescript"
   ],
-  "author": "ConsilioWEB",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pOwn3d/payload-seo-analyzer.git"
+  },
+  "homepage": "https://github.com/pOwn3d/payload-seo-analyzer#readme",
+  "bugs": {
+    "url": "https://github.com/pOwn3d/payload-seo-analyzer/issues"
+  },
+  "author": "ConsilioWEB <contact@consilioweb.fr> (https://consilioweb.fr)",
   "license": "MIT",
   "peerDependencies": {
     "@payloadcms/next": "^3.0.0",
@@ -80,6 +109,9 @@
     "react": {
       "optional": true
     }
+  },
+  "engines": {
+    "node": ">=18"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",

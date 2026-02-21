@@ -1,6 +1,8 @@
 'use client'
 
 import React, { useEffect, useState, useMemo, useCallback } from 'react'
+import { useSeoLocale } from '../hooks/useSeoLocale.js'
+import { getDashboardT } from '../dashboard-i18n.js'
 
 // ---------------------------------------------------------------------------
 // Design tokens — uses Payload CSS variables for theme compatibility
@@ -261,7 +263,7 @@ function StatCard({
 // ---------------------------------------------------------------------------
 // CollectionBadge sub-component
 // ---------------------------------------------------------------------------
-function CollectionBadge({ collection }: { collection: string }) {
+function CollectionBadge({ collection, articleLabel }: { collection: string; articleLabel?: string }) {
   const isPages = collection === 'pages'
   return (
     <span
@@ -277,7 +279,7 @@ function CollectionBadge({ collection }: { collection: string }) {
         letterSpacing: 0.3,
       }}
     >
-      {isPages ? 'Page' : 'Article'}
+      {isPages ? 'Page' : (articleLabel || 'Article')}
     </span>
   )
 }
@@ -286,12 +288,13 @@ function CollectionBadge({ collection }: { collection: string }) {
 // EditButton sub-component
 // ---------------------------------------------------------------------------
 function EditButton({ collection, id }: { collection: string; id: number | string }) {
+  const t = getDashboardT(useSeoLocale())
   const [hover, setHover] = useState(false)
   return (
     <span
       role="link"
       tabIndex={0}
-      title="Editer"
+      title={t.common.edit}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       onClick={() => {
@@ -408,8 +411,10 @@ const rowStyle: React.CSSProperties = {
 // OrphanTab (C3: score badge, C5: hover preview)
 // ---------------------------------------------------------------------------
 function OrphanTab({ pages, scoreMap }: { pages: OrphanPage[]; scoreMap: Map<string, number> }) {
+  const locale = useSeoLocale()
+  const t = getDashboardT(locale)
   if (pages.length === 0) {
-    return <EmptyState message="Aucune page orpheline detectee. Toutes les pages sont accessibles via des liens internes." />
+    return <EmptyState message={t.sitemapAudit.noOrphanedPages} />
   }
   return (
     <div>
@@ -423,7 +428,7 @@ function OrphanTab({ pages, scoreMap }: { pages: OrphanPage[]; scoreMap: Map<str
           fontWeight: 600,
         }}
       >
-        Pages sans aucun lien interne entrant (inaccessibles depuis les autres pages)
+        {t.sitemapAudit.orphanedPagesDesc}
       </div>
       {pages.map((page) => (
         <div key={`${page.collection}-${page.id}`} style={rowStyle}>
@@ -440,12 +445,12 @@ function OrphanTab({ pages, scoreMap }: { pages: OrphanPage[]; scoreMap: Map<str
               }}
             >
               <HoverPreview content={<>{page.title}<br />/{page.slug}</>}>
-                <span>{page.title || '(sans titre)'}</span>
+                <span>{page.title || t.common.noTitle}</span>
               </HoverPreview>
               <ScoreBadge score={scoreMap.get(page.slug)} />
             </div>
             <div style={{ fontSize: 10, color: V.textSecondary, marginTop: 2 }}>
-              <CollectionBadge collection={page.collection} />{' '}
+              <CollectionBadge collection={page.collection} articleLabel={t.common.article} />{' '}
               <span style={{ marginLeft: 4 }}>/{page.slug}</span>
             </div>
           </div>
@@ -468,7 +473,7 @@ function OrphanTab({ pages, scoreMap }: { pages: OrphanPage[]; scoreMap: Map<str
                 backgroundColor: 'rgba(239,68,68,0.1)',
               }}
             >
-              0 liens entrants
+              {t.sitemapAudit.zeroIncomingLinks}
             </span>
             <EditButton collection={page.collection} id={page.id} />
           </div>
@@ -482,8 +487,10 @@ function OrphanTab({ pages, scoreMap }: { pages: OrphanPage[]; scoreMap: Map<str
 // WeakTab (C3: score badge, C4: anchor text, C5: hover preview)
 // ---------------------------------------------------------------------------
 function WeakTab({ pages, scoreMap }: { pages: WeakPage[]; scoreMap: Map<string, number> }) {
+  const locale = useSeoLocale()
+  const t = getDashboardT(locale)
   if (pages.length === 0) {
-    return <EmptyState message="Aucune page fragile detectee. Toutes les pages ont au moins 2 liens internes entrants." />
+    return <EmptyState message={t.sitemapAudit.noFragilePages} />
   }
   return (
     <div>
@@ -497,7 +504,7 @@ function WeakTab({ pages, scoreMap }: { pages: WeakPage[]; scoreMap: Map<string,
           fontWeight: 600,
         }}
       >
-        Pages avec un seul lien interne entrant (fragiles — si ce lien disparait, la page devient orpheline)
+        {t.sitemapAudit.fragilePagesDesc}
       </div>
       {pages.map((page) => (
         <div key={`${page.collection}-${page.id}`} style={rowStyle}>
@@ -513,11 +520,11 @@ function WeakTab({ pages, scoreMap }: { pages: WeakPage[]; scoreMap: Map<string,
                 alignItems: 'center',
               }}
             >
-              {page.title || '(sans titre)'}
+              {page.title || t.common.noTitle}
               <ScoreBadge score={scoreMap.get(page.slug)} />
             </div>
             <div style={{ fontSize: 10, color: V.textSecondary, marginTop: 2 }}>
-              <CollectionBadge collection={page.collection} />{' '}
+              <CollectionBadge collection={page.collection} articleLabel={t.common.article} />{' '}
               <span style={{ marginLeft: 4 }}>/{page.slug}</span>
             </div>
           </div>
@@ -541,7 +548,7 @@ function WeakTab({ pages, scoreMap }: { pages: WeakPage[]; scoreMap: Map<string,
                   backgroundColor: 'rgba(249,115,22,0.1)',
                 }}
               >
-                1 lien entrant
+                {t.sitemapAudit.oneIncomingLink}
               </span>
               {page.incomingFrom && page.incomingFrom.length > 0 && (
                 <div style={{ fontSize: 9, color: V.textSecondary, marginTop: 2 }}>
@@ -557,11 +564,11 @@ function WeakTab({ pages, scoreMap }: { pages: WeakPage[]; scoreMap: Map<string,
                       </>
                     }
                   >
-                    <span>depuis: /{page.incomingFrom[0].slug}</span>
+                    <span>{t.sitemapAudit.from} /{page.incomingFrom[0].slug}</span>
                   </HoverPreview>
                   {page.incomingFrom[0].anchorText && (
                     <div style={{ fontSize: 9, color: V.textSecondary, fontStyle: 'italic', marginTop: 1 }}>
-                      ancre: &laquo; {page.incomingFrom[0].anchorText} &raquo;
+                      {t.sitemapAudit.anchor} &laquo; {page.incomingFrom[0].anchorText} &raquo;
                     </div>
                   )}
                 </div>
@@ -579,8 +586,10 @@ function WeakTab({ pages, scoreMap }: { pages: WeakPage[]; scoreMap: Map<string,
 // HubsTab
 // ---------------------------------------------------------------------------
 function HubsTab({ hubs }: { hubs: LinkHub[] }) {
+  const locale = useSeoLocale()
+  const t = getDashboardT(locale)
   if (hubs.length === 0) {
-    return <EmptyState message="Aucun hub de liens detecte (aucune page avec plus de 10 liens sortants)." />
+    return <EmptyState message={t.sitemapAudit.noLinkHubs} />
   }
   return (
     <div>
@@ -594,7 +603,7 @@ function HubsTab({ hubs }: { hubs: LinkHub[] }) {
           fontWeight: 600,
         }}
       >
-        Pages avec plus de 10 liens internes sortants — ces pages distribuent beaucoup de PageRank
+        {t.sitemapAudit.linkHubsDesc}
       </div>
       {hubs.map((hub) => (
         <div key={`${hub.collection}-${hub.id}`} style={rowStyle}>
@@ -608,10 +617,10 @@ function HubsTab({ hubs }: { hubs: LinkHub[] }) {
                 textOverflow: 'ellipsis',
               }}
             >
-              {hub.title || '(sans titre)'}
+              {hub.title || t.common.noTitle}
             </div>
             <div style={{ fontSize: 10, color: V.textSecondary, marginTop: 2 }}>
-              <CollectionBadge collection={hub.collection} />{' '}
+              <CollectionBadge collection={hub.collection} articleLabel={t.common.article} />{' '}
               <span style={{ marginLeft: 4 }}>/{hub.slug}</span>
             </div>
           </div>
@@ -633,7 +642,7 @@ function HubsTab({ hubs }: { hubs: LinkHub[] }) {
                 backgroundColor: 'rgba(139,92,246,0.1)',
               }}
             >
-              {hub.outgoingCount} liens
+              {hub.outgoingCount} {t.sitemapAudit.links}
             </span>
             <EditButton collection={hub.collection} id={hub.id} />
           </div>
@@ -647,6 +656,8 @@ function HubsTab({ hubs }: { hubs: LinkHub[] }) {
 // BrokenTab (C1: suggestions, C2: redirect button, C5: hover preview, bulk)
 // ---------------------------------------------------------------------------
 function BrokenTab({ links, onRefresh }: { links: BrokenLink[]; onRefresh: () => void }) {
+  const locale = useSeoLocale()
+  const t = getDashboardT(locale)
   const [createdRedirects, setCreatedRedirects] = useState<Set<string>>(new Set())
   const [loadingRedirects, setLoadingRedirects] = useState<Set<string>>(new Set())
   const [manualInputs, setManualInputs] = useState<Record<string, string>>({})
@@ -795,7 +806,7 @@ function BrokenTab({ links, onRefresh }: { links: BrokenLink[]; onRefresh: () =>
   }, [links, selectedIds, createdRedirects, manualInputs])
 
   if (links.length === 0) {
-    return <EmptyState message="Aucun lien interne casse detecte. Tous les liens pointent vers des pages existantes." />
+    return <EmptyState message={t.sitemapAudit.noBrokenLinks} />
   }
   return (
     <div>
@@ -816,7 +827,7 @@ function BrokenTab({ links, onRefresh }: { links: BrokenLink[]; onRefresh: () =>
         }}
       >
         <span>
-          Liens internes pointant vers des slugs inexistants — a corriger ou rediriger
+          {t.sitemapAudit.brokenLinksDesc}
         </span>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           {bulkResult && (
@@ -830,7 +841,7 @@ function BrokenTab({ links, onRefresh }: { links: BrokenLink[]; onRefresh: () =>
                 backgroundColor: bulkResult.errors > 0 ? 'rgba(249,115,22,0.1)' : 'rgba(34,197,94,0.1)',
               }}
             >
-              {bulkResult.created} creees{bulkResult.errors > 0 ? `, ${bulkResult.errors} erreurs` : ''}
+              {bulkResult.created} {t.sitemapAudit.created}{bulkResult.errors > 0 ? `, ${bulkResult.errors} ${t.sitemapAudit.errors}` : ''}
             </span>
           )}
           {selectedIds.size > 0 && (
@@ -886,7 +897,7 @@ function BrokenTab({ links, onRefresh }: { links: BrokenLink[]; onRefresh: () =>
           onChange={toggleSelectAll}
           style={{ cursor: 'pointer' }}
         />
-        <span>{selectedIds.size > 0 ? `${selectedIds.size} selectionne(s)` : 'Tout selectionner'}</span>
+        <span>{selectedIds.size > 0 ? `${selectedIds.size} ${t.sitemapAudit.selectedItems}` : t.sitemapAudit.selectAll}</span>
       </div>
       {links.map((link, idx) => {
         const key = `${link.sourceSlug}::${link.targetSlug}`
@@ -919,10 +930,10 @@ function BrokenTab({ links, onRefresh }: { links: BrokenLink[]; onRefresh: () =>
                   textOverflow: 'ellipsis',
                 }}
               >
-                {link.sourceTitle || '(sans titre)'}
+                {link.sourceTitle || t.common.noTitle}
               </div>
               <div style={{ fontSize: 10, color: V.textSecondary, marginTop: 2 }}>
-                <CollectionBadge collection={link.collection} />{' '}
+                <CollectionBadge collection={link.collection} articleLabel={t.common.article} />{' '}
                 <span style={{ marginLeft: 4 }}>/{link.sourceSlug}</span>
               </div>
             </div>
@@ -966,7 +977,7 @@ function BrokenTab({ links, onRefresh }: { links: BrokenLink[]; onRefresh: () =>
                 {/* C1: Suggestion display */}
                 {link.suggestedSlug && (
                   <div style={{ fontSize: 9, color: V.green, fontWeight: 600, marginTop: 2 }}>
-                    Suggestion: /{link.suggestedSlug}
+                    {t.sitemapAudit.suggestion} /{link.suggestedSlug}
                   </div>
                 )}
                 {/* C2: Redirect creation */}
@@ -982,14 +993,14 @@ function BrokenTab({ links, onRefresh }: { links: BrokenLink[]; onRefresh: () =>
                         backgroundColor: 'rgba(34,197,94,0.1)',
                       }}
                     >
-                      &#10003; Creee
+                      &#10003; {t.sitemapAudit.createdLabel}
                     </span>
                   ) : (
                     <>
                       {!link.suggestedSlug && (
                         <input
                           type="text"
-                          placeholder="slug cible"
+                          placeholder={t.sitemapAudit.targetSlug}
                           value={manualTo}
                           onChange={(e) =>
                             setManualInputs((prev) => ({ ...prev, [key]: e.target.value }))
@@ -1052,6 +1063,8 @@ interface SeoLog {
 }
 
 function Logs404Tab() {
+  const locale = useSeoLocale()
+  const t = getDashboardT(locale)
   const [logs, setLogs] = useState<SeoLog[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -1070,10 +1083,10 @@ function Logs404Tab() {
       const json = await res.json()
       setLogs(json.logs || [])
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Erreur')
+      setError(e instanceof Error ? e.message : t.common.loadingError)
     }
     setLoading(false)
-  }, [])
+  }, [t])
 
   useEffect(() => {
     fetchLogs()
@@ -1168,7 +1181,7 @@ function Logs404Tab() {
   if (loading) {
     return (
       <div style={{ padding: '40px 20px', textAlign: 'center', color: V.textSecondary, fontSize: 13 }}>
-        Chargement des logs 404...
+        {t.sitemapAudit.loading404}
       </div>
     )
   }
@@ -1177,20 +1190,20 @@ function Logs404Tab() {
     return (
       <div style={{ padding: '40px 20px', textAlign: 'center' }}>
         <div style={{ color: V.red, fontWeight: 700, fontSize: 13, marginBottom: 8 }}>
-          Erreur: {error}
+          {t.common.loadingError}: {error}
         </div>
         <button
           onClick={fetchLogs}
           style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
         >
-          Reessayer
+          {t.common.retry}
         </button>
       </div>
     )
   }
 
   if (logs.length === 0) {
-    return <EmptyState message="Aucune erreur 404 enregistree. Activez le logging dans votre middleware Next.js." />
+    return <EmptyState message={t.sitemapAudit.no404Errors} />
   }
 
   const selectedWithInput = logs.filter(
@@ -1216,7 +1229,7 @@ function Logs404Tab() {
         }}
       >
         <span>
-          Pages 404 visitees par vos utilisateurs — creez des redirections 301 pour les corriger
+          {t.sitemapAudit.pages404Desc}
         </span>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           {selectedIds.size > 0 && selectedWithInput > 0 && (
@@ -1240,7 +1253,7 @@ function Logs404Tab() {
             onClick={fetchLogs}
             style={{ ...btnBase, fontSize: 10, padding: '4px 12px', backgroundColor: V.bgCard, color: V.text }}
           >
-            &#8635; Rafraichir
+            &#8635; {t.common.refresh}
           </button>
         </div>
       </div>
@@ -1264,7 +1277,7 @@ function Logs404Tab() {
           onChange={toggleSelectAll}
           style={{ cursor: 'pointer' }}
         />
-        <span>{selectedIds.size > 0 ? `${selectedIds.size} selectionne(s)` : 'Tout selectionner'}</span>
+        <span>{selectedIds.size > 0 ? `${selectedIds.size} ${t.sitemapAudit.selectedItems}` : t.sitemapAudit.selectAll}</span>
       </div>
 
       {/* Log rows */}
@@ -1307,11 +1320,11 @@ function Logs404Tab() {
                   {log.count}x
                 </span>
                 <span>
-                  Dernier: {log.lastSeen ? new Date(log.lastSeen).toLocaleDateString('fr') : '?'}
+                  {t.sitemapAudit.last} {log.lastSeen ? new Date(log.lastSeen).toLocaleDateString(locale) : '?'}
                 </span>
                 {log.referrer && (
                   <span title={log.referrer}>
-                    Ref: {log.referrer.length > 30 ? log.referrer.slice(0, 28) + '...' : log.referrer}
+                    {t.sitemapAudit.ref} {log.referrer.length > 30 ? log.referrer.slice(0, 28) + '...' : log.referrer}
                   </span>
                 )}
               </div>
@@ -1334,7 +1347,7 @@ function Logs404Tab() {
                 <>
                   <input
                     type="text"
-                    placeholder="slug cible"
+                    placeholder={t.sitemapAudit.targetSlug}
                     value={manualTo}
                     onChange={(e) =>
                       setManualInputs((prev) => ({ ...prev, [log.url]: e.target.value }))
@@ -1375,7 +1388,7 @@ function Logs404Tab() {
               )}
               <button
                 onClick={() => handleIgnore(log.id)}
-                title="Ignorer"
+                title={t.sitemapAudit.ignore}
                 style={{
                   padding: '2px 6px',
                   borderRadius: 4,
@@ -1390,7 +1403,7 @@ function Logs404Tab() {
               </button>
               <button
                 onClick={() => handleDelete(log.id)}
-                title="Supprimer"
+                title={t.common.delete}
                 style={{
                   padding: '2px 6px',
                   borderRadius: 4,
@@ -1417,6 +1430,8 @@ function Logs404Tab() {
 type ExternalFilter = 'all' | 'broken' | 'ok'
 
 function ExternalLinksTab() {
+  const locale = useSeoLocale()
+  const t = getDashboardT(locale)
   const [data, setData] = useState<ExternalLinksData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -1436,10 +1451,10 @@ function ExternalLinksTab() {
       const json = await res.json()
       setData(json)
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Erreur')
+      setError(e instanceof Error ? e.message : t.common.loadingError)
     }
     setLoading(false)
-  }, [])
+  }, [t])
 
   const handleExportCSV = useCallback(() => {
     if (!data) return
@@ -1479,7 +1494,7 @@ function ExternalLinksTab() {
       <div style={{ padding: '40px 20px', textAlign: 'center' }}>
         <div style={{ fontSize: 36, marginBottom: 12, opacity: 0.3 }}>&#128279;</div>
         <div style={{ fontSize: 13, color: V.textSecondary, marginBottom: 16 }}>
-          Verifiez les liens externes de votre site pour detecter les liens casses.
+          {t.sitemapAudit.checkExternalLinksDesc}
         </div>
         <button
           onClick={() => handleScan()}
@@ -1492,7 +1507,7 @@ function ExternalLinksTab() {
             fontSize: 12,
           }}
         >
-          Scanner les liens externes
+          {t.sitemapAudit.scanExternalLinks}
         </button>
       </div>
     )
@@ -1503,7 +1518,7 @@ function ExternalLinksTab() {
     return (
       <div style={{ padding: '40px 20px', textAlign: 'center', color: V.textSecondary, fontSize: 13 }}>
         <div style={{ fontSize: 24, marginBottom: 8, animation: 'spin 1s linear infinite' }}>&#8635;</div>
-        Verification en cours... (cela peut prendre quelques secondes)
+        {t.sitemapAudit.verificationInProgress}
       </div>
     )
   }
@@ -1513,13 +1528,13 @@ function ExternalLinksTab() {
     return (
       <div style={{ padding: '40px 20px', textAlign: 'center' }}>
         <div style={{ color: V.red, fontWeight: 700, fontSize: 13, marginBottom: 8 }}>
-          Erreur: {error}
+          {t.common.loadingError}: {error}
         </div>
         <button
           onClick={() => handleScan()}
           style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
         >
-          Reessayer
+          {t.common.retry}
         </button>
       </div>
     )
@@ -1545,18 +1560,18 @@ function ExternalLinksTab() {
         }}
       >
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', fontSize: 11, fontWeight: 600 }}>
-          <span style={{ color: V.text }}>{stats.total} total</span>
-          <span style={{ color: V.green }}>{stats.ok} OK</span>
-          <span style={{ color: V.red }}>{stats.broken + stats.timeout} casses</span>
+          <span style={{ color: V.text }}>{stats.total} {t.sitemapAudit.total}</span>
+          <span style={{ color: V.green }}>{stats.ok} {t.common.ok}</span>
+          <span style={{ color: V.red }}>{stats.broken + stats.timeout} {t.sitemapAudit.broken}</span>
           {stats.timeout > 0 && (
-            <span style={{ color: V.orange }}>{stats.timeout} timeout</span>
+            <span style={{ color: V.orange }}>{stats.timeout} {t.sitemapAudit.timeout}</span>
           )}
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
           {/* Filter toggles */}
           {(['all', 'broken', 'ok'] as ExternalFilter[]).map((f) => {
             const active = filter === f
-            const label = f === 'all' ? 'Tous' : f === 'broken' ? 'Casses' : 'OK'
+            const label = f === 'all' ? t.sitemapAudit.all : f === 'broken' ? t.sitemapAudit.brokenLabel : t.common.ok
             return (
               <button
                 key={f}
@@ -1589,7 +1604,7 @@ function ExternalLinksTab() {
                 color: V.text,
               }}
             >
-              Export CSV
+              {t.common.exportCsv}
             </button>
           )}
           {/* Rescan */}
@@ -1602,16 +1617,16 @@ function ExternalLinksTab() {
               backgroundColor: V.bgCard,
               color: V.text,
             }}
-            title="Forcer une nouvelle verification"
+            title={t.sitemapAudit.forceNewVerification}
           >
-            &#8635; Rescanner
+            &#8635; {t.sitemapAudit.rescan}
           </button>
         </div>
       </div>
 
       {/* Results table */}
       {filteredResults.length === 0 ? (
-        <EmptyState message={filter === 'broken' ? 'Aucun lien casse detecte.' : 'Aucun lien externe trouve.'} />
+        <EmptyState message={filter === 'broken' ? t.sitemapAudit.noBrokenLinks : t.sitemapAudit.noExternalLinks} />
       ) : (
         filteredResults.map((result, idx) => (
           <div key={`ext-${idx}`} style={rowStyle}>
@@ -1641,7 +1656,7 @@ function ExternalLinksTab() {
                 {result.sourcePages.map((p, i) => (
                   <span key={`src-${i}`}>
                     {i > 0 && ', '}
-                    <CollectionBadge collection={p.collection} />{' '}
+                    <CollectionBadge collection={p.collection} articleLabel={t.common.article} />{' '}
                     <span style={{ marginLeft: 2 }}>/{p.slug}</span>
                   </span>
                 ))}
@@ -1701,21 +1716,21 @@ function exportJSON(data: SitemapAuditData) {
   URL.revokeObjectURL(url)
 }
 
-function exportCSV(data: SitemapAuditData) {
+function exportCSV(data: SitemapAuditData, t: ReturnType<typeof getDashboardT>) {
   const rows: string[][] = [['type', 'slug', 'title', 'collection', 'details']]
 
   for (const p of data.orphanPages) {
-    rows.push(['orphan', p.slug, p.title, p.collection, '0 liens entrants'])
+    rows.push(['orphan', p.slug, p.title, p.collection, t.sitemapAudit.zeroIncomingLinks])
   }
   for (const p of data.weakPages) {
     const from = p.incomingFrom?.[0]?.slug || '?'
-    rows.push(['weak', p.slug, p.title, p.collection, `1 lien depuis /${from}`])
+    rows.push(['weak', p.slug, p.title, p.collection, `${t.sitemapAudit.oneIncomingLink} ${t.sitemapAudit.from} /${from}`])
   }
   for (const h of data.linkHubs) {
-    rows.push(['hub', h.slug, h.title, h.collection, `${h.outgoingCount} liens sortants`])
+    rows.push(['hub', h.slug, h.title, h.collection, `${h.outgoingCount} ${t.sitemapAudit.links}`])
   }
   for (const b of data.brokenLinks) {
-    rows.push(['broken-source', b.sourceSlug, b.sourceTitle, b.collection, `lien casse vers /${b.targetSlug}`])
+    rows.push(['broken-source', b.sourceSlug, b.sourceTitle, b.collection, `${t.sitemapAudit.brokenLinkTo} /${b.targetSlug}`])
   }
 
   const csvContent = rows
@@ -1736,6 +1751,8 @@ function exportCSV(data: SitemapAuditData) {
 // Main SitemapAuditView component
 // ---------------------------------------------------------------------------
 export function SitemapAuditView() {
+  const locale = useSeoLocale()
+  const t = getDashboardT(locale)
   const [data, setData] = useState<SitemapAuditData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -1791,10 +1808,10 @@ export function SitemapAuditView() {
       else if (json.stats.weakCount > 0) setActiveTab('weak')
       else setActiveTab('hubs')
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Erreur de chargement')
+      setError(e instanceof Error ? e.message : t.common.loadingError)
     }
     setLoading(false)
-  }, [])
+  }, [t])
 
   useEffect(() => {
     fetchData()
@@ -1839,7 +1856,7 @@ export function SitemapAuditView() {
           fontFamily: 'var(--font-body, system-ui)',
         }}
       >
-        Analyse du maillage interne en cours...
+        {t.sitemapAudit.analyzingInternal}
       </div>
     )
   }
@@ -1855,14 +1872,14 @@ export function SitemapAuditView() {
         }}
       >
         <div style={{ color: V.red, fontWeight: 700, fontSize: 14, marginBottom: 8 }}>
-          Erreur de chargement
+          {t.common.loadingError}
         </div>
         <div style={{ color: V.textSecondary, fontSize: 12, marginBottom: 16 }}>{error}</div>
         <button
           onClick={fetchData}
           style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
         >
-          Reessayer
+          {t.common.retry}
         </button>
       </div>
     )
@@ -1894,10 +1911,10 @@ export function SitemapAuditView() {
       >
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, color: V.text }}>
-            Audit Sitemap &amp; Maillage
+            {t.sitemapAudit.title}
           </h1>
           <p style={{ fontSize: 12, color: V.textSecondary, margin: '4px 0 0' }}>
-            Analyse du graphe de liens internes — {stats.totalPages} pages, {stats.totalLinks} liens
+            {stats.totalPages} {t.common.page.toLowerCase()}s, {stats.totalLinks} {t.sitemapAudit.links}
           </p>
         </div>
         {/* C6: Export buttons + Refresh */}
@@ -1906,19 +1923,19 @@ export function SitemapAuditView() {
             onClick={() => exportJSON(data)}
             style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
           >
-            Export JSON
+            {t.common.exportJson}
           </button>
           <button
-            onClick={() => exportCSV(data)}
+            onClick={() => exportCSV(data, t)}
             style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
           >
-            Export CSV
+            {t.common.exportCsv}
           </button>
           <button
             onClick={fetchData}
             style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
           >
-            &#8635; Rafraichir
+            &#8635; {t.common.refresh}
           </button>
         </div>
       </div>
@@ -1932,26 +1949,26 @@ export function SitemapAuditView() {
           marginBottom: 20,
         }}
       >
-        <StatCard label="Pages total" value={stats.totalPages} color={V.blue} />
-        <StatCard label="Liens internes" value={stats.totalLinks} color={V.cyan} />
+        <StatCard label={t.sitemapAudit.totalPages} value={stats.totalPages} color={V.blue} />
+        <StatCard label={t.sitemapAudit.internalLinks} value={stats.totalLinks} color={V.cyan} />
         <StatCard
-          label="Liens / page"
+          label={t.sitemapAudit.linksPerPage}
           value={stats.avgLinksPerPage}
           color={stats.avgLinksPerPage >= 3 ? V.green : V.yellow}
-          subtitle="Moyenne"
+          subtitle={t.sitemapAudit.average}
         />
         <StatCard
-          label="Orphelines"
+          label={t.sitemapAudit.orphaned}
           value={stats.orphanCount}
           color={stats.orphanCount === 0 ? V.green : V.red}
         />
         <StatCard
-          label="Fragiles"
+          label={t.sitemapAudit.fragile}
           value={stats.weakCount}
           color={stats.weakCount === 0 ? V.green : V.orange}
         />
         <StatCard
-          label="Liens casses"
+          label={t.sitemapAudit.brokenLinks}
           value={stats.brokenCount}
           color={stats.brokenCount === 0 ? V.green : V.red}
         />
@@ -1961,7 +1978,7 @@ export function SitemapAuditView() {
       <div style={{ marginBottom: 16 }}>
         <input
           type="text"
-          placeholder="Rechercher (titre, slug, URL cible)..."
+          placeholder={t.sitemapAudit.searchPlaceholder}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{
@@ -1987,42 +2004,42 @@ export function SitemapAuditView() {
       >
         <TabButton
           active={activeTab === 'orphan'}
-          label="Orphelines"
+          label={t.sitemapAudit.orphanedPages}
           count={filtered.orphanPages.length}
           color={V.red}
           onClick={() => setActiveTab('orphan')}
         />
         <TabButton
           active={activeTab === 'weak'}
-          label="Fragiles"
+          label={t.sitemapAudit.fragilePages}
           count={filtered.weakPages.length}
           color={V.orange}
           onClick={() => setActiveTab('weak')}
         />
         <TabButton
           active={activeTab === 'hubs'}
-          label="Hubs de liens"
+          label={t.sitemapAudit.linkHubs}
           count={filtered.linkHubs.length}
           color={V.purple}
           onClick={() => setActiveTab('hubs')}
         />
         <TabButton
           active={activeTab === 'broken'}
-          label="Liens casses"
+          label={t.sitemapAudit.brokenLinks}
           count={filtered.brokenLinks.length}
           color={V.red}
           onClick={() => setActiveTab('broken')}
         />
         <TabButton
           active={activeTab === 'logs404'}
-          label="Logs 404"
+          label={t.sitemapAudit.logs404}
           count={logs404Count}
           color={V.orange}
           onClick={() => setActiveTab('logs404')}
         />
         <TabButton
           active={activeTab === 'external'}
-          label="Liens externes"
+          label={t.sitemapAudit.externalLinks}
           count={0}
           color={V.cyan}
           onClick={() => setActiveTab('external')}

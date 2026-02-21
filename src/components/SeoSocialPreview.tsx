@@ -1,6 +1,8 @@
 'use client'
 
 import React, { useState } from 'react'
+import { useSeoLocale } from '../hooks/useSeoLocale.js'
+import { getDashboardT } from '../dashboard-i18n.js'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -50,6 +52,8 @@ export function SeoSocialPreview({
   imageUrl,
   hostname,
 }: SeoSocialPreviewProps) {
+  const locale = useSeoLocale()
+  const t = getDashboardT(locale)
   const [open, setOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<'facebook' | 'twitter'>('facebook')
 
@@ -58,10 +62,10 @@ export function SeoSocialPreview({
   const host = hostname || 'example.com'
 
   // Truncated values for preview display
-  const fbTitle = title || 'Titre de la page'
-  const fbDesc = desc || 'Description de la page...'
-  const twTitle = title || 'Titre de la page'
-  const twDesc = desc || 'Description de la page...'
+  const fbTitle = title || t.socialPreview.pageTitlePlaceholder
+  const fbDesc = desc || t.socialPreview.pageDescriptionPlaceholder
+  const twTitle = title || t.socialPreview.pageTitlePlaceholder
+  const twDesc = desc || t.socialPreview.pageDescriptionPlaceholder
 
   return (
     <div style={{ marginBottom: 8 }}>
@@ -109,7 +113,7 @@ export function SeoSocialPreview({
             <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
             <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
           </svg>
-          Apercu reseaux sociaux
+          {t.socialPreview.title}
         </span>
         <span
           style={{
@@ -134,12 +138,12 @@ export function SeoSocialPreview({
           {/* Tab switcher */}
           <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
             <TabButton
-              label="Facebook"
+              label={t.socialPreview.facebook}
               active={activeTab === 'facebook'}
               onClick={() => setActiveTab('facebook')}
             />
             <TabButton
-              label="X (Twitter)"
+              label={t.socialPreview.twitter}
               active={activeTab === 'twitter'}
               onClick={() => setActiveTab('twitter')}
             />
@@ -164,7 +168,7 @@ export function SeoSocialPreview({
                   }}
                 >
                   {/* Image area */}
-                  <ImagePlaceholder imageUrl={imageUrl} label="Image OG 1200x630" />
+                  <ImagePlaceholder imageUrl={imageUrl} label={t.socialPreview.ogImage} />
 
                   {/* Content */}
                   <div style={{ padding: '10px 12px', backgroundColor: '#f0f2f5' }}>
@@ -212,7 +216,7 @@ export function SeoSocialPreview({
               </div>
 
               {/* Character counters */}
-              <CharCounters titleLen={title.length} descLen={desc.length} />
+              <CharCounters titleLen={title.length} descLen={desc.length} titleLabel={t.socialPreview.previewTitle} descLabel={t.socialPreview.previewDescription} charsLabel={t.common.characters} />
             </div>
           )}
 
@@ -228,7 +232,7 @@ export function SeoSocialPreview({
                 }}
               >
                 {/* Image area */}
-                <ImagePlaceholder imageUrl={imageUrl} label="Image Card 1200x628" />
+                <ImagePlaceholder imageUrl={imageUrl} label={t.socialPreview.cardImage} />
 
                 {/* Content */}
                 <div style={{ padding: 12 }}>
@@ -272,7 +276,7 @@ export function SeoSocialPreview({
               </div>
 
               {/* Character counters */}
-              <CharCounters titleLen={title.length} descLen={desc.length} />
+              <CharCounters titleLen={title.length} descLen={desc.length} titleLabel={t.socialPreview.previewTitle} descLabel={t.socialPreview.previewDescription} charsLabel={t.common.characters} />
             </div>
           )}
         </div>
@@ -358,7 +362,7 @@ function ImagePlaceholder({
   )
 }
 
-function CharCounters({ titleLen, descLen }: { titleLen: number; descLen: number }) {
+function CharCounters({ titleLen, descLen, titleLabel, descLabel, charsLabel }: { titleLen: number; descLen: number; titleLabel: string; descLabel: string; charsLabel: string }) {
   return (
     <div
       style={{
@@ -370,7 +374,7 @@ function CharCounters({ titleLen, descLen }: { titleLen: number; descLen: number
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
-        <span style={{ color: C.textSecondary, fontWeight: 600 }}>Titre</span>
+        <span style={{ color: C.textSecondary, fontWeight: 600 }}>{titleLabel}</span>
         <span
           style={{
             fontWeight: 700,
@@ -378,11 +382,11 @@ function CharCounters({ titleLen, descLen }: { titleLen: number; descLen: number
             color: charCountColor(titleLen, 30, 60),
           }}
         >
-          {titleLen} / 60 caracteres
+          {titleLen} / 60 {charsLabel}
         </span>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
-        <span style={{ color: C.textSecondary, fontWeight: 600 }}>Description</span>
+        <span style={{ color: C.textSecondary, fontWeight: 600 }}>{descLabel}</span>
         <span
           style={{
             fontWeight: 700,
@@ -390,7 +394,7 @@ function CharCounters({ titleLen, descLen }: { titleLen: number; descLen: number
             color: charCountColor(descLen, 120, 160),
           }}
         >
-          {descLen} / 160 caracteres
+          {descLen} / 160 {charsLabel}
         </span>
       </div>
     </div>

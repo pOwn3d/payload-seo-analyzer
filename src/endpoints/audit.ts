@@ -24,7 +24,12 @@ import { seoCache } from '../cache.js'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function analyzeDoc(doc: any, collection: string, seoConfig?: SeoConfig) {
   // Build SeoInput and run the real engine
-  const seoInput = buildSeoInputFromDoc(doc, collection)
+  let seoInput = buildSeoInputFromDoc(doc, collection)
+  // Mark as global if collection starts with 'global:'
+  seoInput.isGlobal = collection.startsWith('global:')
+  if (seoInput.isGlobal) {
+    seoInput.slug = ''
+  }
   const analysis = analyzeSeo(seoInput, seoConfig)
 
   // Extract enriched data for the dashboard (word count, links, headings, readability)
@@ -180,7 +185,7 @@ async function loadMergedConfig(
   return { config: mergedConfig, ignoredSlugs }
 }
 
-export function createAuditHandler(collections: string[], seoConfig?: SeoConfig): PayloadHandler {
+export function createAuditHandler(collections: string[], seoConfig?: SeoConfig, globals: string[] = []): PayloadHandler {
   return async (req) => {
     try {
       if (!req.user) {
@@ -233,6 +238,32 @@ export function createAuditHandler(collections: string[], seoConfig?: SeoConfig)
             }
           } catch {
             // Collection might not exist — skip silently
+          }
+        }
+
+        // Fetch from globals
+        for (const globalSlug of globals) {
+          try {
+            const doc = await req.payload.findGlobal({
+              slug: globalSlug,
+              depth: 1,
+              overrideAccess: true,
+            })
+            if (doc) {
+              // Skip if in ignored slugs
+              if (ignoredSlugs.includes(globalSlug)) continue
+              const result = analyzeDoc(doc, `global:${globalSlug}`, mergedConfig)
+              // Override some fields for globals
+              allResults.push({
+                ...result,
+                id: globalSlug,
+                collection: `global:${globalSlug}`,
+                slug: '',
+                title: (doc as any).title || globalSlug,
+              })
+            }
+          } catch {
+            // Global might not exist — skip
           }
         }
 

@@ -8,6 +8,7 @@
 
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { getTranslations } from '../i18n.js'
+import { useSeoLocale } from '../hooks/useSeoLocale.js'
 
 // ---------------------------------------------------------------------------
 // Design tokens — uses Payload CSS variables for theme compatibility
@@ -217,7 +218,8 @@ function getNodeRadius(node: GraphNode, maxDegree: number): number {
 // ---------------------------------------------------------------------------
 
 export function LinkGraphView() {
-  const T = getTranslations('fr')
+  const locale = useSeoLocale()
+  const T = getTranslations(locale)
 
   const [data, setData] = useState<GraphData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -764,7 +766,7 @@ export function LinkGraphView() {
             )}
             {tooltipNode.isHub && (
               <div style={{ marginTop: 2, color: V.orange, fontWeight: 600, fontSize: 11 }}>
-                Hub
+                {T.linkGraph.hubNodes}
               </div>
             )}
             <div style={{ marginTop: 4, fontSize: 10, opacity: 0.5 }}>

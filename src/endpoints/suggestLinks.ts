@@ -23,7 +23,7 @@ interface LinkSuggestion {
   matchType: 'keyword' | 'title' | 'slug'
 }
 
-export function createSuggestLinksHandler(collections: string[]): PayloadHandler {
+export function createSuggestLinksHandler(collections: string[], globals: string[] = []): PayloadHandler {
   return async (req) => {
     try {
       if (!req.user) {
@@ -127,6 +127,56 @@ export function createSuggestLinksHandler(collections: string[]): PayloadHandler
         } catch {
           // Collection might not exist — skip silently
         }
+      }
+
+      // Check globals as candidate link targets
+      for (const globalSlug of globals) {
+        try {
+          const doc = await req.payload.findGlobal({ slug: globalSlug, depth: 1, overrideAccess: true }) as Record<string, unknown>
+          const docTitle = (doc.title as string) || globalSlug
+          const docKeyword = (doc.focusKeyword as string) || ''
+
+          let score = 0
+          let bestMatchType: LinkSuggestion['matchType'] = 'title'
+          let contextPhrase = ''
+
+          // Focus keyword match
+          if (docKeyword) {
+            const normalizedKw = normalizeForComparison(docKeyword)
+            if (normalizedKw.length > 2 && normalizedContent.includes(normalizedKw)) {
+              score += 3
+              bestMatchType = 'keyword'
+              contextPhrase = extractContext(normalizedContent, normalizedKw, content)
+            }
+          }
+
+          // Title words match
+          const titleWords = normalizeForComparison(docTitle)
+            .split(/\s+/)
+            .filter((w) => w.length > 3)
+
+          if (titleWords.length >= 2) {
+            const matchingWords = titleWords.filter((w) => normalizedContent.includes(w))
+            if (matchingWords.length >= 2) {
+              score += 2
+              if (!contextPhrase) {
+                bestMatchType = 'title'
+                contextPhrase = extractContext(normalizedContent, matchingWords[0], content)
+              }
+            }
+          }
+
+          if (score > 0) {
+            suggestions.push({
+              title: docTitle,
+              slug: '',
+              collection: `global:${globalSlug}`,
+              score,
+              contextPhrase: contextPhrase || '',
+              matchType: bestMatchType,
+            })
+          }
+        } catch { /* skip */ }
       }
 
       // Sort by score descending, take top 10

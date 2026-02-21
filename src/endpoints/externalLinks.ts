@@ -238,7 +238,7 @@ async function checkUrl(url: string): Promise<CachedResult> {
 // Endpoint handler
 // ---------------------------------------------------------------------------
 
-export function createExternalLinksHandler(collections: string[]): PayloadHandler {
+export function createExternalLinksHandler(collections: string[], globals: string[] = []): PayloadHandler {
   return async (req) => {
     try {
       if (!req.user) {
@@ -307,6 +307,31 @@ export function createExternalLinksHandler(collections: string[]): PayloadHandle
         } catch {
           // Collection might not exist — skip silently
         }
+      }
+
+      // Check globals for external links
+      for (const globalSlug of globals) {
+        try {
+          const doc = await req.payload.findGlobal({ slug: globalSlug, depth: 0, overrideAccess: true })
+          const links = extractDocExternalLinks(doc, siteUrl)
+
+          for (const linkUrl of links) {
+            if (!urlSources.has(linkUrl)) {
+              urlSources.set(linkUrl, [])
+            }
+            const sources = urlSources.get(linkUrl)!
+            const already = sources.some(
+              (s) => s.collection === `global:${globalSlug}`,
+            )
+            if (!already) {
+              sources.push({
+                title: (doc as Record<string, unknown>).title as string || globalSlug,
+                slug: '',
+                collection: `global:${globalSlug}`,
+              })
+            }
+          }
+        } catch { /* skip */ }
       }
 
       // 2. Limit to MAX_URLS unique URLs

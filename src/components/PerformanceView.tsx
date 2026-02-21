@@ -1,6 +1,8 @@
 'use client'
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSeoLocale } from '../hooks/useSeoLocale.js'
+import { getDashboardT } from '../dashboard-i18n.js'
 
 // NOTE: xlsx (SheetJS) is loaded dynamically on the client side only.
 // Known CVEs: CVE-2023-30533 (Prototype Pollution), CVE-2024-22363 (ReDoS).
@@ -189,6 +191,8 @@ function SortTh({
 // ---------------------------------------------------------------------------
 
 export function PerformanceView() {
+  const locale = useSeoLocale()
+  const t = getDashboardT(locale)
   const [period, setPeriod] = useState<Period>('30d')
   const [summary, setSummary] = useState<Summary | null>(null)
   const [topPages, setTopPages] = useState<TopPage[]>([])
@@ -225,7 +229,7 @@ export function PerformanceView() {
       setTopPages(data.topPages || [])
       setTopQueries(data.topQueries || [])
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Erreur de chargement')
+      setError(e instanceof Error ? e.message : t.common.loadingError)
     }
     setLoading(false)
   }, [period])
@@ -339,12 +343,12 @@ export function PerformanceView() {
             body.entries = parsed.entries
           }
         } catch {
-          setImportError('JSON invalide')
+          setImportError('Invalid JSON')
           setImporting(false)
           return
         }
       } else {
-        setImportError("Aucune donnée fournie. Importez un CSV ou collez du JSON.")
+        setImportError(t.performance.noData)
         setImporting(false)
         return
       }
@@ -369,7 +373,7 @@ export function PerformanceView() {
       // Refresh data after import
       await fetchData()
     } catch (e: unknown) {
-      setImportError(e instanceof Error ? e.message : "Erreur d'import")
+      setImportError(e instanceof Error ? e.message : t.common.loadingError)
     }
     setImporting(false)
   }, [csvText, jsonText, fetchData])
@@ -412,7 +416,7 @@ export function PerformanceView() {
 
   // Export CSV
   const handleExportCsv = useCallback(() => {
-    const headers = ['URL', 'Clics', 'Impressions', 'CTR (%)', 'Position']
+    const headers = ['URL', t.performance.clicks, t.performance.impressions, t.performance.ctrPercent, t.performance.position]
     const rows = sortedPages.map((p) => [p.url, p.clicks, p.impressions, p.ctr, p.position])
 
     const csv = [
@@ -436,9 +440,9 @@ export function PerformanceView() {
 
   // Period labels
   const periodLabels: Record<Period, string> = {
-    '7d': '7 jours',
-    '30d': '30 jours',
-    '90d': '90 jours',
+    '7d': t.performance.days7,
+    '30d': t.performance.days30,
+    '90d': t.performance.days90,
   }
 
   // Loading state
@@ -453,7 +457,7 @@ export function PerformanceView() {
           fontFamily: 'var(--font-body, system-ui)',
         }}
       >
-        Chargement des performances...
+        {t.performance.loading}
       </div>
     )
   }
@@ -469,7 +473,7 @@ export function PerformanceView() {
         }}
       >
         <div style={{ color: V.red, fontWeight: 700, fontSize: 14, marginBottom: 8 }}>
-          Erreur de chargement
+          {t.common.loadingError}
         </div>
         <div style={{ color: V.textSecondary, fontSize: 12, marginBottom: 16 }}>
           {error}
@@ -478,7 +482,7 @@ export function PerformanceView() {
           onClick={fetchData}
           style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
         >
-          R&eacute;essayer
+          {t.common.retry}
         </button>
       </div>
     )
@@ -506,10 +510,10 @@ export function PerformanceView() {
       >
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, color: V.text }}>
-            Performance Search Console
+            {t.performance.title}
           </h1>
           <p style={{ fontSize: 12, color: V.textSecondary, margin: '4px 0 0' }}>
-            Clics, impressions, CTR et positions depuis Google Search Console
+            {t.performance.subtitle}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -536,20 +540,20 @@ export function PerformanceView() {
               color: showImport ? '#fff' : V.text,
             }}
           >
-            {showImport ? 'Fermer import' : 'Importer'}
+            {showImport ? t.performance.closeImport : t.performance.import}
           </button>
           <button
             onClick={fetchData}
             style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
           >
-            &#8635; Rafra&icirc;chir
+            &#8635; {t.common.refresh}
           </button>
           {hasData && (
             <button
               onClick={handleExportCsv}
               style={{ ...btnBase, backgroundColor: V.cyan, color: '#000' }}
             >
-              Export CSV
+              {t.common.exportCsv}
             </button>
           )}
         </div>
@@ -567,11 +571,10 @@ export function PerformanceView() {
           }}
         >
           <div style={{ fontSize: 14, fontWeight: 700, color: V.text, marginBottom: 12 }}>
-            Importer des donn&eacute;es GSC
+            {t.performance.importGscData}
           </div>
           <p style={{ fontSize: 11, color: V.textSecondary, marginTop: 0, marginBottom: 16 }}>
-            Exportez vos donn&eacute;es depuis Google Search Console (Performance &gt; Export).
-            Formats accept&eacute;s : <strong>XLSX</strong> (recommand&eacute;, regroupe toutes les feuilles) ou CSV.
+            {t.performance.noDataDesc}
           </p>
 
           {/* File picker (CSV or XLSX) */}
@@ -579,7 +582,7 @@ export function PerformanceView() {
             <label
               style={{ fontSize: 11, fontWeight: 700, color: V.textSecondary, display: 'block', marginBottom: 4 }}
             >
-              Fichier XLSX ou CSV
+              {t.performance.fileType}
             </label>
             <input
               type="file"
@@ -601,7 +604,7 @@ export function PerformanceView() {
                   marginBottom: 4,
                 }}
               >
-                Aper&ccedil;u CSV ({csvText.split('\n').length} lignes)
+                CSV ({csvText.split('\n').length} lines)
               </label>
               <textarea
                 value={csvText}
@@ -640,9 +643,9 @@ export function PerformanceView() {
                     fontSize: 12,
                     color: V.text,
                   }}>
-                    <strong>{parsed.length}</strong> entr&eacute;es charg&eacute;es depuis le fichier XLSX
-                    {withUrl.length > 0 && <span> &mdash; {withUrl.length} pages</span>}
-                    {withQuery.length > 0 && <span> &mdash; {withQuery.length} requ&ecirc;tes</span>}
+                    <strong>{parsed.length}</strong> {t.performance.xlsxEntriesLoaded}
+                    {withUrl.length > 0 && <span> &mdash; {withUrl.length} {t.performance.pages}</span>}
+                    {withQuery.length > 0 && <span> &mdash; {withQuery.length} {t.performance.queries}</span>}
                   </div>
                 )
               }
@@ -662,7 +665,7 @@ export function PerformanceView() {
                   marginBottom: 4,
                 }}
               >
-                Ou collez du JSON (tableau d&apos;entr&eacute;es)
+                {t.performance.pasteJsonHint}
               </label>
               <textarea
                 value={jsonText}
@@ -700,15 +703,15 @@ export function PerformanceView() {
                   !importing && (csvText.trim() || jsonText.trim()) ? 'pointer' : 'not-allowed',
               }}
             >
-              {importing ? 'Import en cours...' : 'Importer'}
+              {importing ? t.performance.importing : t.performance.import}
             </button>
 
             {/* Import result feedback */}
             {importResult && (
               <span style={{ fontSize: 12, color: V.green, fontWeight: 700 }}>
-                {importResult.imported} import&eacute;(s), {importResult.updated} mis &agrave; jour
+                {importResult.imported} {t.performance.importedCount}, {importResult.updated} {t.performance.updatedCount}
                 {importResult.errors > 0 && (
-                  <span style={{ color: V.red }}>, {importResult.errors} erreur(s)</span>
+                  <span style={{ color: V.red }}>, {importResult.errors} {t.sitemapAudit.errors}</span>
                 )}
               </span>
             )}
@@ -732,17 +735,16 @@ export function PerformanceView() {
         >
           <div style={{ fontSize: 28, marginBottom: 10 }}>{'\uD83D\uDCCA'}</div>
           <div style={{ fontSize: 16, fontWeight: 700, color: V.text, marginBottom: 6 }}>
-            Aucune donn&eacute;e de performance
+            {t.performance.noData}
           </div>
           <p style={{ fontSize: 12, color: V.textSecondary, maxWidth: 500, margin: '0 auto 16px' }}>
-            Importez vos donn&eacute;es depuis Google Search Console pour visualiser vos clics,
-            impressions, CTR et positions.
+            {t.performance.noDataDesc}
           </p>
           <button
             onClick={() => setShowImport(true)}
             style={{ ...btnBase, backgroundColor: V.cyan, color: '#000' }}
           >
-            Importer des donn&eacute;es
+            {t.performance.importData}
           </button>
         </div>
       )}
@@ -758,23 +760,23 @@ export function PerformanceView() {
           }}
         >
           <SummaryCard
-            label="Total clics"
-            value={summary.totalClicks.toLocaleString('fr-FR')}
+            label={t.performance.totalClicks}
+            value={summary.totalClicks.toLocaleString(locale)}
             color={V.blue}
           />
           <SummaryCard
-            label="Total impressions"
-            value={summary.totalImpressions.toLocaleString('fr-FR')}
+            label={t.performance.totalImpressions}
+            value={summary.totalImpressions.toLocaleString(locale)}
             color={V.cyan}
           />
           <SummaryCard
-            label="CTR moyen"
+            label={t.performance.averageCtr}
             value={summary.avgCtr}
             color={summary.avgCtr >= 5 ? V.green : summary.avgCtr >= 2 ? V.yellow : V.red}
             suffix="%"
           />
           <SummaryCard
-            label="Position moyenne"
+            label={t.performance.averagePosition}
             value={summary.avgPosition}
             color={summary.avgPosition <= 10 ? V.green : summary.avgPosition <= 30 ? V.yellow : V.red}
           />
@@ -792,7 +794,7 @@ export function PerformanceView() {
               color: V.text,
             }}
           >
-            Top pages ({sortedPages.length})
+            {t.performance.topPages} ({sortedPages.length})
           </h2>
           <div
             style={{
@@ -812,7 +814,7 @@ export function PerformanceView() {
                 <tr style={{ backgroundColor: V.bgCard }}>
                   <th style={{ ...thStyle, cursor: 'default', textAlign: 'left' }}>URL</th>
                   <SortTh
-                    label="Clics"
+                    label={t.performance.clicks}
                     field="clicks"
                     currentSort={pageSortField}
                     currentDir={pageSortDir}
@@ -820,7 +822,7 @@ export function PerformanceView() {
                     style={{ textAlign: 'right' }}
                   />
                   <SortTh
-                    label="Impressions"
+                    label={t.performance.impressions}
                     field="impressions"
                     currentSort={pageSortField}
                     currentDir={pageSortDir}
@@ -828,7 +830,7 @@ export function PerformanceView() {
                     style={{ textAlign: 'right' }}
                   />
                   <SortTh
-                    label="CTR (%)"
+                    label={t.performance.ctrPercent}
                     field="ctr"
                     currentSort={pageSortField}
                     currentDir={pageSortDir}
@@ -836,7 +838,7 @@ export function PerformanceView() {
                     style={{ textAlign: 'right' }}
                   />
                   <SortTh
-                    label="Position"
+                    label={t.performance.position}
                     field="position"
                     currentSort={pageSortField}
                     currentDir={pageSortDir}
@@ -863,10 +865,10 @@ export function PerformanceView() {
                       {page.url}
                     </td>
                     <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 700 }}>
-                      {page.clicks.toLocaleString('fr-FR')}
+                      {page.clicks.toLocaleString(locale)}
                     </td>
                     <td style={{ ...tdStyle, textAlign: 'right' }}>
-                      {page.impressions.toLocaleString('fr-FR')}
+                      {page.impressions.toLocaleString(locale)}
                     </td>
                     <td
                       style={{
@@ -912,7 +914,7 @@ export function PerformanceView() {
               color: V.text,
             }}
           >
-            Top requ&ecirc;tes ({sortedQueries.length})
+            {t.performance.topQueries} ({sortedQueries.length})
           </h2>
           <div
             style={{
@@ -931,10 +933,10 @@ export function PerformanceView() {
               <thead>
                 <tr style={{ backgroundColor: V.bgCard }}>
                   <th style={{ ...thStyle, cursor: 'default', textAlign: 'left' }}>
-                    Requ&ecirc;te
+                    {t.performance.query}
                   </th>
                   <SortTh
-                    label="Clics"
+                    label={t.performance.clicks}
                     field="clicks"
                     currentSort={querySortField}
                     currentDir={querySortDir}
@@ -942,7 +944,7 @@ export function PerformanceView() {
                     style={{ textAlign: 'right' }}
                   />
                   <SortTh
-                    label="Impressions"
+                    label={t.performance.impressions}
                     field="impressions"
                     currentSort={querySortField}
                     currentDir={querySortDir}
@@ -950,7 +952,7 @@ export function PerformanceView() {
                     style={{ textAlign: 'right' }}
                   />
                   <SortTh
-                    label="CTR (%)"
+                    label={t.performance.ctrPercent}
                     field="ctr"
                     currentSort={querySortField}
                     currentDir={querySortDir}
@@ -958,7 +960,7 @@ export function PerformanceView() {
                     style={{ textAlign: 'right' }}
                   />
                   <SortTh
-                    label="Position"
+                    label={t.performance.position}
                     field="position"
                     currentSort={querySortField}
                     currentDir={querySortDir}
@@ -985,10 +987,10 @@ export function PerformanceView() {
                       {q.query}
                     </td>
                     <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 700 }}>
-                      {q.clicks.toLocaleString('fr-FR')}
+                      {q.clicks.toLocaleString(locale)}
                     </td>
                     <td style={{ ...tdStyle, textAlign: 'right' }}>
-                      {q.impressions.toLocaleString('fr-FR')}
+                      {q.impressions.toLocaleString(locale)}
                     </td>
                     <td
                       style={{

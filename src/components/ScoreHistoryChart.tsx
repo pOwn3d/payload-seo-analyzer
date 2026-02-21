@@ -1,6 +1,8 @@
 'use client'
 
 import React, { useEffect, useState, useMemo } from 'react'
+import { useSeoLocale } from '../hooks/useSeoLocale.js'
+import { getDashboardT } from '../dashboard-i18n.js'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -77,15 +79,11 @@ function getTrendColor(trend: 'improving' | 'declining' | 'stable'): string {
   }
 }
 
-function getTrendLabel(trend: 'improving' | 'declining' | 'stable'): string {
-  switch (trend) {
-    case 'improving':
-      return 'En hausse'
-    case 'declining':
-      return 'En baisse'
-    case 'stable':
-      return 'Stable'
-  }
+function getTrendLabel(
+  trend: 'improving' | 'declining' | 'stable',
+  labels: { improving: string; declining: string; stable: string },
+): string {
+  return labels[trend]
 }
 
 function formatDate(dateStr: string): string {
@@ -230,6 +228,8 @@ function Sparkline({
 // ---------------------------------------------------------------------------
 
 const ScoreHistoryChart: React.FC<ScoreHistoryChartProps> = ({ documentId, collection }) => {
+  const locale = useSeoLocale()
+  const t = getDashboardT(locale)
   const [data, setData] = useState<HistoryResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -291,7 +291,7 @@ const ScoreHistoryChart: React.FC<ScoreHistoryChartProps> = ({ documentId, colle
           textAlign: 'center',
         }}
       >
-        Chargement de l'historique...
+        {t.scoreHistory.loading}
       </div>
     )
   }
@@ -310,7 +310,7 @@ const ScoreHistoryChart: React.FC<ScoreHistoryChartProps> = ({ documentId, colle
           textAlign: 'center',
         }}
       >
-        Erreur lors du chargement de l'historique
+        {t.scoreHistory.loadingError}
       </div>
     )
   }
@@ -330,10 +330,10 @@ const ScoreHistoryChart: React.FC<ScoreHistoryChartProps> = ({ documentId, colle
           lineHeight: 1.5,
         }}
       >
-        Pas encore d'historique.
+        {t.scoreHistory.noHistory}
         <br />
         <span style={{ fontSize: 10 }}>
-          Les scores seront enregistres a chaque sauvegarde.
+          {t.scoreHistory.noHistoryDesc}
         </span>
       </div>
     )
@@ -346,7 +346,11 @@ const ScoreHistoryChart: React.FC<ScoreHistoryChartProps> = ({ documentId, colle
   const lastDate = history.length > 0 ? formatDate(history[history.length - 1].snapshotDate) : ''
   const trendColor = getTrendColor(trend)
   const trendIcon = getTrendIcon(trend)
-  const trendLabel = getTrendLabel(trend)
+  const trendLabel = getTrendLabel(trend, {
+    improving: t.scoreHistory.improving,
+    declining: t.scoreHistory.declining,
+    stable: t.scoreHistory.stable,
+  })
 
   return (
     <div
@@ -378,7 +382,7 @@ const ScoreHistoryChart: React.FC<ScoreHistoryChartProps> = ({ documentId, colle
             color: C.text,
           }}
         >
-          Evolution du score
+          {t.scoreHistory.scoreEvolution}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {/* Trend badge */}
@@ -459,10 +463,10 @@ const ScoreHistoryChart: React.FC<ScoreHistoryChartProps> = ({ documentId, colle
           <span style={{ fontWeight: 700, color: C.text }}>
             {history.length}
           </span>{' '}
-          mesure{history.length > 1 ? 's' : ''}
+          {t.scoreHistory.measures}
         </span>
         <span>
-          Dernier score :{' '}
+          {t.scoreHistory.latestScore}{' '}
           <span style={{ fontWeight: 800, color: getScoreColor(latestScore) }}>
             {latestScore}
           </span>

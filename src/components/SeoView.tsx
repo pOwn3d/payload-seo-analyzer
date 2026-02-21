@@ -2,6 +2,9 @@
 
 import React, { useEffect, useState, useMemo, useCallback } from 'react'
 import { ContentDecaySection } from './ContentDecaySection.js'
+import { useSeoLocale } from '../hooks/useSeoLocale.js'
+import { getDashboardT } from '../dashboard-i18n.js'
+import type { DashboardTranslations } from '../dashboard-i18n.js'
 
 // ---------------------------------------------------------------------------
 // Design tokens — uses Payload CSS variables for theme compatibility
@@ -213,11 +216,13 @@ function InlineEditPanel({
   onSave,
   onCancel,
   saving,
+  t,
 }: {
   item: AuditItem
   onSave: (metaTitle: string, metaDescription: string) => void
   onCancel: () => void
   saving: boolean
+  t: DashboardTranslations
 }) {
   const [metaTitle, setMetaTitle] = useState(item.metaTitle || '')
   const [metaDescription, setMetaDescription] = useState(item.metaDescription || '')
@@ -250,7 +255,7 @@ function InlineEditPanel({
             }}
           >
             <label style={{ fontSize: 10, fontWeight: 700, color: V.textSecondary, textTransform: 'uppercase' }}>
-              Meta Title
+              {t.seoView.metaTitle}
             </label>
             <span
               style={{
@@ -290,7 +295,7 @@ function InlineEditPanel({
             }}
           >
             <label style={{ fontSize: 10, fontWeight: 700, color: V.textSecondary, textTransform: 'uppercase' }}>
-              Meta Description
+              {t.seoView.metaDesc}
             </label>
             <span
               style={{
@@ -330,7 +335,7 @@ function InlineEditPanel({
               color: V.text,
             }}
           >
-            Annuler
+            {t.common.cancel}
           </button>
           <button
             onClick={() => onSave(metaTitle, metaDescription)}
@@ -343,7 +348,7 @@ function InlineEditPanel({
               cursor: saving ? 'not-allowed' : 'pointer',
             }}
           >
-            {saving ? 'Sauvegarde...' : 'Sauvegarder'}
+            {saving ? t.common.saving : t.common.save}
           </button>
         </div>
       </div>
@@ -360,12 +365,16 @@ function TableRow({
   onToggle,
   expanded,
   onRowClick,
+  t,
+  locale,
 }: {
   item: AuditItem
   selected: boolean
   onToggle: () => void
   expanded: boolean
   onRowClick: () => void
+  t: DashboardTranslations
+  locale: string
 }) {
   const scoreColor = getScoreColor(item.score)
   const scoreBg = getScoreBg(item.score)
@@ -426,7 +435,7 @@ function TableRow({
             textOverflow: 'ellipsis',
           }}
         >
-          {item.title || '(sans titre)'}
+          {item.title || t.common.noTitle}
           {item.isCornerstone && (
             <span
               style={{
@@ -438,7 +447,7 @@ function TableRow({
                 verticalAlign: 'middle',
               }}
             >
-              PILIER
+              {t.seoView.cornerstone}
             </span>
           )}
         </div>
@@ -456,15 +465,15 @@ function TableRow({
                   : 'rgba(217,119,6,0.2)',
             }}
           >
-            {item.collection === 'pages' ? 'Page' : 'Article'}
+            {item.collection === 'pages' ? t.common.page : t.common.article}
           </span>{' '}
           /{item.slug}
         </div>
         {/* A2: Missing meta badges */}
         {missingMeta && (
           <div>
-            {!item.metaTitle && <span style={badgeStyle}>META TITLE</span>}
-            {!item.metaDescription && <span style={badgeStyle}>META DESC</span>}
+            {!item.metaTitle && <span style={badgeStyle}>{t.seoView.metaTitle}</span>}
+            {!item.metaDescription && <span style={badgeStyle}>{t.seoView.metaDesc}</span>}
           </div>
         )}
       </div>
@@ -494,7 +503,7 @@ function TableRow({
         {/* A6: Score trend indicator */}
         {item.previousScore != null && item.previousScore !== item.score && (
           <span
-            title={`Precedent: ${item.previousScore}`}
+            title={`${t.seoView.previousLabel} ${item.previousScore}`}
             style={{
               fontSize: 10,
               fontWeight: 800,
@@ -518,7 +527,7 @@ function TableRow({
         }}
       >
         <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {item.focusKeyword || 'Aucun'}
+          {item.focusKeyword || t.common.none}
         </div>
         {/* A5: Secondary keywords */}
         {item.focusKeywords && item.focusKeywords.length > 0 && (
@@ -602,7 +611,7 @@ function TableRow({
 
       {/* Updated at */}
       <div style={{ fontSize: 10, color: V.textSecondary, textAlign: 'right' }}>
-        {item.updatedAt ? new Date(item.updatedAt).toLocaleDateString('fr-FR') : '-'}
+        {item.updatedAt ? new Date(item.updatedAt).toLocaleDateString(locale) : '-'}
       </div>
 
       {/* Edit link */}
@@ -610,7 +619,7 @@ function TableRow({
         <span
           role="link"
           tabIndex={0}
-          title="Editer"
+          title={t.common.edit}
           onMouseEnter={() => setEditHover(true)}
           onMouseLeave={() => setEditHover(false)}
           onClick={(e) => {
@@ -644,12 +653,14 @@ function BulkActionBar({
   onExportCsv,
   onMarkCornerstone,
   onUnmarkCornerstone,
+  t,
 }: {
   count: number
   onDeselectAll: () => void
   onExportCsv: () => void
   onMarkCornerstone: () => void
   onUnmarkCornerstone: () => void
+  t: DashboardTranslations
 }) {
   if (count === 0) return null
 
@@ -673,13 +684,13 @@ function BulkActionBar({
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <span style={{ fontSize: 12, fontWeight: 700, color: V.text }}>
-          {count} selectionne{count > 1 ? 's' : ''}
+          {count} {t.common.selected}{count > 1 ? 's' : ''}
         </span>
         <button
           onClick={onDeselectAll}
           style={{ ...btnBase, backgroundColor: V.bg, color: V.textSecondary }}
         >
-          Tout deselectionner
+          {t.common.deselectAll}
         </button>
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
@@ -687,19 +698,19 @@ function BulkActionBar({
           onClick={onExportCsv}
           style={{ ...btnBase, backgroundColor: V.cyan, color: '#000' }}
         >
-          Exporter CSV
+          {t.common.exportCsv}
         </button>
         <button
           onClick={onMarkCornerstone}
           style={{ ...btnBase, backgroundColor: '#7c3aed', color: '#fff' }}
         >
-          Marquer pilier
+          {t.seoView.markCornerstone}
         </button>
         <button
           onClick={onUnmarkCornerstone}
           style={{ ...btnBase, backgroundColor: V.bg, color: V.text }}
         >
-          Demarquer pilier
+          {t.seoView.unmarkCornerstone}
         </button>
       </div>
     </div>
@@ -710,6 +721,8 @@ function BulkActionBar({
 // Main SeoView component
 // ---------------------------------------------------------------------------
 export function SeoView() {
+  const locale = useSeoLocale()
+  const t = getDashboardT(locale)
   const [items, setItems] = useState<AuditItem[]>([])
   const [stats, setStats] = useState<AuditStats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -738,10 +751,10 @@ export function SeoView() {
       setItems(data.results || [])
       setStats(data.stats || null)
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Erreur de chargement')
+      setError(e instanceof Error ? e.message : t.common.loadingError)
     }
     setLoading(false)
-  }, [])
+  }, [t])
 
   useEffect(() => {
     fetchAudit()
@@ -912,7 +925,7 @@ export function SeoView() {
         i.hasOgImage ? 'Yes' : 'No',
         i.isCornerstone ? 'Yes' : 'No',
         i.readingTime,
-        i.updatedAt ? new Date(i.updatedAt).toLocaleDateString('fr-FR') : '',
+        i.updatedAt ? new Date(i.updatedAt).toLocaleDateString(locale) : '',
       ])
       const csv = [
         headers.join(','),
@@ -980,11 +993,11 @@ export function SeoView() {
         setExpandedId(null)
         fetchAudit()
       } catch (e) {
-        setSaveError(e instanceof Error ? `Erreur lors de la sauvegarde: ${e.message}` : 'Erreur lors de la sauvegarde')
+        setSaveError(e instanceof Error ? `${t.seoView.errorSaving}: ${e.message}` : t.seoView.errorSaving)
       }
       setSaving(false)
     },
-    [fetchAudit],
+    [fetchAudit, t],
   )
 
   // Fetch site name from settings for branded PDF
@@ -1001,7 +1014,7 @@ export function SeoView() {
   }, [])
 
   const handleExportPdf = useCallback(() => {
-    const today = new Date().toLocaleDateString('fr-FR', {
+    const today = new Date().toLocaleDateString(locale, {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -1028,18 +1041,18 @@ export function SeoView() {
     const priorityRows = top5Priority
       .map((i) => {
         const issues: string[] = []
-        if (!i.metaTitle) issues.push('Meta title manquant')
-        if (!i.metaDescription) issues.push('Meta description manquante')
-        if (!i.focusKeyword) issues.push('Mot-cle manquant')
-        if (i.h1Count !== 1) issues.push(i.h1Count === 0 ? 'H1 manquant' : `${i.h1Count} H1 (doit etre 1)`)
-        if (i.wordCount < 300) issues.push(`Contenu court (${i.wordCount} mots)`)
-        if (i.readabilityScore > 0 && i.readabilityScore < 40) issues.push('Lisibilite faible')
-        if (!i.hasOgImage) issues.push('Image OG manquante')
-        if (i.internalLinkCount === 0) issues.push('Aucun lien interne')
-        if (issues.length === 0) issues.push('Score general faible')
+        if (!i.metaTitle) issues.push(t.seoView.missingMetaTitle)
+        if (!i.metaDescription) issues.push(t.seoView.missingMetaDescription)
+        if (!i.focusKeyword) issues.push(t.seoView.missingKeyword)
+        if (i.h1Count !== 1) issues.push(i.h1Count === 0 ? t.seoView.missingH1 : `${i.h1Count} H1`)
+        if (i.wordCount < 300) issues.push(`${t.seoView.shortContent} (${i.wordCount})`)
+        if (i.readabilityScore > 0 && i.readabilityScore < 40) issues.push(t.seoView.lowReadabilityIssue)
+        if (!i.hasOgImage) issues.push(t.seoView.missingOgImage)
+        if (i.internalLinkCount === 0) issues.push(t.seoView.noInternalLinks)
+        if (issues.length === 0) issues.push(t.seoView.lowOverallScore)
 
         return `<tr>
-          <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;font-weight:700;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(i.title || '(sans titre)')}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;font-weight:700;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(i.title || t.common.noTitle)}</td>
           <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:800;font-size:13px;color:${pdfScoreColor(i.score)};">${i.score}</td>
           <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:10px;color:#6b7280;line-height:1.5;">${issues.map(escapeHtml).join('<br>')}</td>
         </tr>`
@@ -1050,37 +1063,37 @@ export function SeoView() {
     const detailRows = sortedByScore
       .map((i) => {
         const issues: string[] = []
-        if (!i.metaTitle) issues.push('Meta title manquant')
-        else if (i.metaTitle.length < 30) issues.push(`Meta title court (${i.metaTitle.length} car.)`)
-        else if (i.metaTitle.length > 60) issues.push(`Meta title long (${i.metaTitle.length} car.)`)
-        if (!i.metaDescription) issues.push('Meta description manquante')
-        else if (i.metaDescription.length < 120) issues.push(`Meta desc. courte (${i.metaDescription.length} car.)`)
-        else if (i.metaDescription.length > 160) issues.push(`Meta desc. longue (${i.metaDescription.length} car.)`)
-        if (!i.focusKeyword) issues.push('Mot-cle manquant')
-        if (i.h1Count !== 1) issues.push(i.h1Count === 0 ? 'H1 manquant' : `${i.h1Count} H1`)
-        if (i.wordCount < 300) issues.push(`Contenu court (${i.wordCount} mots)`)
-        if (i.readabilityScore > 0 && i.readabilityScore < 40) issues.push(`Lisibilite faible (${i.readabilityScore})`)
-        if (!i.hasOgImage) issues.push('Image OG manquante')
-        if (i.internalLinkCount === 0) issues.push('Aucun lien interne')
+        if (!i.metaTitle) issues.push(t.seoView.missingMetaTitle)
+        else if (i.metaTitle.length < 30) issues.push(`${t.seoView.shortMetaTitle} (${i.metaTitle.length})`)
+        else if (i.metaTitle.length > 60) issues.push(`${t.seoView.longMetaTitle} (${i.metaTitle.length})`)
+        if (!i.metaDescription) issues.push(t.seoView.missingMetaDescription)
+        else if (i.metaDescription.length < 120) issues.push(`${t.seoView.shortMetaDesc} (${i.metaDescription.length})`)
+        else if (i.metaDescription.length > 160) issues.push(`${t.seoView.longMetaDesc} (${i.metaDescription.length})`)
+        if (!i.focusKeyword) issues.push(t.seoView.missingKeyword)
+        if (i.h1Count !== 1) issues.push(i.h1Count === 0 ? t.seoView.missingH1 : `${i.h1Count} H1`)
+        if (i.wordCount < 300) issues.push(`${t.seoView.shortContent} (${i.wordCount})`)
+        if (i.readabilityScore > 0 && i.readabilityScore < 40) issues.push(`${t.seoView.lowReadabilityIssue} (${i.readabilityScore})`)
+        if (!i.hasOgImage) issues.push(t.seoView.missingOgImage)
+        if (i.internalLinkCount === 0) issues.push(t.seoView.noInternalLinks)
 
         const issuesHtml = issues.length > 0
           ? issues.map((iss) => `<span style="display:inline-block;margin:1px 3px 1px 0;padding:1px 6px;border-radius:3px;font-size:9px;background:rgba(239,68,68,0.08);color:#dc2626;">${escapeHtml(iss)}</span>`).join('')
           : '<span style="font-size:9px;color:#22c55e;font-weight:700;">OK</span>'
 
         return `<tr>
-          <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:11px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;">${escapeHtml(i.title || '(sans titre)')}</td>
+          <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:11px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;">${escapeHtml(i.title || t.common.noTitle)}</td>
           <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:10px;color:#6b7280;">/${escapeHtml(i.slug)}</td>
           <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:800;font-size:12px;color:${pdfScoreColor(i.score)};">${i.score}</td>
-          <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:10px;${i.focusKeyword ? '' : 'color:#ef4444;font-style:italic;'}">${escapeHtml(i.focusKeyword || 'Aucun')}</td>
+          <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:10px;${i.focusKeyword ? '' : 'color:#ef4444;font-style:italic;'}">${escapeHtml(i.focusKeyword || t.common.none)}</td>
           <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:10px;">${issuesHtml}</td>
         </tr>`
       })
       .join('')
 
-    const brandingTitle = siteName ? `Rapport SEO — ${escapeHtml(siteName)}` : 'Rapport SEO'
+    const brandingTitle = siteName ? `${t.seoView.seoReport} — ${escapeHtml(siteName)}` : t.seoView.seoReport
 
     const html = `<!DOCTYPE html>
-<html lang="fr">
+<html lang="${locale}">
 <head>
   <meta charset="UTF-8">
   <title>${brandingTitle} - ${today}</title>
@@ -1118,62 +1131,62 @@ export function SeoView() {
   <div class="header">
     <div>
       <h1>${brandingTitle}</h1>
-      <div class="subtitle">${totalAnalyzed} pages analysees — ${filteredItems.length} resultats affiches</div>
+      <div class="subtitle">${totalAnalyzed} ${t.seoView.pagesAnalyzed} — ${filteredItems.length} ${t.seoView.resultsDisplayed}</div>
     </div>
     <div class="header-right">
       <div style="font-weight:700;font-size:12px;color:#1a1a1a;">${today}</div>
-      <div style="margin-top:2px;">Genere par SEO Analyzer</div>
+      <div style="margin-top:2px;">${t.seoView.generatedBy}</div>
     </div>
   </div>
 
   <!-- Summary stats -->
-  <h2>Vue d'ensemble</h2>
+  <h2>${t.seoView.overview}</h2>
   <div class="stats-grid">
     <div class="stat-card">
       <div class="stat-value" style="color:${pdfScoreColor(avgScore)}">${avgScore}<span style="font-size:12px;font-weight:600;color:#6b7280;">/100</span></div>
-      <div class="stat-label">Score moyen</div>
+      <div class="stat-label">${t.seoView.averageScore}</div>
     </div>
     <div class="stat-card">
       <div class="stat-value" style="color:#22c55e">${goodCount}</div>
-      <div class="stat-label">Bonnes (&gt;= 80)</div>
+      <div class="stat-label">${t.seoView.goodLabel}</div>
     </div>
     <div class="stat-card">
       <div class="stat-value" style="color:#f59e0b">${needsWorkCount}</div>
-      <div class="stat-label">A ameliorer (50-79)</div>
+      <div class="stat-label">${t.seoView.needsWorkLabel}</div>
     </div>
     <div class="stat-card">
       <div class="stat-value" style="color:#ef4444">${criticalCount}</div>
-      <div class="stat-label">Critiques (&lt; 50)</div>
+      <div class="stat-label">${t.seoView.criticalLabel}</div>
     </div>
   </div>
   <div class="stats-grid-2">
     <div class="stat-card">
       <div class="stat-value" style="color:#f97316">${noKwCount}</div>
-      <div class="stat-label">Sans mot-cle</div>
+      <div class="stat-label">${t.seoView.noKeywordLabel}</div>
     </div>
     <div class="stat-card">
       <div class="stat-value" style="color:#3b82f6">${avgWords}</div>
-      <div class="stat-label">Mots (moyenne)</div>
+      <div class="stat-label">${t.seoView.wordsAverage}</div>
     </div>
     <div class="stat-card">
       <div class="stat-value" style="color:${avgReadability >= 60 ? '#22c55e' : avgReadability >= 40 ? '#f59e0b' : '#ef4444'}">${avgReadability}</div>
-      <div class="stat-label">Lisibilite (moy.)</div>
+      <div class="stat-label">${t.seoView.readabilityAvg}</div>
     </div>
     <div class="stat-card">
       <div class="stat-value" style="color:#6b7280">${stats?.noMetaTitle ?? 0} / ${stats?.noMetaDesc ?? 0}</div>
-      <div class="stat-label">Sans title / desc</div>
+      <div class="stat-label">${t.seoView.noTitleDesc}</div>
     </div>
   </div>
 
   <!-- Top 5 priority actions -->
   ${top5Priority.length > 0 ? `
-  <h2>Top 5 — Actions prioritaires</h2>
+  <h2>${t.seoView.top5PriorityActions}</h2>
   <table>
     <thead>
       <tr>
-        <th style="width:35%;">Page</th>
-        <th style="text-align:center;width:12%;">Score</th>
-        <th>Problemes identifies</th>
+        <th style="width:35%;">${t.common.page}</th>
+        <th style="text-align:center;width:12%;">${t.seoView.score}</th>
+        <th>${t.seoView.identifiedIssues}</th>
       </tr>
     </thead>
     <tbody>
@@ -1183,15 +1196,15 @@ export function SeoView() {
   ` : ''}
 
   <!-- Per-page details -->
-  <h2>Detail par page</h2>
+  <h2>${t.seoView.perPageDetails}</h2>
   <table>
     <thead>
       <tr>
-        <th style="width:22%;">Titre</th>
-        <th style="width:15%;">Slug</th>
-        <th style="text-align:center;width:8%;">Score</th>
-        <th style="width:15%;">Mot-cle</th>
-        <th>Problemes</th>
+        <th style="width:22%;">${t.seoView.title}</th>
+        <th style="width:15%;">${t.seoView.slug}</th>
+        <th style="text-align:center;width:8%;">${t.seoView.score}</th>
+        <th style="width:15%;">${t.seoView.keyword}</th>
+        <th>${t.seoView.issues}</th>
       </tr>
     </thead>
     <tbody>
@@ -1201,21 +1214,21 @@ export function SeoView() {
 
   <!-- Score distribution summary -->
   <div style="margin-top:20px;padding:14px 16px;border:1px solid #e5e7eb;border-radius:8px;background:#f9fafb;">
-    <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#6b7280;margin-bottom:8px;">Distribution des scores</div>
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#6b7280;margin-bottom:8px;">${t.seoView.scoreDistribution}</div>
     <div style="display:flex;gap:4px;height:16px;border-radius:4px;overflow:hidden;">
-      ${goodCount > 0 ? `<div style="flex:${goodCount};background:#22c55e;" title="${goodCount} bonnes"></div>` : ''}
-      ${needsWorkCount > 0 ? `<div style="flex:${needsWorkCount};background:#f59e0b;" title="${needsWorkCount} a ameliorer"></div>` : ''}
-      ${criticalCount > 0 ? `<div style="flex:${criticalCount};background:#ef4444;" title="${criticalCount} critiques"></div>` : ''}
+      ${goodCount > 0 ? `<div style="flex:${goodCount};background:#22c55e;" title="${goodCount} ${t.seoView.good}"></div>` : ''}
+      ${needsWorkCount > 0 ? `<div style="flex:${needsWorkCount};background:#f59e0b;" title="${needsWorkCount} ${t.seoView.needsWorkLabel}"></div>` : ''}
+      ${criticalCount > 0 ? `<div style="flex:${criticalCount};background:#ef4444;" title="${criticalCount} ${t.seoView.critical}"></div>` : ''}
     </div>
     <div style="display:flex;gap:16px;margin-top:6px;font-size:9px;color:#6b7280;">
-      <span><span style="display:inline-block;width:8px;height:8px;background:#22c55e;border-radius:2px;margin-right:3px;vertical-align:middle;"></span>${goodCount} Bonnes (${totalAnalyzed > 0 ? Math.round((goodCount / totalAnalyzed) * 100) : 0}%)</span>
-      <span><span style="display:inline-block;width:8px;height:8px;background:#f59e0b;border-radius:2px;margin-right:3px;vertical-align:middle;"></span>${needsWorkCount} A ameliorer (${totalAnalyzed > 0 ? Math.round((needsWorkCount / totalAnalyzed) * 100) : 0}%)</span>
-      <span><span style="display:inline-block;width:8px;height:8px;background:#ef4444;border-radius:2px;margin-right:3px;vertical-align:middle;"></span>${criticalCount} Critiques (${totalAnalyzed > 0 ? Math.round((criticalCount / totalAnalyzed) * 100) : 0}%)</span>
+      <span><span style="display:inline-block;width:8px;height:8px;background:#22c55e;border-radius:2px;margin-right:3px;vertical-align:middle;"></span>${goodCount} ${t.seoView.good} (${totalAnalyzed > 0 ? Math.round((goodCount / totalAnalyzed) * 100) : 0}%)</span>
+      <span><span style="display:inline-block;width:8px;height:8px;background:#f59e0b;border-radius:2px;margin-right:3px;vertical-align:middle;"></span>${needsWorkCount} ${t.seoView.needsWorkLabel} (${totalAnalyzed > 0 ? Math.round((needsWorkCount / totalAnalyzed) * 100) : 0}%)</span>
+      <span><span style="display:inline-block;width:8px;height:8px;background:#ef4444;border-radius:2px;margin-right:3px;vertical-align:middle;"></span>${criticalCount} ${t.seoView.critical} (${totalAnalyzed > 0 ? Math.round((criticalCount / totalAnalyzed) * 100) : 0}%)</span>
     </div>
   </div>
 
   <div class="footer">
-    Rapport genere par SEO Analyzer &mdash; ${today}${siteName ? ` &mdash; ${escapeHtml(siteName)}` : ''}
+    ${t.seoView.generatedBy} &mdash; ${today}${siteName ? ` &mdash; ${escapeHtml(siteName)}` : ''}
   </div>
 
   <script>window.onload = function() { window.print(); }</script>
@@ -1227,7 +1240,7 @@ export function SeoView() {
       printWindow.document.write(html)
       printWindow.document.close()
     }
-  }, [filteredItems, stats, siteName])
+  }, [filteredItems, stats, siteName, locale, t])
 
   // Loading state
   if (loading) {
@@ -1241,7 +1254,7 @@ export function SeoView() {
           fontFamily: 'var(--font-body, system-ui)',
         }}
       >
-        Chargement de l&apos;audit SEO...
+        {t.seoView.loadingAudit}
       </div>
     )
   }
@@ -1257,14 +1270,14 @@ export function SeoView() {
         }}
       >
         <div style={{ color: V.red, fontWeight: 700, fontSize: 14, marginBottom: 8 }}>
-          Erreur de chargement
+          {t.common.loadingError}
         </div>
         <div style={{ color: V.textSecondary, fontSize: 12, marginBottom: 16 }}>{error}</div>
         <button
           onClick={() => fetchAudit(true)}
           style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
         >
-          Reessayer
+          {t.common.retry}
         </button>
       </div>
     )
@@ -1293,10 +1306,10 @@ export function SeoView() {
       >
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, color: V.text }}>
-            Audit SEO
+            {t.seoView.auditTitle}
           </h1>
           <p style={{ fontSize: 12, color: V.textSecondary, margin: '4px 0 0' }}>
-            {stats?.totalPages || 0} pages analysees
+            {stats?.totalPages || 0} {t.seoView.pagesAnalyzed}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -1304,19 +1317,19 @@ export function SeoView() {
             onClick={() => fetchAudit(true)}
             style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
           >
-            &#8635; Rafraichir
+            &#8635; {t.common.refresh}
           </button>
           <button
             onClick={handleExportCsv}
             style={{ ...btnBase, backgroundColor: V.cyan, color: '#000' }}
           >
-            Export CSV
+            {t.common.exportCsv}
           </button>
           <button
             onClick={handleExportPdf}
             style={{ ...btnBase, backgroundColor: V.blue, color: '#fff' }}
           >
-            Export PDF
+            {t.common.exportPdf}
           </button>
         </div>
       </div>
@@ -1331,12 +1344,12 @@ export function SeoView() {
             marginBottom: 20,
           }}
         >
-          <StatCard label="Score moyen" value={stats.avgScore} color={getScoreColor(stats.avgScore)} />
-          <StatCard label="Bonnes (>=80)" value={stats.good} color={V.green} />
-          <StatCard label="A ameliorer" value={stats.needsWork} color={V.yellow} />
-          <StatCard label="Critiques (<50)" value={stats.critical} color={V.red} />
-          <StatCard label="Sans keyword" value={stats.noKeyword} color={V.orange} />
-          <StatCard label="Mots (moy.)" value={stats.avgWordCount} color={V.blue} />
+          <StatCard label={t.seoView.averageScore} value={stats.avgScore} color={getScoreColor(stats.avgScore)} />
+          <StatCard label={t.seoView.goodLabel} value={stats.good} color={V.green} />
+          <StatCard label={t.seoView.needsWorkLabel} value={stats.needsWork} color={V.yellow} />
+          <StatCard label={t.seoView.criticalLabel} value={stats.critical} color={V.red} />
+          <StatCard label={t.seoView.noKeyword} value={stats.noKeyword} color={V.orange} />
+          <StatCard label={t.seoView.wordsAvg} value={stats.avgWordCount} color={V.blue} />
         </div>
       )}
 
@@ -1355,7 +1368,7 @@ export function SeoView() {
       >
         <input
           type="text"
-          placeholder="Rechercher (titre, slug, keyword)..."
+          placeholder={t.seoView.searchPlaceholder}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{
@@ -1369,7 +1382,7 @@ export function SeoView() {
           }}
         />
         <select value={filter} onChange={(e) => setFilter(e.target.value)} style={selectStyle}>
-          <option value="all">Toutes les collections</option>
+          <option value="all">{t.seoView.allCollections}</option>
           {collections.map((c) => (
             <option key={c} value={c}>
               {c}
@@ -1381,22 +1394,22 @@ export function SeoView() {
           onChange={(e) => setScoreFilter(e.target.value as typeof scoreFilter)}
           style={selectStyle}
         >
-          <option value="all">Tous les scores</option>
-          <option value="good">Bonnes (&gt;=80)</option>
-          <option value="needsWork">A ameliorer (50-79)</option>
-          <option value="critical">Critiques (&lt;50)</option>
+          <option value="all">{t.seoView.allScores}</option>
+          <option value="good">{t.seoView.goodScores}</option>
+          <option value="needsWork">{t.seoView.needsWork}</option>
+          <option value="critical">{t.seoView.criticalScores}</option>
         </select>
         <span style={{ fontSize: 11, color: V.textSecondary, fontWeight: 600 }}>
-          {filteredItems.length} resultat{filteredItems.length > 1 ? 's' : ''}
+          {filteredItems.length} {t.seoView.resultsDisplayed}
         </span>
       </div>
 
       {/* A4: Quick filter buttons */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
         {([
-          { key: 'noMeta' as QuickFilter, label: 'Sans meta', count: quickFilterCounts.noMeta, color: V.red },
-          { key: 'noH1' as QuickFilter, label: 'H1 manquant', count: quickFilterCounts.noH1, color: V.orange },
-          { key: 'lowReadability' as QuickFilter, label: 'Lisib. faible', count: quickFilterCounts.lowReadability, color: V.yellow },
+          { key: 'noMeta' as QuickFilter, label: t.seoView.missingMeta, count: quickFilterCounts.noMeta, color: V.red },
+          { key: 'noH1' as QuickFilter, label: t.seoView.missingH1, count: quickFilterCounts.noH1, color: V.orange },
+          { key: 'lowReadability' as QuickFilter, label: t.seoView.lowReadability, count: quickFilterCounts.lowReadability, color: V.yellow },
         ]).map((qf) => {
           const isActive = quickFilter === qf.key
           return (
@@ -1470,28 +1483,28 @@ export function SeoView() {
             />
           </div>
           <SortHeader
-            label="Page"
+            label={t.common.page}
             sortKey="title"
             currentSort={sortBy}
             currentDir={sortDir}
             onSort={handleSort}
           />
           <SortHeader
-            label="Collection"
+            label={t.seoView.collection}
             sortKey="collection"
             currentSort={sortBy}
             currentDir={sortDir}
             onSort={handleSort}
           />
           <SortHeader
-            label="Score"
+            label={t.seoView.score}
             sortKey="score"
             currentSort={sortBy}
             currentDir={sortDir}
             onSort={handleSort}
           />
           <SortHeader
-            label="Mot-cle"
+            label={t.seoView.keyword}
             sortKey="focusKeyword"
             currentSort={sortBy}
             currentDir={sortDir}
@@ -1499,40 +1512,40 @@ export function SeoView() {
           />
           {/* A1: H1 — sortable */}
           <SortHeader
-            label="H1"
+            label={t.seoView.h1}
             sortKey="h1Count"
             currentSort={sortBy}
             currentDir={sortDir}
             onSort={handleSort}
           />
           {/* A1: OG — not sortable */}
-          <span>OG</span>
+          <span>{t.seoView.og}</span>
           {/* A1: Internal links — sortable */}
           <SortHeader
-            label="Int."
+            label={t.seoView.internal}
             sortKey="internalLinkCount"
             currentSort={sortBy}
             currentDir={sortDir}
             onSort={handleSort}
           />
           {/* A1: External links — not sortable */}
-          <span>Ext.</span>
+          <span>{t.seoView.external}</span>
           <SortHeader
-            label="Mots"
+            label={t.seoView.words}
             sortKey="wordCount"
             currentSort={sortBy}
             currentDir={sortDir}
             onSort={handleSort}
           />
           <SortHeader
-            label="Lisib."
+            label={t.seoView.readability}
             sortKey="readabilityScore"
             currentSort={sortBy}
             currentDir={sortDir}
             onSort={handleSort}
           />
           <SortHeader
-            label="MAJ"
+            label={t.seoView.updated}
             sortKey="updatedAt"
             currentSort={sortBy}
             currentDir={sortDir}
@@ -1552,7 +1565,7 @@ export function SeoView() {
                 fontSize: 12,
               }}
             >
-              Aucun resultat.
+              {t.common.noResults}
             </div>
           ) : (
             paginatedItems.map((item) => {
@@ -1573,6 +1586,8 @@ export function SeoView() {
                     }}
                     expanded={isExpanded}
                     onRowClick={() => setExpandedId(isExpanded ? null : key)}
+                    t={t}
+                    locale={locale}
                   />
                   {/* B3: Inline edit panel */}
                   {isExpanded && (
@@ -1582,6 +1597,7 @@ export function SeoView() {
                         saving={saving}
                         onCancel={() => setExpandedId(null)}
                         onSave={(title, desc) => handleInlineSave(item, title, desc)}
+                        t={t}
                       />
                       {saveError && (
                         <div
@@ -1640,10 +1656,10 @@ export function SeoView() {
               opacity: currentPage === 1 ? 0.5 : 1,
             }}
           >
-            &lsaquo; Precedent
+            &lsaquo; {t.common.previous}
           </button>
           <span style={{ color: V.textSecondary, fontWeight: 600, padding: '0 8px' }}>
-            Page {currentPage} / {totalPages}
+            {t.common.page} {currentPage} / {totalPages}
           </span>
           <button
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
@@ -1655,7 +1671,7 @@ export function SeoView() {
               opacity: currentPage === totalPages ? 0.5 : 1,
             }}
           >
-            Suivant &rsaquo;
+            {t.common.next} &rsaquo;
           </button>
           <button
             onClick={() => setCurrentPage(totalPages)}
@@ -1679,6 +1695,7 @@ export function SeoView() {
         onExportCsv={handleBulkExportCsv}
         onMarkCornerstone={() => handleBulkCornerstone(true)}
         onUnmarkCornerstone={() => handleBulkCornerstone(false)}
+        t={t}
       />
     </div>
   )

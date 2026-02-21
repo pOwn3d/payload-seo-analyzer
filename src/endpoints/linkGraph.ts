@@ -52,7 +52,7 @@ const HUB_THRESHOLD = 10
 // Endpoint handler factory
 // ---------------------------------------------------------------------------
 
-export function createLinkGraphHandler(targetCollections: string[]): PayloadHandler {
+export function createLinkGraphHandler(targetCollections: string[], globals: string[] = []): PayloadHandler {
   return async (req) => {
     try {
       if (!req.user) {
@@ -118,6 +118,36 @@ export function createLinkGraphHandler(targetCollections: string[]): PayloadHand
         } catch {
           // Collection might not exist — skip silently
         }
+      }
+
+      // Include globals as graph nodes
+      for (const globalSlug of globals) {
+        try {
+          const doc = await req.payload.findGlobal({ slug: globalSlug, depth: 1, overrideAccess: true })
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const d = doc as any
+          const nodeId = `global:${globalSlug}`
+          const title = (d.title as string) || globalSlug
+
+          slugMap.set(nodeId, {
+            id: globalSlug,
+            title,
+            slug: nodeId,
+            collection: `global:${globalSlug}`,
+          })
+
+          // Extract internal links from the global document
+          const internalLinks = extractAllInternalLinks(d)
+          const seen = new Set<string>()
+          const dedupedLinks: Array<{ slug: string; text: string }> = []
+          for (const link of internalLinks) {
+            if (!seen.has(link.slug)) {
+              seen.add(link.slug)
+              dedupedLinks.push({ slug: link.slug, text: link.text })
+            }
+          }
+          outgoingMap.set(nodeId, dedupedLinks)
+        } catch { /* skip */ }
       }
 
       // 2. Build incoming links map

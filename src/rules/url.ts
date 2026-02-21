@@ -12,6 +12,22 @@ export function checkUrl(input: SeoInput, ctx: AnalysisContext): SeoCheck[] {
   const slug = input.slug || ''
   const kw = ctx.normalizedKeyword
 
+  // Globals don't have URLs/slugs — skip all URL checks
+  if (input.isGlobal) {
+    checks.push({
+      id: 'slug-global-skip',
+      label: r.missingLabel,
+      status: 'pass',
+      message: ctx.locale === 'en'
+        ? 'Global content — URL checks are not applicable.'
+        : 'Contenu global — Les verifications URL ne sont pas applicables.',
+      category: 'bonus',
+      weight: 1,
+      group: 'url',
+    })
+    return checks
+  }
+
   // 10. Slug present
   if (!slug) {
     checks.push({

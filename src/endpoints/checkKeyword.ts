@@ -9,7 +9,7 @@
 
 import type { PayloadHandler, Where } from 'payload'
 
-export function createCheckKeywordHandler(collections: string[]): PayloadHandler {
+export function createCheckKeywordHandler(collections: string[], globals: string[] = []): PayloadHandler {
   return async (req) => {
     try {
       if (!req.user) {
@@ -85,6 +85,17 @@ export function createCheckKeywordHandler(collections: string[]): PayloadHandler
         } catch {
           // Collection might not exist or not have focusKeyword field — skip
         }
+      }
+
+      // Check globals for keyword duplicates
+      for (const globalSlug of globals) {
+        try {
+          const doc = await req.payload.findGlobal({ slug: globalSlug, depth: 0, overrideAccess: true }) as Record<string, unknown>
+          const docKw = typeof doc.focusKeyword === 'string' ? doc.focusKeyword.trim().toLowerCase() : ''
+          if (docKw === keyword) {
+            results.push({ title: (doc.title as string) || globalSlug, slug: '', collection: `global:${globalSlug}` })
+          }
+        } catch { /* skip */ }
       }
 
       return Response.json({ used: results.length > 0, keyword, pages: results })

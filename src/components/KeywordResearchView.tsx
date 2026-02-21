@@ -1,6 +1,8 @@
 'use client'
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSeoLocale } from '../hooks/useSeoLocale.js'
+import { getDashboardT } from '../dashboard-i18n.js'
 
 // ---------------------------------------------------------------------------
 // Design tokens — uses Payload CSS variables for theme compatibility
@@ -56,24 +58,7 @@ const btnBase: React.CSSProperties = {
   letterSpacing: 0.3,
 }
 
-// ---------------------------------------------------------------------------
-// Type badge config
-// ---------------------------------------------------------------------------
-
-const typeConfig: Record<SuggestionType, { label: string; color: string; bg: string }> = {
-  unused: { label: 'Non utilis\u00e9', color: V.blue, bg: 'rgba(59,130,246,0.12)' },
-  related: { label: 'Associ\u00e9', color: V.orange, bg: 'rgba(249,115,22,0.12)' },
-  trending: { label: 'Tendance', color: V.cyan, bg: 'rgba(6,182,212,0.12)' },
-  'long-tail': { label: 'Longue tra\u00eene', color: V.green, bg: 'rgba(34,197,94,0.12)' },
-}
-
-const filterTabs: { key: FilterTab; label: string }[] = [
-  { key: 'all', label: 'Tous' },
-  { key: 'unused', label: 'Non utilis\u00e9s' },
-  { key: 'related', label: 'Associ\u00e9s' },
-  { key: 'trending', label: 'Tendances' },
-  { key: 'long-tail', label: 'Longue tra\u00eene' },
-]
+// typeConfig and filterTabs are now created inside the component to support i18n
 
 // ---------------------------------------------------------------------------
 // ScoreBar sub-component
@@ -118,7 +103,7 @@ function ScoreBar({ score }: { score: number }) {
 // ExpandableList sub-component
 // ---------------------------------------------------------------------------
 
-function ExpandableList({ items, label }: { items: string[]; label: string }) {
+function ExpandableList({ items, label, seeLessLabel }: { items: string[]; label: string; seeLessLabel: string }) {
   const [expanded, setExpanded] = useState(false)
 
   if (items.length === 0) {
@@ -161,7 +146,7 @@ function ExpandableList({ items, label }: { items: string[]; label: string }) {
           }}
         >
           {expanded
-            ? 'Voir moins'
+            ? seeLessLabel
             : `+${items.length - 2} ${label}`}
         </button>
       )}
@@ -174,12 +159,32 @@ function ExpandableList({ items, label }: { items: string[]; label: string }) {
 // ---------------------------------------------------------------------------
 
 export function KeywordResearchView() {
+  const locale = useSeoLocale()
+  const t = getDashboardT(locale)
+
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [activeTab, setActiveTab] = useState<FilterTab>('all')
+
+  // i18n-aware type badge config
+  const typeConfig: Record<SuggestionType, { label: string; color: string; bg: string }> = useMemo(() => ({
+    unused: { label: t.keywordResearch.unused, color: V.blue, bg: 'rgba(59,130,246,0.12)' },
+    related: { label: t.keywordResearch.associated, color: V.orange, bg: 'rgba(249,115,22,0.12)' },
+    trending: { label: t.keywordResearch.trending, color: V.cyan, bg: 'rgba(6,182,212,0.12)' },
+    'long-tail': { label: t.keywordResearch.longTail, color: V.green, bg: 'rgba(34,197,94,0.12)' },
+  }), [t])
+
+  // i18n-aware filter tabs
+  const filterTabs: { key: FilterTab; label: string }[] = useMemo(() => [
+    { key: 'all', label: t.keywordResearch.all },
+    { key: 'unused', label: t.keywordResearch.unusedPlural },
+    { key: 'related', label: t.keywordResearch.associatedPlural },
+    { key: 'trending', label: t.keywordResearch.trendingPlural },
+    { key: 'long-tail', label: t.keywordResearch.longTail },
+  ], [t])
 
   // Fetch keyword research data
   const fetchData = useCallback(async () => {
@@ -195,7 +200,7 @@ export function KeywordResearchView() {
       setSuggestions(data.suggestions || [])
       setStats(data.stats || null)
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Erreur de chargement')
+      setError(e instanceof Error ? e.message : t.common.loadingError)
     }
     setLoading(false)
   }, [])
@@ -245,12 +250,12 @@ export function KeywordResearchView() {
   // CSV export
   const handleExportCsv = useCallback(() => {
     const headers = [
-      'Mot-cl\u00e9',
-      'Type',
-      'Score',
-      'Fr\u00e9quence',
-      'Utilis\u00e9 par',
-      'Sugg\u00e9r\u00e9 pour',
+      t.keywordResearch.keyword,
+      t.keywordResearch.type,
+      t.keywordResearch.score,
+      t.keywordResearch.frequency,
+      t.keywordResearch.usedBy,
+      t.keywordResearch.suggestedFor,
     ]
     const rows = filteredSuggestions.map((s) => [
       s.keyword,
@@ -290,7 +295,7 @@ export function KeywordResearchView() {
           fontFamily: 'var(--font-body, system-ui)',
         }}
       >
-        Analyse des mots-cl&eacute;s en cours...
+        {t.keywordResearch.loading}
       </div>
     )
   }
@@ -306,7 +311,7 @@ export function KeywordResearchView() {
         }}
       >
         <div style={{ color: V.red, fontWeight: 700, fontSize: 14, marginBottom: 8 }}>
-          Erreur de chargement
+          {t.common.loadingError}
         </div>
         <div style={{ color: V.textSecondary, fontSize: 12, marginBottom: 16 }}>
           {error}
@@ -315,7 +320,7 @@ export function KeywordResearchView() {
           onClick={fetchData}
           style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
         >
-          R&eacute;essayer
+          {t.common.retry}
         </button>
       </div>
     )
@@ -343,10 +348,10 @@ export function KeywordResearchView() {
       >
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, color: V.text }}>
-            Recherche de mots-cl&eacute;s
+            {t.keywordResearch.title}
           </h1>
           <p style={{ fontSize: 12, color: V.textSecondary, margin: '4px 0 0' }}>
-            Suggestions bas&eacute;es sur l&apos;analyse du contenu existant
+            {t.keywordResearch.subtitle}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -364,7 +369,7 @@ export function KeywordResearchView() {
                   border: `1px solid ${V.border}`,
                 }}
               >
-                {stats.totalKeywordsAnalyzed} mots-cl&eacute;s actifs
+                {stats.totalKeywordsAnalyzed} {t.keywordResearch.activeKeywords}
               </span>
               <span
                 style={{
@@ -377,7 +382,7 @@ export function KeywordResearchView() {
                   border: `1px solid ${V.border}`,
                 }}
               >
-                {stats.uniqueTerms} termes uniques
+                {stats.uniqueTerms} {t.keywordResearch.uniqueTerms}
               </span>
               <span
                 style={{
@@ -390,7 +395,7 @@ export function KeywordResearchView() {
                   border: `1px solid ${V.border}`,
                 }}
               >
-                {stats.suggestionsCount} suggestions
+                {stats.suggestionsCount} {t.keywordResearch.suggestions}
               </span>
             </div>
           )}
@@ -398,7 +403,7 @@ export function KeywordResearchView() {
             onClick={fetchData}
             style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
           >
-            &#8635; Rafra&icirc;chir
+            &#8635; {t.common.refresh}
           </button>
           <button
             onClick={handleExportCsv}
@@ -411,7 +416,7 @@ export function KeywordResearchView() {
               cursor: filteredSuggestions.length > 0 ? 'pointer' : 'not-allowed',
             }}
           >
-            Export CSV
+            {t.common.exportCsv}
           </button>
         </div>
       </div>
@@ -448,7 +453,7 @@ export function KeywordResearchView() {
       <div style={{ marginBottom: 16 }}>
         <input
           type="text"
-          placeholder="Rechercher un mot-cl\u00e9, titre de page..."
+          placeholder={t.keywordResearch.searchPlaceholder}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{
@@ -479,13 +484,13 @@ export function KeywordResearchView() {
           </div>
           <div style={{ fontSize: 14, fontWeight: 700, color: V.text, marginBottom: 4 }}>
             {suggestions.length === 0
-              ? 'Aucune suggestion disponible'
-              : 'Aucun r\u00e9sultat'}
+              ? t.keywordResearch.noSuggestions
+              : t.common.noResults}
           </div>
           <div style={{ fontSize: 12, color: V.textSecondary }}>
             {suggestions.length === 0
-              ? "Ajoutez du contenu \u00e0 vos pages pour que l'analyse puisse g\u00e9n\u00e9rer des suggestions."
-              : "Aucune suggestion ne correspond \u00e0 votre recherche."}
+              ? t.keywordResearch.noSuggestionsDesc
+              : t.keywordResearch.noMatchingSuggestions}
           </div>
         </div>
       )}
@@ -515,12 +520,12 @@ export function KeywordResearchView() {
               gap: 8,
             }}
           >
-            <span>Mot-cl&eacute;</span>
-            <span>Type</span>
-            <span>Score</span>
-            <span style={{ textAlign: 'center' }}>Fr&eacute;q.</span>
-            <span>Utilis&eacute; par</span>
-            <span>Sugg&eacute;r&eacute; pour</span>
+            <span>{t.keywordResearch.keyword}</span>
+            <span>{t.keywordResearch.type}</span>
+            <span>{t.keywordResearch.score}</span>
+            <span style={{ textAlign: 'center' }}>{t.keywordResearch.freq}</span>
+            <span>{t.keywordResearch.usedBy}</span>
+            <span>{t.keywordResearch.suggestedFor}</span>
           </div>
 
           {/* Table rows */}
@@ -592,12 +597,12 @@ export function KeywordResearchView() {
 
                 {/* Currently used by */}
                 <div>
-                  <ExpandableList items={suggestion.currentlyUsedBy} label="page(s)" />
+                  <ExpandableList items={suggestion.currentlyUsedBy} label="page(s)" seeLessLabel={t.keywordResearch.seeLess} />
                 </div>
 
                 {/* Suggested for */}
                 <div>
-                  <ExpandableList items={suggestion.suggestedFor} label="page(s)" />
+                  <ExpandableList items={suggestion.suggestedFor} label="page(s)" seeLessLabel={t.keywordResearch.seeLess} />
                 </div>
               </div>
             )

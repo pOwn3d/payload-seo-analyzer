@@ -14,3 +14,12 @@ export { SchemaBuilderView } from './components/SchemaBuilderView.js'
 export { PerformanceView } from './components/PerformanceView.js'
 export { KeywordResearchView } from './components/KeywordResearchView.js'
 export { LinkGraphView } from './components/LinkGraphView.js'
+// Meta field components
+export { MetaTitleField } from './components/MetaTitleField.js'
+export { MetaDescriptionField } from './components/MetaDescriptionField.js'
+export { MetaImageField } from './components/MetaImageField.js'
+export { OverviewField } from './components/OverviewField.js'
+// SERP Preview
+export { SerpPreview } from './components/SerpPreview.js'
+// Preview field alias for metaFields UI field
+export { SerpPreview as SerpPreviewField } from './components/SerpPreview.js'

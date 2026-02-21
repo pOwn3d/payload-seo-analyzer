@@ -24,7 +24,7 @@ interface Conflict {
   pages: PageEntry[]
 }
 
-export function createCannibalizationHandler(collections: string[]): PayloadHandler {
+export function createCannibalizationHandler(collections: string[], globals: string[] = []): PayloadHandler {
   return async (req) => {
     try {
       if (!req.user) {
@@ -94,6 +94,25 @@ export function createCannibalizationHandler(collections: string[]): PayloadHand
           // Collection might not exist — skip silently
         }
       }
+
+      // Include globals
+        for (const globalSlug of globals) {
+          try {
+            const doc = await req.payload.findGlobal({ slug: globalSlug, depth: 0, overrideAccess: true }) as Record<string, unknown>
+            const entry: PageEntry = {
+              id: globalSlug,
+              title: (doc.title as string) || globalSlug,
+              slug: '',
+              collection: `global:${globalSlug}`,
+              score: 0,
+            }
+            const kw = typeof doc.focusKeyword === 'string' ? doc.focusKeyword.trim().toLowerCase() : ''
+            if (kw) {
+              if (!keywordMap.has(kw)) keywordMap.set(kw, [])
+              keywordMap.get(kw)!.push(entry)
+            }
+          } catch { /* skip */ }
+        }
 
       // Try to fetch scores from seo-score-history for enrichment
       const scoreMap = new Map<string, number>()

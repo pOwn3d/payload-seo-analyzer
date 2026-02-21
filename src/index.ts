@@ -54,11 +54,19 @@ export {
 } from './helpers'
 
 // Re-export plugin
-export { seoPlugin } from './plugin.js'
-export type { SeoPluginConfig } from './plugin.js'
+export { seoAnalyzerPlugin, seoPlugin } from './plugin.js'
+export type { SeoPluginConfig, GenerateFnArgs } from './plugin.js'
 
 // Re-export field definitions
 export { seoFields } from './fields.js'
+export { metaFields } from './metaFields.js'
+export type { MetaFieldsConfig } from './metaFields.js'
+
+// Re-export helpers
+export { resolveAnalysisLocale } from './helpers/resolveLocale.js'
+export type { ResolveLocaleArgs } from './helpers/resolveLocale.js'
+export { fetchAllDocs } from './helpers/fetchAllDocs.js'
+export type { FetchedDoc, FetchAllDocsOptions, DocSourceType } from './helpers/fetchAllDocs.js'
 
 // Re-export endpoint utilities
 export { buildSeoInputFromDoc } from './endpoints/validate.js'
@@ -73,6 +81,7 @@ export { createTrackSeoScoreHook } from './hooks/trackSeoScore.js'
 // Re-export new endpoint creators
 export { createPerformanceHandler } from './endpoints/performance.js'
 export { createKeywordResearchHandler } from './endpoints/keywordResearch.js'
+export { createGenerateHandler } from './endpoints/generate.js'
 
 // Re-export constants for consumers that need thresholds
 export {

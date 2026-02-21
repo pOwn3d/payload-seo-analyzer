@@ -13,6 +13,8 @@ import {
   FLESCH_SCORE_PASS,
   SLUG_MAX_LENGTH,
 } from '../constants.js'
+import { useSeoLocale } from '../hooks/useSeoLocale.js'
+import { getDashboardT } from '../dashboard-i18n.js'
 
 // ---------------------------------------------------------------------------
 // Design tokens — uses Payload CSS variables for theme compatibility
@@ -33,42 +35,69 @@ const V = {
 
 // ---------------------------------------------------------------------------
 // Rule group definitions (16 engine groups + accessibility)
+// Built dynamically from i18n translations
 // ---------------------------------------------------------------------------
-const RULE_GROUPS: Array<{ value: string; label: string }> = [
-  { value: 'title', label: 'Titre' },
-  { value: 'meta-description', label: 'Meta description' },
-  { value: 'url', label: 'URL / Slug' },
-  { value: 'headings', label: 'Titres H1-H6' },
-  { value: 'content', label: 'Contenu' },
-  { value: 'images', label: 'Images' },
-  { value: 'linking', label: 'Liens' },
-  { value: 'social', label: 'Reseaux sociaux' },
-  { value: 'schema', label: 'Donnees structurees' },
-  { value: 'readability', label: 'Lisibilite' },
-  { value: 'quality', label: 'Qualite' },
-  { value: 'secondary-keywords', label: 'Mots-cles secondaires' },
-  { value: 'cornerstone', label: 'Contenu pilier' },
-  { value: 'freshness', label: 'Fraicheur' },
-  { value: 'technical', label: 'Technique' },
-  { value: 'accessibility', label: 'Accessibilite' },
-  { value: 'ecommerce', label: 'E-commerce' },
-]
+const RULE_GROUP_KEYS = [
+  'title',
+  'meta-description',
+  'url',
+  'headings',
+  'content',
+  'images',
+  'linking',
+  'social',
+  'schema',
+  'readability',
+  'quality',
+  'secondary-keywords',
+  'cornerstone',
+  'freshness',
+  'technical',
+  'accessibility',
+  'ecommerce',
+] as const
+
+function getRuleGroups(t: ReturnType<typeof getDashboardT>): Array<{ value: string; label: string }> {
+  const labelMap: Record<string, string> = {
+    'title': t.seoConfig.ruleGroupTitle,
+    'meta-description': t.seoConfig.ruleGroupMetaDescription,
+    'url': t.seoConfig.ruleGroupUrlSlug,
+    'headings': t.seoConfig.ruleGroupHeadings,
+    'content': t.seoConfig.ruleGroupContent,
+    'images': t.seoConfig.ruleGroupImages,
+    'linking': t.seoConfig.ruleGroupLinks,
+    'social': t.seoConfig.ruleGroupSocial,
+    'schema': t.seoConfig.ruleGroupStructuredData,
+    'readability': t.seoConfig.ruleGroupReadability,
+    'quality': t.seoConfig.ruleGroupQuality,
+    'secondary-keywords': t.seoConfig.ruleGroupSecondaryKeywords,
+    'cornerstone': t.seoConfig.ruleGroupCornerstone,
+    'freshness': t.seoConfig.ruleGroupFreshness,
+    'technical': t.seoConfig.ruleGroupTechnical,
+    'accessibility': t.seoConfig.ruleGroupAccessibility,
+    'ecommerce': t.seoConfig.ruleGroupEcommerce,
+  }
+  return RULE_GROUP_KEYS.map((key) => ({ value: key, label: labelMap[key] || key }))
+}
 
 // ---------------------------------------------------------------------------
 // Threshold definitions (field name, label, default value)
+// Built dynamically from i18n translations
 // ---------------------------------------------------------------------------
-const THRESHOLD_FIELDS: Array<{ name: string; label: string; defaultValue: number }> = [
-  { name: 'titleLengthMin', label: 'Titre — longueur min', defaultValue: TITLE_LENGTH_MIN },
-  { name: 'titleLengthMax', label: 'Titre — longueur max', defaultValue: TITLE_LENGTH_MAX },
-  { name: 'metaDescLengthMin', label: 'Meta desc — longueur min', defaultValue: META_DESC_LENGTH_MIN },
-  { name: 'metaDescLengthMax', label: 'Meta desc — longueur max', defaultValue: META_DESC_LENGTH_MAX },
-  { name: 'minWordsGeneric', label: 'Mots min (pages)', defaultValue: MIN_WORDS_GENERIC },
-  { name: 'minWordsPost', label: 'Mots min (articles)', defaultValue: MIN_WORDS_POST },
-  { name: 'keywordDensityMin', label: 'Densite mot-cle min (%)', defaultValue: KEYWORD_DENSITY_MIN },
-  { name: 'keywordDensityMax', label: 'Densite mot-cle max (%)', defaultValue: KEYWORD_DENSITY_MAX },
-  { name: 'fleschScorePass', label: 'Score Flesch min', defaultValue: FLESCH_SCORE_PASS },
-  { name: 'slugMaxLength', label: 'Longueur max slug', defaultValue: SLUG_MAX_LENGTH },
-]
+function getThresholdFields(t: ReturnType<typeof getDashboardT>): Array<{ name: string; label: string; defaultValue: number }> {
+  return [
+    { name: 'titleLengthMin', label: t.seoConfig.thresholdTitleMin, defaultValue: TITLE_LENGTH_MIN },
+    { name: 'titleLengthMax', label: t.seoConfig.thresholdTitleMax, defaultValue: TITLE_LENGTH_MAX },
+    { name: 'metaDescLengthMin', label: t.seoConfig.thresholdMetaDescMin, defaultValue: META_DESC_LENGTH_MIN },
+    { name: 'metaDescLengthMax', label: t.seoConfig.thresholdMetaDescMax, defaultValue: META_DESC_LENGTH_MAX },
+    { name: 'minWordsGeneric', label: t.seoConfig.thresholdMinWordsPages, defaultValue: MIN_WORDS_GENERIC },
+    { name: 'minWordsPost', label: t.seoConfig.thresholdMinWordsPosts, defaultValue: MIN_WORDS_POST },
+    { name: 'keywordDensityMin', label: t.seoConfig.thresholdKeywordDensityMin, defaultValue: KEYWORD_DENSITY_MIN },
+    { name: 'keywordDensityMax', label: t.seoConfig.thresholdKeywordDensityMax, defaultValue: KEYWORD_DENSITY_MAX },
+    { name: 'fleschScorePass', label: t.seoConfig.thresholdFleschMin, defaultValue: FLESCH_SCORE_PASS },
+    { name: 'slugMaxLength', label: t.seoConfig.thresholdSlugMaxLength, defaultValue: SLUG_MAX_LENGTH },
+  ]
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -216,6 +245,11 @@ function Toast({ message, type, onClose }: { message: string; type: 'success' | 
 // Main SeoConfigView component
 // ---------------------------------------------------------------------------
 export function SeoConfigView() {
+  const locale = useSeoLocale()
+  const t = getDashboardT(locale)
+  const RULE_GROUPS = useMemo(() => getRuleGroups(t), [t])
+  const THRESHOLD_FIELDS = useMemo(() => getThresholdFields(t), [t])
+
   const [settings, setSettings] = useState<Settings>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -245,7 +279,7 @@ export function SeoConfigView() {
       const data = await res.json()
       setSettings(data.settings || {})
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Erreur de chargement')
+      setError(e instanceof Error ? e.message : t.common.loadingError)
     }
     setLoading(false)
   }, [])
@@ -314,13 +348,13 @@ export function SeoConfigView() {
       const data = await res.json()
       if (data.success) {
         setSettings(data.settings)
-        setToast({ message: 'Configuration sauvegardee', type: 'success' })
+        setToast({ message: t.seoConfig.saved, type: 'success' })
       } else {
-        throw new Error('Erreur serveur')
+        throw new Error(t.common.serverError)
       }
     } catch (e: unknown) {
       setToast({
-        message: e instanceof Error ? e.message : 'Erreur de sauvegarde',
+        message: e instanceof Error ? e.message : t.common.loadingError,
         type: 'error',
       })
     }
@@ -480,7 +514,7 @@ export function SeoConfigView() {
           fontFamily: 'var(--font-body, system-ui)',
         }}
       >
-        Chargement de la configuration...
+        {t.seoConfig.loading}
       </div>
     )
   }
@@ -496,14 +530,14 @@ export function SeoConfigView() {
         }}
       >
         <div style={{ color: V.red, fontWeight: 700, fontSize: 14, marginBottom: 8 }}>
-          Erreur de chargement
+          {t.common.loadingError}
         </div>
         <div style={{ color: V.textSecondary, fontSize: 12, marginBottom: 16 }}>{error}</div>
         <button
           onClick={fetchSettings}
           style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
         >
-          Reessayer
+          {t.common.retry}
         </button>
       </div>
     )
@@ -532,10 +566,10 @@ export function SeoConfigView() {
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, color: V.text }}>
             <span style={{ marginRight: 8 }}>&#9881;</span>
-            Configuration SEO
+            {t.seoConfig.title}
           </h1>
           <p style={{ fontSize: 12, color: V.textSecondary, margin: '4px 0 0' }}>
-            Parametres globaux du moteur d&apos;analyse SEO
+            {t.seoConfig.subtitle}
           </p>
         </div>
         <button
@@ -551,7 +585,7 @@ export function SeoConfigView() {
             opacity: saving ? 0.7 : 1,
           }}
         >
-          {saving ? 'Sauvegarde...' : 'Sauvegarder'}
+          {saving ? t.common.saving : t.common.save}
         </button>
       </div>
 
@@ -559,7 +593,7 @@ export function SeoConfigView() {
       <div style={cardStyle}>
         <div style={cardHeaderStyle}>General</div>
         <div style={cardBodyStyle}>
-          <label style={labelStyle}>Nom du site</label>
+          <label style={labelStyle}>{t.seoConfig.siteName}</label>
           <input
             type="text"
             value={settings.siteName || ''}
@@ -568,17 +602,17 @@ export function SeoConfigView() {
             style={inputStyle}
           />
           <div style={{ fontSize: 10, color: V.textSecondary, marginTop: 4 }}>
-            Utilise pour la verification de marque dans les titres (eviter la duplication du nom du site)
+            {t.seoConfig.siteNameDesc}
           </div>
         </div>
       </div>
 
       {/* Section 2: Pages ignorees */}
       <div style={{ ...cardStyle, overflow: 'visible' }}>
-        <div style={cardHeaderStyle}>Pages ignorees</div>
+        <div style={cardHeaderStyle}>{t.seoConfig.ignoredPages}</div>
         <div style={cardBodyStyle}>
           <div style={{ fontSize: 11, color: V.textSecondary, marginBottom: 12 }}>
-            Pages exclues de l&apos;audit SEO global (ex: mentions-legales, cgv, plan-du-site)
+            {t.seoConfig.ignoredPagesDesc}
           </div>
 
           {/* Add slug input with autocomplete */}
@@ -603,7 +637,7 @@ export function SeoConfigView() {
                     setShowAutocomplete(false)
                   }
                 }}
-                placeholder="slug-de-la-page"
+                placeholder={t.seoConfig.pageSlugPlaceholder}
                 style={inputStyle}
               />
               {showAutocomplete && filteredSlugs.length > 0 && (
@@ -695,7 +729,7 @@ export function SeoConfigView() {
                 whiteSpace: 'nowrap',
               }}
             >
-              Ajouter
+              {t.common.add}
             </button>
           </div>
 
@@ -703,7 +737,7 @@ export function SeoConfigView() {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {(settings.ignoredSlugs || []).length === 0 && (
               <div style={{ fontSize: 11, color: V.textSecondary, fontStyle: 'italic' }}>
-                Aucun slug ignore
+                {t.seoConfig.noIgnoredSlugs}
               </div>
             )}
             {(settings.ignoredSlugs || []).map((item) => (
@@ -733,7 +767,7 @@ export function SeoConfigView() {
                     lineHeight: 1,
                     fontFamily: 'system-ui',
                   }}
-                  title="Supprimer"
+                  title={t.common.delete}
                 >
                   &times;
                 </span>
@@ -745,10 +779,10 @@ export function SeoConfigView() {
 
       {/* Section 3: Regles desactivees */}
       <div style={cardStyle}>
-        <div style={cardHeaderStyle}>Regles desactivees</div>
+        <div style={cardHeaderStyle}>{t.seoConfig.disabledRules}</div>
         <div style={cardBodyStyle}>
           <div style={{ fontSize: 11, color: V.textSecondary, marginBottom: 14 }}>
-            Cochez les groupes de regles a ignorer lors de l&apos;analyse. Les regles desactivees ne seront pas executees.
+            {t.seoConfig.disabledRulesDesc}
           </div>
           <div
             style={{
@@ -793,10 +827,10 @@ export function SeoConfigView() {
 
       {/* Section 4: Seuils personnalises */}
       <div style={cardStyle}>
-        <div style={cardHeaderStyle}>Seuils personnalises</div>
+        <div style={cardHeaderStyle}>{t.seoConfig.customThresholds}</div>
         <div style={cardBodyStyle}>
           <div style={{ fontSize: 11, color: V.textSecondary, marginBottom: 14 }}>
-            Laissez vide pour utiliser les valeurs par defaut. Les seuils contrôlent les limites min/max de chaque regle.
+            {t.seoConfig.customThresholdsDesc}
           </div>
           <div
             style={{
@@ -814,7 +848,7 @@ export function SeoConfigView() {
                     type="number"
                     value={currentValue != null ? String(currentValue) : ''}
                     onChange={(e) => updateThreshold(field.name, e.target.value)}
-                    placeholder={`Defaut: ${field.defaultValue}`}
+                    placeholder={`${t.seoConfig.defaultLabel} ${field.defaultValue}`}
                     step={field.name.includes('Density') ? '0.1' : '1'}
                     style={inputStyle}
                   />
@@ -827,13 +861,13 @@ export function SeoConfigView() {
 
       {/* Section 5: Configuration Sitemap */}
       <div style={cardStyle}>
-        <div style={cardHeaderStyle}>Configuration Sitemap</div>
+        <div style={cardHeaderStyle}>{t.seoConfig.sitemapConfig}</div>
         <div style={cardBodyStyle}>
           {/* Slugs exclus du sitemap */}
           <div style={{ marginBottom: 20 }}>
-            <label style={labelStyle}>Slugs exclus du sitemap</label>
+            <label style={labelStyle}>{t.seoConfig.sitemapExcludedSlugs}</label>
             <div style={{ fontSize: 10, color: V.textSecondary, marginBottom: 8 }}>
-              Pages a exclure de la generation du sitemap (ex: mentions-legales, cgv, plan-du-site)
+              {t.seoConfig.ignoredPagesDesc}
             </div>
             <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
               <input
@@ -846,7 +880,7 @@ export function SeoConfigView() {
                     addSitemapSlug()
                   }
                 }}
-                placeholder="slug-a-exclure"
+                placeholder={t.seoConfig.slugToExcludePlaceholder}
                 style={inputStyle}
               />
               <button
@@ -859,13 +893,13 @@ export function SeoConfigView() {
                   whiteSpace: 'nowrap',
                 }}
               >
-                Ajouter
+                {t.common.add}
               </button>
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {(settings.sitemap?.excludedSlugs || []).length === 0 && (
                 <div style={{ fontSize: 11, color: V.textSecondary, fontStyle: 'italic' }}>
-                  Aucun slug exclu
+                  {t.seoConfig.noExcludedSlugs}
                 </div>
               )}
               {(settings.sitemap?.excludedSlugs || []).map((item) => (
@@ -895,7 +929,7 @@ export function SeoConfigView() {
                       lineHeight: 1,
                       fontFamily: 'system-ui',
                     }}
-                    title="Supprimer"
+                    title={t.common.delete}
                   >
                     &times;
                   </span>
@@ -914,20 +948,20 @@ export function SeoConfigView() {
             }}
           >
             <div>
-              <label style={labelStyle}>Frequence par defaut</label>
+              <label style={labelStyle}>{t.seoConfig.defaultChangeFrequency}</label>
               <select
                 value={settings.sitemap?.defaultChangefreq || 'weekly'}
                 onChange={(e) => updateSitemapField('defaultChangefreq', e.target.value)}
                 style={inputStyle}
               >
-                <option value="daily">Quotidien</option>
-                <option value="weekly">Hebdomadaire</option>
-                <option value="monthly">Mensuel</option>
-                <option value="yearly">Annuel</option>
+                <option value="daily">{t.seoConfig.daily}</option>
+                <option value="weekly">{t.seoConfig.weekly}</option>
+                <option value="monthly">{t.seoConfig.monthly}</option>
+                <option value="yearly">{t.seoConfig.yearly}</option>
               </select>
             </div>
             <div>
-              <label style={labelStyle}>Priorite par defaut</label>
+              <label style={labelStyle}>{t.seoConfig.defaultPriority}</label>
               <input
                 type="number"
                 value={settings.sitemap?.defaultPriority != null ? String(settings.sitemap.defaultPriority) : ''}
@@ -944,16 +978,16 @@ export function SeoConfigView() {
                 style={inputStyle}
               />
               <div style={{ fontSize: 10, color: V.textSecondary, marginTop: 2 }}>
-                Valeur entre 0 et 1 (defaut: 0.5)
+                {t.seoConfig.defaultPriorityDesc}
               </div>
             </div>
           </div>
 
           {/* Overrides de priorite */}
           <div style={{ marginBottom: 20 }}>
-            <label style={labelStyle}>Overrides de priorite</label>
+            <label style={labelStyle}>{t.seoConfig.priorityOverrides}</label>
             <div style={{ fontSize: 10, color: V.textSecondary, marginBottom: 8 }}>
-              Definir la priorite pour des patterns de slugs specifiques (ex: home, blog/*, services/*)
+              {t.seoConfig.priorityOverridesDesc}
             </div>
 
             {(settings.sitemap?.priorityOverrides || []).map((override, idx) => (
@@ -970,7 +1004,7 @@ export function SeoConfigView() {
                   type="text"
                   value={override.slugPattern}
                   onChange={(e) => updatePriorityOverride(idx, 'slugPattern', e.target.value)}
-                  placeholder="Pattern (ex: blog/*)"
+                  placeholder={t.seoConfig.patternPlaceholder}
                   style={{ ...inputStyle, flex: 2 }}
                 />
                 <input
@@ -982,7 +1016,7 @@ export function SeoConfigView() {
                   min={0}
                   max={1}
                   step={0.1}
-                  placeholder="Priorite"
+                  placeholder={t.seoConfig.priority}
                   style={{ ...inputStyle, flex: 1 }}
                 />
                 <select
@@ -996,11 +1030,11 @@ export function SeoConfigView() {
                   }
                   style={{ ...inputStyle, flex: 1 }}
                 >
-                  <option value="">Defaut</option>
-                  <option value="daily">Quotidien</option>
-                  <option value="weekly">Hebdomadaire</option>
-                  <option value="monthly">Mensuel</option>
-                  <option value="yearly">Annuel</option>
+                  <option value="">{t.seoConfig.defaultShort}</option>
+                  <option value="daily">{t.seoConfig.daily}</option>
+                  <option value="weekly">{t.seoConfig.weekly}</option>
+                  <option value="monthly">{t.seoConfig.monthly}</option>
+                  <option value="yearly">{t.seoConfig.yearly}</option>
                 </select>
                 <button
                   onClick={() => removePriorityOverride(idx)}
@@ -1012,7 +1046,7 @@ export function SeoConfigView() {
                     border: `1px solid rgba(239,68,68,0.2)`,
                     flexShrink: 0,
                   }}
-                  title="Supprimer"
+                  title={t.common.delete}
                 >
                   &times;
                 </button>
@@ -1031,13 +1065,13 @@ export function SeoConfigView() {
                 marginTop: 4,
               }}
             >
-              + Ajouter un override
+              {t.seoConfig.addOverride}
             </button>
           </div>
 
           {/* Preview du sitemap */}
           <div>
-            <label style={labelStyle}>Apercu du sitemap</label>
+            <label style={labelStyle}>{t.seoConfig.sitemapPreview}</label>
             <button
               onClick={fetchSitemapPreview}
               disabled={loadingPreview}
@@ -1048,7 +1082,7 @@ export function SeoConfigView() {
                 opacity: loadingPreview ? 0.6 : 1,
               }}
             >
-              {loadingPreview ? 'Chargement...' : showPreview ? 'Rafraichir l\'apercu' : 'Voir l\'apercu'}
+              {loadingPreview ? t.common.loading : showPreview ? t.seoConfig.refreshPreview : t.seoConfig.viewPreview}
             </button>
 
             {showPreview && sitemapPreview && (
@@ -1064,13 +1098,13 @@ export function SeoConfigView() {
                   }}
                 >
                   <span style={{ color: V.text }}>
-                    {sitemapPreview.stats.totalPages} pages
+                    {sitemapPreview.stats.totalPages} {t.seoConfig.pages}
                   </span>
                   <span style={{ color: V.green }}>
-                    {sitemapPreview.stats.includedCount} incluses
+                    {sitemapPreview.stats.includedCount} {t.seoConfig.included}
                   </span>
                   <span style={{ color: V.red }}>
-                    {sitemapPreview.stats.excludedCount} exclues
+                    {sitemapPreview.stats.excludedCount} {t.seoConfig.excluded}
                   </span>
                 </div>
 
@@ -1102,11 +1136,11 @@ export function SeoConfigView() {
                       top: 0,
                     }}
                   >
-                    <span>URL</span>
+                    <span>{t.seoConfig.url}</span>
                     <span>Collection</span>
-                    <span>Priorite</span>
-                    <span>Frequence</span>
-                    <span>Derniere modif.</span>
+                    <span>{t.seoConfig.priority}</span>
+                    <span>{t.seoConfig.frequency}</span>
+                    <span>{t.seoConfig.lastModified}</span>
                   </div>
                   {sitemapPreview.preview.map((entry, idx) => (
                     <div
@@ -1170,10 +1204,10 @@ export function SeoConfigView() {
 
       {/* Section 6: Configuration Breadcrumb */}
       <div style={cardStyle}>
-        <div style={cardHeaderStyle}>Configuration Breadcrumb</div>
+        <div style={cardHeaderStyle}>{t.seoConfig.breadcrumbConfig}</div>
         <div style={cardBodyStyle}>
           <div style={{ fontSize: 11, color: V.textSecondary, marginBottom: 14 }}>
-            Configuration des fils d&apos;Ariane (breadcrumbs) et du schema JSON-LD BreadcrumbList.
+            {t.seoConfig.breadcrumbConfigDesc}
           </div>
 
           {/* Enabled checkbox */}
@@ -1199,7 +1233,7 @@ export function SeoConfigView() {
                 onChange={(e) => updateBreadcrumbField('enabled', e.target.checked)}
                 style={{ accentColor: V.green }}
               />
-              Activer les breadcrumbs
+              {t.seoConfig.enableBreadcrumbs}
             </label>
           </div>
 
@@ -1213,7 +1247,7 @@ export function SeoConfigView() {
             }}
           >
             <div>
-              <label style={labelStyle}>Label page d&apos;accueil</label>
+              <label style={labelStyle}>{t.seoConfig.homePageLabel}</label>
               <input
                 type="text"
                 value={settings.breadcrumb?.homeLabel || 'Accueil'}
@@ -1222,11 +1256,11 @@ export function SeoConfigView() {
                 style={inputStyle}
               />
               <div style={{ fontSize: 10, color: V.textSecondary, marginTop: 2 }}>
-                Texte affiche pour la page d&apos;accueil dans le breadcrumb
+                {t.seoConfig.homePageLabel}
               </div>
             </div>
             <div>
-              <label style={labelStyle}>Separateur</label>
+              <label style={labelStyle}>{t.seoConfig.separator}</label>
               <select
                 value={settings.breadcrumb?.separator || '>'}
                 onChange={(e) => updateBreadcrumbField('separator', e.target.value)}
@@ -1238,7 +1272,7 @@ export function SeoConfigView() {
                 <option value={'\u2192'}>{'\u2192'}</option>
               </select>
               <div style={{ fontSize: 10, color: V.textSecondary, marginTop: 2 }}>
-                Caractere utilise entre les elements du breadcrumb
+                {t.seoConfig.separatorDesc}
               </div>
             </div>
           </div>
@@ -1266,10 +1300,10 @@ export function SeoConfigView() {
                 onChange={(e) => updateBreadcrumbField('showOnHome', e.target.checked)}
                 style={{ accentColor: V.blue }}
               />
-              Afficher sur la page d&apos;accueil
+              {t.seoConfig.showOnHomePage}
             </label>
             <div style={{ fontSize: 10, color: V.textSecondary, marginTop: 4, marginLeft: 30 }}>
-              Par defaut, le breadcrumb n&apos;est pas affiche sur la page d&apos;accueil
+              {t.seoConfig.showOnHomePageDesc}
             </div>
           </div>
 
@@ -1284,7 +1318,7 @@ export function SeoConfigView() {
             }}
           >
             <div style={{ fontSize: 10, fontWeight: 700, color: V.textSecondary, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.4 }}>
-              Apercu
+              {t.seoConfig.preview}
             </div>
             <div style={{ fontSize: 13, color: V.text, fontWeight: 500 }}>
               {settings.breadcrumb?.homeLabel || 'Accueil'}
@@ -1295,7 +1329,7 @@ export function SeoConfigView() {
               <span style={{ margin: '0 6px', color: V.textSecondary }}>
                 {settings.breadcrumb?.separator || '>'}
               </span>
-              <span style={{ fontWeight: 700 }}>Creation de site web</span>
+              <span style={{ fontWeight: 700 }}>{t.seoConfig.websiteCreation}</span>
             </div>
           </div>
         </div>
@@ -1316,7 +1350,7 @@ export function SeoConfigView() {
             opacity: saving ? 0.7 : 1,
           }}
         >
-          {saving ? 'Sauvegarde...' : 'Sauvegarder'}
+          {saving ? t.common.saving : t.common.save}
         </button>
       </div>
 

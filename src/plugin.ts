@@ -1,5 +1,5 @@
 /**
- * Payload CMS SEO Plugin.
+ * Payload CMS SEO Analyzer Plugin.
  *
  * Adds SEO analysis capabilities to any Payload CMS project:
  * - SEO fields (focusKeyword, focusKeywords, isCornerstone) on target collections
@@ -8,18 +8,23 @@
  * - API endpoints for validation, keyword dedup, and audit
  *
  * Usage:
- *   import { seoPlugin } from '@consilioweb/seo-analyzer'
+ *   import { seoAnalyzerPlugin } from '@consilioweb/seo-analyzer'
  *
  *   export default buildConfig({
  *     plugins: [
- *       seoPlugin({ collections: ['pages', 'posts'] }),
+ *       seoAnalyzerPlugin({ collections: ['pages', 'posts'] }),
  *     ],
  *   })
+ *
+ * Note: The legacy name `seoPlugin` is still available as an alias for
+ * backward compatibility, but `seoAnalyzerPlugin` is preferred to avoid
+ * naming conflicts with `@payloadcms/plugin-seo`.
  */
 
-import type { Config, Plugin } from 'payload'
+import type { Config, Field, Plugin } from 'payload'
 import type { SeoConfig, RuleGroup, SeoThresholds } from './types.js'
 import { seoFields } from './fields.js'
+import { metaFields } from './metaFields.js'
 import { createValidateHandler } from './endpoints/validate.js'
 import { createCheckKeywordHandler } from './endpoints/checkKeyword.js'
 import { createAuditHandler } from './endpoints/audit.js'
@@ -45,11 +50,25 @@ import { createTrackSeoScoreHook } from './hooks/trackSeoScore.js'
 import { createSeoLogsCollection } from './collections/SeoLogs.js'
 import { createSeoLogsHandler } from './endpoints/seoLogs.js'
 import { createAutoRedirectHook } from './hooks/autoRedirect.js'
+import { createTrackSeoScoreGlobalHook } from './hooks/trackSeoScore.js'
 import { startCacheWarmUp } from './warmCache.js'
+import { createGenerateHandler } from './endpoints/generate.js'
+import { seoTranslations } from './translations.js'
+
+/** Arguments passed to generate functions (generateTitle, generateDescription, etc.) */
+export interface GenerateFnArgs {
+  doc: Record<string, unknown>
+  locale?: string
+  req: unknown
+  collectionSlug?: string
+  globalSlug?: string
+}
 
 export interface SeoPluginConfig {
   /** Collections to add SEO fields to (default: ['pages', 'posts']) */
   collections?: string[]
+  /** Globals to add SEO fields to (default: []) */
+  globals?: string[]
   /** Whether to add the SEO dashboard view at /admin/seo (default: true) */
   addDashboardView?: boolean
   /** Rule groups to disable entirely */
@@ -76,6 +95,29 @@ export interface SeoPluginConfig {
   seoLogsSecret?: string
   /** Locale for language-specific analysis (default: 'fr') */
   locale?: 'fr' | 'en'
+  /** Collection slug for uploads/media (used for meta.image relationTo). Default: 'media' */
+  uploadsCollection?: string
+  /** Auto-create meta fields (title, description, image) on target collections. Default: true */
+  autoCreateMetaFields?: boolean
+  /** Custom function to generate meta title */
+  generateTitle?: (args: GenerateFnArgs) => string | Promise<string>
+  /** Custom function to generate meta description */
+  generateDescription?: (args: GenerateFnArgs) => string | Promise<string>
+  /** Custom function to generate meta image (returns media ID or URL) */
+  generateImage?: (args: GenerateFnArgs) => string | number | Promise<string | number>
+  /** Custom function to generate page URL */
+  generateURL?: (args: GenerateFnArgs) => string | Promise<string>
+  /** Mapping from Payload locale codes to analysis locale ('fr' | 'en') */
+  localeMapping?: Record<string, 'fr' | 'en'>
+  /** Override or reorganize the default meta fields inside the 'meta' group.
+   *  Receives the default fields (overview, title, description, image, preview) and must return a Field[].
+   *  Use this to add custom fields, remove defaults, or reorder them. */
+  fields?: (args: { defaultFields: Field[] }) => Field[]
+  /** If true, wraps collection/global fields in a tabbed UI with "Content" and "SEO" tabs.
+   *  Compatible with collections that already use a tabs field as their first field. */
+  tabbedUI?: boolean
+  /** Custom TypeScript interface name for the generated meta group type (e.g. 'SharedSEO') */
+  interfaceName?: string
 }
 
 /** Build a resolved SeoConfig from plugin config for use by analyzeSeo() */
@@ -90,23 +132,131 @@ function buildSeoConfig(pluginConfig: SeoPluginConfig): SeoConfig {
   }
 }
 
-export const seoPlugin =
+export const seoAnalyzerPlugin =
   (pluginConfig: SeoPluginConfig = {}): Plugin =>
   (incomingConfig: Config): Config => {
     const config = { ...incomingConfig }
     const targetCollections = pluginConfig.collections ?? ['pages', 'posts']
+    const targetGlobals = pluginConfig.globals ?? []
     const basePath = pluginConfig.endpointBasePath ?? '/seo-plugin'
     const seoConfig = buildSeoConfig(pluginConfig)
 
+    // Helper: detect if a collection already has @payloadcms/plugin-seo meta fields
+    function hasExistingSeoMeta(fields: unknown[]): boolean {
+      return fields.some((field) => {
+        const f = field as Record<string, unknown>
+        if (f.type === 'tabs' && Array.isArray(f.tabs)) {
+          return (f.tabs as Array<Record<string, unknown>>).some((tab) => {
+            if (tab.name !== 'meta') return false
+            const tabFields = (tab.fields || []) as Array<Record<string, unknown>>
+            const fieldNames = tabFields.map((tf) => tf.name).filter(Boolean)
+            return fieldNames.includes('title') && fieldNames.includes('description')
+          })
+        }
+        if (f.name === 'meta' && f.type === 'group') {
+          const groupFields = (f.fields || []) as Array<Record<string, unknown>>
+          const fieldNames = groupFields.map((gf) => gf.name).filter(Boolean)
+          return fieldNames.includes('title') && fieldNames.includes('description')
+        }
+        return false
+      })
+    }
+
+    // Build meta fields config
+    const metaFieldsConfig = {
+      uploadsCollection: pluginConfig.uploadsCollection ?? 'media',
+      interfaceName: pluginConfig.interfaceName,
+      hasGenerateTitle: !!pluginConfig.generateTitle,
+      hasGenerateDescription: !!pluginConfig.generateDescription,
+      hasGenerateImage: !!pluginConfig.generateImage,
+      basePath: `/api${basePath}`,
+    }
+
+    // Build meta fields with optional user override
+    function buildMetaFields(): Field[] {
+      const defaults = metaFields(metaFieldsConfig)
+      if (!pluginConfig.fields) return defaults
+      // defaults is [{ name: 'meta', type: 'group', fields: [...] }]
+      // Extract inner fields from the meta group, let user override, then re-wrap
+      const metaGroup = defaults[0] as Record<string, unknown>
+      const innerFields = (metaGroup.fields || []) as Field[]
+      const overridden = pluginConfig.fields({ defaultFields: innerFields })
+      return [{ ...metaGroup, fields: overridden } as Field]
+    }
+
     const trackHistory = pluginConfig.trackScoreHistory !== false
+
+    // Helper: build the final fields array, optionally wrapping in tabs
+    function assembleFields(
+      existingFields: Field[],
+      fieldsToAdd: Field[],
+      options?: { label?: string; isAuth?: boolean },
+    ): Field[] {
+      if (!pluginConfig.tabbedUI) {
+        return [...existingFields, ...fieldsToAdd]
+      }
+
+      // Auth collections: keep email field outside tabs
+      const isAuth = options?.isAuth ?? false
+      const emailField = isAuth
+        ? existingFields.find((f) => 'name' in f && f.name === 'email')
+        : undefined
+      const contentFields = emailField
+        ? existingFields.filter((f) => !('name' in f && f.name === 'email'))
+        : existingFields
+
+      const firstField = contentFields[0] as Record<string, unknown> | undefined
+      const hasExistingTabs = firstField?.type === 'tabs' && Array.isArray((firstField as Record<string, unknown>).tabs)
+
+      const contentTabs = hasExistingTabs
+        ? ((firstField as Record<string, unknown>).tabs as unknown[])
+        : [{ fields: contentFields, label: options?.label || 'Content' }]
+
+      const tabbedField = {
+        type: 'tabs' as const,
+        tabs: [
+          ...contentTabs,
+          { fields: fieldsToAdd, label: 'SEO' },
+        ],
+      }
+
+      return [
+        ...(emailField ? [emailField] : []),
+        tabbedField as unknown as Field,
+        ...(hasExistingTabs ? contentFields.slice(1) : []),
+      ]
+    }
 
     // 1. Add SEO fields + afterChange hook to target collections
     if (config.collections) {
       config.collections = config.collections.map((collection) => {
         if (targetCollections.includes(collection.slug)) {
+          const existingFields = (collection.fields || []) as Field[]
+          const hasSeoMeta = hasExistingSeoMeta(existingFields)
+
+          // Determine which fields to add
+          const fieldsToAdd = [...seoFields()]
+
+          // Auto-create meta fields if:
+          // - @payloadcms/plugin-seo is NOT detected
+          // - autoCreateMetaFields is not explicitly set to false
+          if (!hasSeoMeta && pluginConfig.autoCreateMetaFields !== false) {
+            fieldsToAdd.push(...buildMetaFields())
+          } else if (hasSeoMeta) {
+            console.warn(
+              `[seo-analyzer] Collection "${collection.slug}" already has SEO meta fields (likely from @payloadcms/plugin-seo). ` +
+              `Meta fields will NOT be auto-created. Only SEO analyzer fields will be added.`
+            )
+          }
+
+          const isAuth = !!(collection as Record<string, unknown>).auth
+          const label = typeof collection.labels?.singular === 'string'
+            ? collection.labels.singular
+            : undefined
+
           const updated = {
             ...collection,
-            fields: [...(collection.fields || []), ...seoFields()],
+            fields: assembleFields(existingFields, fieldsToAdd, { label, isAuth }),
           }
           // Add auto-redirect hook (beforeChange — detects slug changes)
           const existingBeforeHooks = updated.hooks?.beforeChange || []
@@ -131,6 +281,42 @@ export const seoPlugin =
           return updated
         }
         return collection
+      })
+    }
+
+    // 1a. Add SEO fields to target globals
+    if (targetGlobals.length > 0 && config.globals) {
+      config.globals = config.globals.map((global) => {
+        if (!targetGlobals.includes(global.slug)) return global
+
+        const existingFields = global.fields || []
+        const hasSeoMeta = hasExistingSeoMeta(existingFields)
+
+        const fieldsToAdd = [...seoFields()]
+        if (!hasSeoMeta && pluginConfig.autoCreateMetaFields !== false) {
+          fieldsToAdd.push(...buildMetaFields())
+        }
+
+        const label = typeof global.label === 'string' ? global.label : undefined
+
+        const updated = {
+          ...global,
+          fields: assembleFields(existingFields as Field[], fieldsToAdd, { label }),
+        }
+
+        // Add score tracking hook for globals (no auto-redirect — globals have no slug)
+        if (trackHistory) {
+          const existingHooks = updated.hooks?.afterChange || []
+          updated.hooks = {
+            ...updated.hooks,
+            afterChange: [
+              ...(Array.isArray(existingHooks) ? existingHooks : [existingHooks]),
+              createTrackSeoScoreGlobalHook(seoConfig),
+            ],
+          }
+        }
+
+        return updated
       })
     }
 
@@ -162,12 +348,12 @@ export const seoPlugin =
       {
         path: `${basePath}/check-keyword`,
         method: 'get' as const,
-        handler: createCheckKeywordHandler(targetCollections),
+        handler: createCheckKeywordHandler(targetCollections, targetGlobals),
       },
       {
         path: `${basePath}/audit`,
         method: 'get' as const,
-        handler: createAuditHandler(targetCollections, seoConfig),
+        handler: createAuditHandler(targetCollections, seoConfig, targetGlobals),
       },
       {
         path: `${basePath}/history`,
@@ -192,7 +378,7 @@ export const seoPlugin =
       {
         path: `${basePath}/suggest-links`,
         method: 'post' as const,
-        handler: createSuggestLinksHandler(targetCollections),
+        handler: createSuggestLinksHandler(targetCollections, targetGlobals),
       },
       {
         path: `${basePath}/create-redirect`,
@@ -226,17 +412,28 @@ export const seoPlugin =
         method: 'post' as const,
         handler: createAiGenerateHandler(),
       },
+      // Generate meta values via custom functions
+      {
+        path: `${basePath}/generate`,
+        method: 'post' as const,
+        handler: createGenerateHandler({
+          generateTitle: pluginConfig.generateTitle,
+          generateDescription: pluginConfig.generateDescription,
+          generateImage: pluginConfig.generateImage,
+          generateURL: pluginConfig.generateURL,
+        }),
+      },
       // Keyword cannibalization detection
       {
         path: `${basePath}/cannibalization`,
         method: 'get' as const,
-        handler: createCannibalizationHandler(targetCollections),
+        handler: createCannibalizationHandler(targetCollections, targetGlobals),
       },
       // External links checker
       {
         path: `${basePath}/external-links`,
         method: 'post' as const,
-        handler: createExternalLinksHandler(targetCollections),
+        handler: createExternalLinksHandler(targetCollections, targetGlobals),
       },
       // Sitemap configuration
       {
@@ -259,7 +456,7 @@ export const seoPlugin =
       {
         path: `${basePath}/keyword-research`,
         method: 'get' as const,
-        handler: createKeywordResearchHandler(targetCollections),
+        handler: createKeywordResearchHandler(targetCollections, targetGlobals),
       },
       // Breadcrumb configuration
       {
@@ -271,7 +468,7 @@ export const seoPlugin =
       {
         path: `${basePath}/link-graph`,
         method: 'get' as const,
-        handler: createLinkGraphHandler(targetCollections),
+        handler: createLinkGraphHandler(targetCollections, targetGlobals),
       },
       // 404 logs (GET: list, POST: log hit, DELETE: clear/ignore)
       {
@@ -360,12 +557,28 @@ export const seoPlugin =
       ]
     }
 
-    // 4. Add cache warm-up on server init
+    // 4. Inject i18n translations for meta field UI labels (39 languages)
+    if (!config.i18n) config.i18n = {}
+    const existingTranslations = (config.i18n as Record<string, unknown>).translations as
+      Record<string, Record<string, unknown>> | undefined
+    const merged: Record<string, Record<string, unknown>> = { ...(existingTranslations || {}) }
+    for (const [locale, namespaces] of Object.entries(seoTranslations)) {
+      merged[locale] = {
+        ...(merged[locale] || {}),
+        ...namespaces,
+      }
+    }
+    ;(config.i18n as Record<string, unknown>).translations = merged
+
+    // 5. Add cache warm-up on server init
     const existingOnInit = config.onInit
     config.onInit = async (payload) => {
       if (existingOnInit) await existingOnInit(payload)
-      startCacheWarmUp(payload, basePath)
+      startCacheWarmUp(payload, basePath, targetGlobals)
     }
 
     return config
   }
+
+/** @deprecated Use `seoAnalyzerPlugin` instead. Kept for backward compatibility. */
+export { seoAnalyzerPlugin as seoPlugin }
