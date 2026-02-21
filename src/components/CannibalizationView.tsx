@@ -1,6 +1,9 @@
 'use client'
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSeoLocale } from '../hooks/useSeoLocale.js'
+import { getDashboardT } from '../dashboard-i18n.js'
+import type { DashboardTranslations } from '../dashboard-i18n.js'
 
 // ---------------------------------------------------------------------------
 // Design tokens — uses Payload CSS variables for theme compatibility
@@ -69,12 +72,12 @@ function getScoreBg(score: number): string {
 // ---------------------------------------------------------------------------
 // KeywordGroup sub-component
 // ---------------------------------------------------------------------------
-function KeywordGroup({ conflict }: { conflict: Conflict }) {
+function KeywordGroup({ conflict, t }: { conflict: Conflict; t: DashboardTranslations }) {
   const [open, setOpen] = useState(true)
 
   const severity = conflict.pages.length >= 3 ? 'high' : 'medium'
   const badgeColor = severity === 'high' ? V.red : V.orange
-  const badgeLabel = severity === 'high' ? 'Risque élevé' : 'Attention'
+  const badgeLabel = severity === 'high' ? t.cannibalization.highRisk : t.cannibalization.warning
   const badgeBg =
     severity === 'high' ? 'rgba(239,68,68,0.12)' : 'rgba(249,115,22,0.12)'
 
@@ -133,7 +136,7 @@ function KeywordGroup({ conflict }: { conflict: Conflict }) {
               fontWeight: 600,
             }}
           >
-            {conflict.pages.length} pages
+            {conflict.pages.length} {t.cannibalization.pages}
           </span>
         </div>
         <span
@@ -168,10 +171,10 @@ function KeywordGroup({ conflict }: { conflict: Conflict }) {
               gap: 8,
             }}
           >
-            <span>Page</span>
-            <span>Collection</span>
-            <span>Slug</span>
-            <span style={{ textAlign: 'center' }}>Score</span>
+            <span>{t.common.page}</span>
+            <span>{t.seoView.collection}</span>
+            <span>{t.seoView.slug}</span>
+            <span style={{ textAlign: 'center' }}>{t.seoView.score}</span>
             <span />
           </div>
 
@@ -214,7 +217,7 @@ function KeywordGroup({ conflict }: { conflict: Conflict }) {
                         : 'rgba(217,119,6,0.2)',
                   }}
                 >
-                  {page.collection === 'pages' ? 'Page' : 'Article'}
+                  {page.collection === 'pages' ? t.common.page : t.common.article}
                 </span>
               </div>
               <div
@@ -260,7 +263,7 @@ function KeywordGroup({ conflict }: { conflict: Conflict }) {
                     color: V.cyan,
                     textDecoration: 'none',
                   }}
-                  title="Editer"
+                  title={t.common.edit}
                 >
                   {'\u2192'}
                 </a>
@@ -277,6 +280,9 @@ function KeywordGroup({ conflict }: { conflict: Conflict }) {
 // Main CannibalizationView component
 // ---------------------------------------------------------------------------
 export function CannibalizationView() {
+  const locale = useSeoLocale()
+  const t = getDashboardT(locale)
+
   const [conflicts, setConflicts] = useState<Conflict[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -296,7 +302,7 @@ export function CannibalizationView() {
       setConflicts(data.conflicts || [])
       setStats(data.stats || null)
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Erreur de chargement')
+      setError(e instanceof Error ? e.message : t.common.loadingError)
     }
     setLoading(false)
   }, [])
@@ -322,7 +328,7 @@ export function CannibalizationView() {
 
   // CSV export
   const handleExportCsv = useCallback(() => {
-    const headers = ['Mot-clé', 'Titre', 'Slug', 'Collection', 'Score']
+    const headers = [t.seoView.keyword, t.seoView.title, t.seoView.slug, t.seoView.collection, t.seoView.score]
     const rows: string[][] = []
     for (const conflict of filteredConflicts) {
       for (const page of conflict.pages) {
@@ -364,7 +370,7 @@ export function CannibalizationView() {
           fontFamily: 'var(--font-body, system-ui)',
         }}
       >
-        Analyse de la cannibalisation...
+        {t.cannibalization.loading}
       </div>
     )
   }
@@ -387,7 +393,7 @@ export function CannibalizationView() {
             marginBottom: 8,
           }}
         >
-          Erreur de chargement
+          {t.common.loadingError}
         </div>
         <div style={{ color: V.textSecondary, fontSize: 12, marginBottom: 16 }}>
           {error}
@@ -396,7 +402,7 @@ export function CannibalizationView() {
           onClick={fetchData}
           style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
         >
-          Réessayer
+          {t.common.retry}
         </button>
       </div>
     )
@@ -424,10 +430,10 @@ export function CannibalizationView() {
       >
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, color: V.text }}>
-            Cannibalisation de mots-clés
+            {t.cannibalization.title}
           </h1>
           <p style={{ fontSize: 12, color: V.textSecondary, margin: '4px 0 0' }}>
-            Détection des mots-clés utilisés par plusieurs pages
+            {t.cannibalization.subtitle}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -445,7 +451,7 @@ export function CannibalizationView() {
                   border: `1px solid ${V.border}`,
                 }}
               >
-                {stats.totalConflicts} conflit{stats.totalConflicts > 1 ? 's' : ''}
+                {stats.totalConflicts} {t.cannibalization.conflicts}
               </span>
               <span
                 style={{
@@ -458,7 +464,7 @@ export function CannibalizationView() {
                   border: `1px solid ${V.border}`,
                 }}
               >
-                {stats.totalAffectedPages} page{stats.totalAffectedPages > 1 ? 's' : ''} concernée{stats.totalAffectedPages > 1 ? 's' : ''}
+                {stats.totalAffectedPages} {t.cannibalization.affectedPages}
               </span>
             </div>
           )}
@@ -466,7 +472,7 @@ export function CannibalizationView() {
             onClick={fetchData}
             style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
           >
-            &#8635; Rafraîchir
+            &#8635; {t.common.refresh}
           </button>
           <button
             onClick={handleExportCsv}
@@ -479,7 +485,7 @@ export function CannibalizationView() {
               cursor: filteredConflicts.length > 0 ? 'pointer' : 'not-allowed',
             }}
           >
-            Export CSV
+            {t.common.exportCsv}
           </button>
         </div>
       </div>
@@ -488,7 +494,7 @@ export function CannibalizationView() {
       <div style={{ marginBottom: 16 }}>
         <input
           type="text"
-          placeholder="Rechercher un mot-clé, titre ou slug..."
+          placeholder={t.cannibalization.searchPlaceholder}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{
@@ -531,20 +537,20 @@ export function CannibalizationView() {
             }}
           >
             {conflicts.length === 0
-              ? 'Aucune cannibalisation détectée'
-              : 'Aucun résultat'}
+              ? t.cannibalization.noCannibalization
+              : t.common.noResults}
           </div>
           <div style={{ fontSize: 12, color: V.textSecondary }}>
             {conflicts.length === 0
-              ? 'Chaque mot-clé est utilisé par une seule page. Bonne pratique !'
-              : 'Aucun conflit ne correspond à votre recherche.'}
+              ? t.cannibalization.noCannibalizationDesc
+              : t.cannibalization.noMatchingConflicts}
           </div>
         </div>
       )}
 
       {/* Conflict groups */}
       {filteredConflicts.map((conflict) => (
-        <KeywordGroup key={conflict.keyword} conflict={conflict} />
+        <KeywordGroup key={conflict.keyword} conflict={conflict} t={t} />
       ))}
     </div>
   )

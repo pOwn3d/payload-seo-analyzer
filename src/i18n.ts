@@ -476,6 +476,28 @@ export interface SeoTranslations {
     frequency: string
     score: string
   }
+  // Meta fields (auto-created)
+  metaFields: {
+    titleLabel: string
+    descriptionLabel: string
+    imageLabel: string
+    generateBtn: string
+    generating: string
+    characters: string
+    completeness: string
+    complete: string
+    almostComplete: string
+    partial: string
+    incomplete: string
+    defined: string
+    missing: string
+    serpPreview: string
+    desktop: string
+    mobile: string
+    noTitle: string
+    noDescription: string
+    globalSkip: string
+  }
   // Rule translations
   rules: RuleTranslations
 }
@@ -1312,6 +1334,27 @@ const fr: SeoTranslations = {
     frequency: 'Frequence',
     score: 'Score',
   },
+  metaFields: {
+    titleLabel: 'Meta Title',
+    descriptionLabel: 'Meta Description',
+    imageLabel: 'Image Meta',
+    generateBtn: 'Generer',
+    generating: 'Generation...',
+    characters: 'caracteres',
+    completeness: 'Completude meta',
+    complete: 'Complet',
+    almostComplete: 'Presque complet',
+    partial: 'Partiel',
+    incomplete: 'Incomplet',
+    defined: 'Defini',
+    missing: 'Manquant',
+    serpPreview: 'Apercu Google',
+    desktop: 'Bureau',
+    mobile: 'Mobile',
+    noTitle: 'Pas de meta title',
+    noDescription: 'Pas de meta description',
+    globalSkip: 'Contenu global — Les verifications URL ne sont pas applicables.',
+  },
   rules: rulesFr,
 }
 
@@ -1418,6 +1461,27 @@ const en: SeoTranslations = {
     usedBy: 'Used by',
     frequency: 'Frequency',
     score: 'Score',
+  },
+  metaFields: {
+    titleLabel: 'Meta Title',
+    descriptionLabel: 'Meta Description',
+    imageLabel: 'Meta Image',
+    generateBtn: 'Generate',
+    generating: 'Generating...',
+    characters: 'characters',
+    completeness: 'Meta completeness',
+    complete: 'Complete',
+    almostComplete: 'Almost complete',
+    partial: 'Partial',
+    incomplete: 'Incomplete',
+    defined: 'Defined',
+    missing: 'Missing',
+    serpPreview: 'Google Preview',
+    desktop: 'Desktop',
+    mobile: 'Mobile',
+    noTitle: 'No meta title',
+    noDescription: 'No meta description',
+    globalSkip: 'Global content — URL checks are not applicable.',
   },
   rules: rulesEn,
 }

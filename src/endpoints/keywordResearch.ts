@@ -188,7 +188,7 @@ function extractDocText(doc: any): string {
 // Handler
 // ---------------------------------------------------------------------------
 
-export function createKeywordResearchHandler(targetCollections: string[]): PayloadHandler {
+export function createKeywordResearchHandler(targetCollections: string[], globals: string[] = []): PayloadHandler {
   return async (req) => {
     try {
       if (!req.user) {
@@ -232,6 +232,23 @@ export function createKeywordResearchHandler(targetCollections: string[]): Paylo
         } catch {
           // Collection might not exist — skip
         }
+      }
+
+      // Include globals in the document corpus
+      for (const globalSlug of globals) {
+        try {
+          const doc = await req.payload.findGlobal({ slug: globalSlug, depth: 1, overrideAccess: true })
+          const fullText = extractDocText(doc)
+          allDocs.push({
+            id: globalSlug,
+            title: (doc as Record<string, unknown>).title as string || globalSlug,
+            slug: '',
+            collection: `global:${globalSlug}`,
+            focusKeyword: (doc as Record<string, unknown>).focusKeyword as string || '',
+            fullText,
+            wordCount: countWords(fullText),
+          })
+        } catch { /* skip */ }
       }
 
       if (allDocs.length === 0) {

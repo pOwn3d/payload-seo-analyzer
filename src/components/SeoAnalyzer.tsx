@@ -11,6 +11,8 @@ import {
   type RuleGroup,
 } from '../index.js'
 import { SeoSocialPreview } from './SeoSocialPreview.js'
+import { useSeoLocale } from '../hooks/useSeoLocale.js'
+import { getDashboardT, type DashboardTranslations } from '../dashboard-i18n.js'
 
 // ---------------------------------------------------------------------------
 // Color palette (neubrutalist — matches custom.scss)
@@ -144,26 +146,28 @@ const styles = {
 }
 
 // ---------------------------------------------------------------------------
-// Group labels (French)
+// Group labels (i18n)
 // ---------------------------------------------------------------------------
-const GROUP_LABELS: Record<RuleGroup, string> = {
-  'title': 'Titre',
-  'meta-description': 'Description',
-  'url': 'URL / Slug',
-  'headings': 'Titres H1-H6',
-  'content': 'Contenu',
-  'images': 'Images',
-  'linking': 'Liens',
-  'social': 'Reseaux sociaux',
-  'schema': 'Donnees structurees',
-  'readability': 'Lisibilite',
-  'quality': 'Qualite',
-  'secondary-keywords': 'Mots-cles secondaires',
-  'cornerstone': 'Contenu pilier',
-  'freshness': 'Fraicheur du contenu',
-  'technical': 'Technique',
-  'accessibility': 'Accessibilite',
-  'ecommerce': 'E-commerce',
+function getGroupLabels(t: DashboardTranslations): Record<RuleGroup, string> {
+  return {
+    'title': t.seoAnalyzer.groupTitle,
+    'meta-description': t.seoAnalyzer.groupDescription,
+    'url': t.seoAnalyzer.groupUrlSlug,
+    'headings': t.seoAnalyzer.groupHeadings,
+    'content': t.seoAnalyzer.groupContent,
+    'images': t.seoAnalyzer.groupImages,
+    'linking': t.seoAnalyzer.groupLinks,
+    'social': t.seoAnalyzer.groupSocial,
+    'schema': t.seoAnalyzer.groupStructuredData,
+    'readability': t.seoAnalyzer.groupReadability,
+    'quality': t.seoAnalyzer.groupQuality,
+    'secondary-keywords': t.seoAnalyzer.groupSecondaryKeywords,
+    'cornerstone': t.seoAnalyzer.groupCornerstone,
+    'freshness': t.seoAnalyzer.groupFreshness,
+    'technical': t.seoAnalyzer.groupTechnical,
+    'accessibility': t.seoAnalyzer.groupAccessibility,
+    'ecommerce': t.seoAnalyzer.groupEcommerce,
+  }
 }
 
 // Ordered display of groups within each category
@@ -205,29 +209,29 @@ function getLevelColor(level: SeoAnalysis['level']): string {
   }
 }
 
-function getLevelLabel(level: SeoAnalysis['level']): string {
+function getLevelLabel(level: SeoAnalysis['level'], t: DashboardTranslations): string {
   switch (level) {
     case 'excellent':
-      return 'Excellent'
+      return t.seoAnalyzer.levelExcellent
     case 'good':
-      return 'Bon'
+      return t.seoAnalyzer.levelGood
     case 'ok':
-      return 'Acceptable'
+      return t.seoAnalyzer.levelFair
     case 'poor':
-      return 'A ameliorer'
+      return t.seoAnalyzer.levelNeedsImprovement
     default:
       return ''
   }
 }
 
-function getCategoryLabel(cat: CheckCategory): string {
+function getCategoryLabel(cat: CheckCategory, t: DashboardTranslations): string {
   switch (cat) {
     case 'critical':
-      return 'Critique'
+      return t.seoAnalyzer.categoryCritical
     case 'important':
-      return 'Important'
+      return t.seoAnalyzer.categoryImportant
     case 'bonus':
-      return 'Bonus'
+      return t.seoAnalyzer.categoryBonus
     default:
       return ''
   }
@@ -265,9 +269,11 @@ function getStatusIcon(status: SeoCheck['status']): { symbol: string; bg: string
 function GroupSubSection({
   group,
   checks,
+  t,
 }: {
   group: RuleGroup
   checks: SeoCheck[]
+  t: DashboardTranslations
 }) {
   const [open, setOpen] = useState(true)
 
@@ -299,7 +305,7 @@ function GroupSubSection({
           >
             {groupIcon.symbol}
           </span>
-          {GROUP_LABELS[group] || group}
+          {getGroupLabels(t)[group] || group}
           <span
             style={{
               fontWeight: 600,
@@ -402,10 +408,12 @@ function CategorySection({
   category,
   checks,
   defaultOpen,
+  t,
 }: {
   category: CheckCategory
   checks: SeoCheck[]
   defaultOpen: boolean
+  t: DashboardTranslations
 }) {
   const [open, setOpen] = useState(defaultOpen)
 
@@ -447,7 +455,7 @@ function CategorySection({
         }}
       >
         <span style={{ color: C.textPrimary }}>
-          {getCategoryLabel(category)}{' '}
+          {getCategoryLabel(category, t)}{' '}
           <span
             style={{
               fontWeight: 700,
@@ -475,7 +483,7 @@ function CategorySection({
       {open && (
         <div style={{ paddingLeft: 4 }}>
           {groupedChecks.map(({ group, checks: groupChecks }) => (
-            <GroupSubSection key={group} group={group} checks={groupChecks} />
+            <GroupSubSection key={group} group={group} checks={groupChecks} t={t} />
           ))}
         </div>
       )}
@@ -608,6 +616,8 @@ function useInternalLinkSuggestions(
 // Main component
 // ---------------------------------------------------------------------------
 const SeoAnalyzer: React.FC = () => {
+  const locale = useSeoLocale()
+  const t = getDashboardT(locale)
   const [formFields] = useAllFormFields()
   const initialScoreRef = useRef<number | null>(null)
   const [suggestionsOpen, setSuggestionsOpen] = useState(true)
@@ -850,7 +860,7 @@ const SeoAnalyzer: React.FC = () => {
     let wc = 0
     const wcCheck = result.checks.find((c) => c.id === 'content-wordcount')
     if (wcCheck) {
-      const match = wcCheck.message.match(/(\d+)\s*mots/)
+      const match = wcCheck.message.match(/(\d+)\s*(?:mots|words)/)
       if (match) wc = parseInt(match[1], 10)
     }
 
@@ -940,7 +950,7 @@ const SeoAnalyzer: React.FC = () => {
   const scoreDelta = initialScoreRef.current !== null ? analysis.score - initialScoreRef.current : null
 
   const levelColor = getLevelColor(analysis.level)
-  const levelLabel = getLevelLabel(analysis.level)
+  const levelLabel = getLevelLabel(analysis.level, t)
 
   // Group checks by category
   const criticalChecks = analysis.checks.filter((c) => c.category === 'critical')
@@ -979,27 +989,27 @@ const SeoAnalyzer: React.FC = () => {
       let icon = ''
 
       if (check.id.startsWith('title-length') || check.id.startsWith('title-')) {
-        const match = check.message.match(/(\d+)\s*caract/)
-        const charCount = match ? match[1] : '?'
-        text = `Ajustez votre titre SEO (actuellement ${charCount} caracteres, ideal: 50-60)`
+        const match = check.message.match(/(\d+)\s*caract|\b(\d+)\s*char/)
+        const charCount = match ? (match[1] || match[2]) : '?'
+        text = `${t.seoAnalyzer.adjustTitle} (${t.seoAnalyzer.currently} ${charCount} ${t.seoAnalyzer.titleCharactersIdeal})`
         icon = '\u270D'
       } else if (check.id.startsWith('meta-desc')) {
-        text = 'Redigez une meta-description entre 120-160 caracteres'
+        text = t.seoAnalyzer.writeMetaDesc
         icon = '\u2709'
       } else if (check.id === 'content-wordcount') {
-        text = 'Enrichissez votre contenu (minimum 300 mots recommande)'
+        text = t.seoAnalyzer.enrichContent
         icon = '\u270D'
       } else if (check.id === 'keyword-in-title') {
-        text = 'Integrez votre mot-cle principal dans le titre'
+        text = t.seoAnalyzer.includeKeywordInTitle
         icon = '\uD83C\uDFAF'
       } else if (check.id === 'keyword-in-meta') {
-        text = 'Incluez votre mot-cle dans la meta-description'
+        text = t.seoAnalyzer.includeKeywordInDesc
         icon = '\uD83C\uDFAF'
       } else if (check.id.startsWith('images-alt') || check.id === 'images-alt') {
-        text = 'Ajoutez des attributs alt a vos images'
+        text = t.seoAnalyzer.addAltText
         icon = '\uD83D\uDDBC'
       } else if (check.id.startsWith('linking-internal') || check.id === 'linking-internal') {
-        text = 'Ajoutez des liens internes vers d\'autres pages'
+        text = t.seoAnalyzer.addInternalLinks
         icon = '\uD83D\uDD17'
       } else {
         // Generic: use tip or message
@@ -1013,7 +1023,7 @@ const SeoAnalyzer: React.FC = () => {
     }
 
     return items
-  }, [analysis.checks])
+  }, [analysis.checks, t])
 
   return (
     <div style={styles.wrapper}>
@@ -1061,7 +1071,7 @@ const SeoAnalyzer: React.FC = () => {
             />
           </svg>
           <span style={{ ...styles.scoreNumber, color: levelColor }}>{analysis.score}</span>
-          <span style={{ ...styles.scoreLabel, color: C.textSecondary }}>/ 100</span>
+          <span style={{ ...styles.scoreLabel, color: C.textSecondary }}>{t.seoAnalyzer.outOf100}</span>
         </div>
 
         <div style={{ flex: 1 }}>
@@ -1082,7 +1092,7 @@ const SeoAnalyzer: React.FC = () => {
                 color: C.textPrimary,
               }}
             >
-              Score SEO
+              {t.seoAnalyzer.seoScore}
             </div>
             {/* Feature 1: Score delta badge */}
             {scoreDelta !== null && scoreDelta !== 0 && (
@@ -1121,7 +1131,7 @@ const SeoAnalyzer: React.FC = () => {
                 textTransform: 'uppercase' as const,
                 letterSpacing: '0.04em',
               }}>
-                PILIER
+                {t.seoAnalyzer.cornerstoneLabel}
               </div>
             )}
           </div>
@@ -1133,17 +1143,17 @@ const SeoAnalyzer: React.FC = () => {
               lineHeight: 1.4,
             }}
           >
-            {passChecks} / {totalChecks} criteres valides
+            {passChecks} / {totalChecks} {t.seoAnalyzer.checksPassed}
             {failChecks > 0 && (
               <span style={{ color: C.red, fontWeight: 700 }}>
                 {' '}
-                ({failChecks} erreur{failChecks > 1 ? 's' : ''})
+                ({failChecks} {t.seoAnalyzer.errorsCount})
               </span>
             )}
             {failChecks === 0 && warnChecks > 0 && (
               <span style={{ color: C.orange, fontWeight: 700 }}>
                 {' '}
-                ({warnChecks} avertissement{warnChecks > 1 ? 's' : ''})
+                ({warnChecks} {t.seoAnalyzer.warningsCount})
               </span>
             )}
           </div>
@@ -1167,14 +1177,14 @@ const SeoAnalyzer: React.FC = () => {
           }}
         >
           <span style={{ fontWeight: 700, color: C.textPrimary }}>
-            Temps de lecture : ~{readingTime} min
+            {t.seoAnalyzer.readingTime.replace('{n}', String(readingTime))}
           </span>
           <span style={{ opacity: 0.4 }}>|</span>
-          <span>{wordCount} mots</span>
+          <span>{wordCount} {t.seoAnalyzer.wordsLabel}</span>
           {focusKeywords.length > 0 && (
             <>
               <span style={{ opacity: 0.4 }}>|</span>
-              <span>{focusKeywords.length} mot{focusKeywords.length > 1 ? 's' : ''}-cle{focusKeywords.length > 1 ? 's' : ''} secondaire{focusKeywords.length > 1 ? 's' : ''}</span>
+              <span>{focusKeywords.length} {t.seoAnalyzer.secondaryKeywords}</span>
             </>
           )}
         </div>
@@ -1256,7 +1266,7 @@ const SeoAnalyzer: React.FC = () => {
             boxShadow: '2px 2px 0 0 var(--theme-border-color, rgba(0,0,0,1))',
           }}
         >
-          {aiGenerating ? 'Génération...' : '\u2728 Générer les meta'}
+          {aiGenerating ? t.common.generating : `\u2728 ${t.seoAnalyzer.generateMeta}`}
         </button>
 
         {/* AI Results panel */}
@@ -1274,7 +1284,7 @@ const SeoAnalyzer: React.FC = () => {
             <div style={{ marginBottom: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                 <span style={{ fontSize: 10, fontWeight: 700, color: C.textSecondary, textTransform: 'uppercase' as const }}>
-                  Meta Title
+                  {t.seoAnalyzer.metaTitle}
                 </span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span
@@ -1305,7 +1315,7 @@ const SeoAnalyzer: React.FC = () => {
                       cursor: 'pointer',
                     }}
                   >
-                    {aiCopied === 'title' ? '\u2713' : 'Copier'}
+                    {aiCopied === 'title' ? '\u2713' : t.common.copy}
                   </button>
                 </div>
               </div>
@@ -1320,7 +1330,7 @@ const SeoAnalyzer: React.FC = () => {
                   lineHeight: 1.5,
                 }}
               >
-                {aiResult.metaTitle || '(vide)'}
+                {aiResult.metaTitle || t.seoAnalyzer.emptyValue}
               </div>
             </div>
 
@@ -1328,7 +1338,7 @@ const SeoAnalyzer: React.FC = () => {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                 <span style={{ fontSize: 10, fontWeight: 700, color: C.textSecondary, textTransform: 'uppercase' as const }}>
-                  Meta Description
+                  {t.seoAnalyzer.metaDescription}
                 </span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span
@@ -1359,7 +1369,7 @@ const SeoAnalyzer: React.FC = () => {
                       cursor: 'pointer',
                     }}
                   >
-                    {aiCopied === 'desc' ? '\u2713' : 'Copier'}
+                    {aiCopied === 'desc' ? '\u2713' : t.common.copy}
                   </button>
                 </div>
               </div>
@@ -1374,7 +1384,7 @@ const SeoAnalyzer: React.FC = () => {
                   lineHeight: 1.5,
                 }}
               >
-                {aiResult.metaDescription || '(vide)'}
+                {aiResult.metaDescription || t.seoAnalyzer.emptyValue}
               </div>
             </div>
           </div>
@@ -1410,7 +1420,7 @@ const SeoAnalyzer: React.FC = () => {
             }}
           >
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              {'\uD83D\uDCA1'} Suggestions d&apos;amelioration
+              {'\uD83D\uDCA1'} {t.seoAnalyzer.improvementSuggestions}
               <span style={{ fontWeight: 600, fontSize: 10, color: C.textSecondary, textTransform: 'none' as const }}>
                 ({suggestions.length})
               </span>
@@ -1495,7 +1505,7 @@ const SeoAnalyzer: React.FC = () => {
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
               <span style={{ fontWeight: 800, color: C.textPrimary }}>
-                Cannibalisation SEO
+                {t.seoAnalyzer.seoCannibalization}
               </span>
               <span
                 style={{
@@ -1511,15 +1521,15 @@ const SeoAnalyzer: React.FC = () => {
                   border: `1px solid ${C.border}`,
                 }}
               >
-                {keywordUsage.pages.length > 2 ? 'Risque eleve' : 'Attention'}
+                {keywordUsage.pages.length > 2 ? t.seoAnalyzer.highRisk : t.cannibalization.warning}
               </span>
             </div>
             <div style={{ color: C.textSecondary }}>
-              Le mot-cle &quot;{focusKeyword}&quot; est utilise sur{' '}
-              <strong style={{ color: C.textPrimary }}>{keywordUsage.pages.length} autre{keywordUsage.pages.length > 1 ? 's' : ''} page{keywordUsage.pages.length > 1 ? 's' : ''}</strong>.
+              &quot;{focusKeyword}&quot; —{' '}
+              <strong style={{ color: C.textPrimary }}>{keywordUsage.pages.length} {t.cannibalization.pages}</strong>.
               {keywordUsage.pages.length > 2
-                ? ' Ce niveau de duplication nuit fortement au positionnement.'
-                : ' Cela peut diluer votre positionnement sur ce mot-cle.'}
+                ? ` ${t.seoAnalyzer.duplicationHarmsRanking}`
+                : ` ${t.seoAnalyzer.diluteRanking}`}
             </div>
             <div style={{ marginTop: 6 }}>
               <div
@@ -1546,7 +1556,7 @@ const SeoAnalyzer: React.FC = () => {
                 >
                   {'\u25B6'}
                 </span>
-                Voir les pages ({keywordUsage.pages.length})
+                {t.seoAnalyzer.viewPages} ({keywordUsage.pages.length})
               </div>
               {cannibalizationExpanded && (
                 <div
@@ -1573,7 +1583,7 @@ const SeoAnalyzer: React.FC = () => {
                           {page.title}
                         </div>
                         <div style={{ fontSize: 10, color: C.textSecondary, opacity: 0.7 }}>
-                          {page.collection === 'pages' ? 'Page' : 'Article'} — /{page.slug}
+                          {page.collection === 'pages' ? t.common.page : t.common.article} — /{page.slug}
                         </div>
                       </div>
                       <a
@@ -1598,7 +1608,7 @@ const SeoAnalyzer: React.FC = () => {
                           cursor: 'pointer',
                         }}
                       >
-                        Editer {'\u2197'}
+                        {t.common.edit} {'\u2197'}
                       </a>
                     </div>
                   ))}
@@ -1606,7 +1616,7 @@ const SeoAnalyzer: React.FC = () => {
               )}
             </div>
             <div style={{ marginTop: 6, fontStyle: 'italic', fontSize: 10, color: C.textSecondary }}>
-              Utilisez un mot-cle unique par page pour eviter la cannibalisation SEO.
+              {t.seoAnalyzer.uniqueKeywordAdvice}
             </div>
           </div>
         </div>
@@ -1649,7 +1659,7 @@ const SeoAnalyzer: React.FC = () => {
             }}
           >
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              {'\uD83D\uDD17'} Liens internes suggeres
+              {'\uD83D\uDD17'} {t.seoAnalyzer.suggestedInternalLinks}
               <span style={{ fontWeight: 600, fontSize: 10, color: C.textSecondary, textTransform: 'none' as const }}>
                 {linkSuggestionsLoading ? '...' : `(${linkSuggestions.length})`}
               </span>
@@ -1670,7 +1680,7 @@ const SeoAnalyzer: React.FC = () => {
             <div style={{ padding: '8px 14px 12px' }}>
               {linkSuggestionsLoading && (
                 <div style={{ fontSize: 11, color: C.textSecondary, padding: '8px 0', textAlign: 'center' }}>
-                  Analyse du contenu...
+                  {t.seoAnalyzer.analyzingContent}
                 </div>
               )}
               {!linkSuggestionsLoading && linkSuggestions.map((link, idx) => (
@@ -1750,7 +1760,7 @@ const SeoAnalyzer: React.FC = () => {
                       cursor: 'pointer',
                     }}
                   >
-                    {copiedSlug === link.slug ? '\u2713' : 'Copier'}
+                    {copiedSlug === link.slug ? '\u2713' : t.common.copy}
                   </button>
                 </div>
               ))}
@@ -1761,13 +1771,13 @@ const SeoAnalyzer: React.FC = () => {
 
       {/* Check categories */}
       {criticalChecks.length > 0 && (
-        <CategorySection category="critical" checks={criticalChecks} defaultOpen={true} />
+        <CategorySection category="critical" checks={criticalChecks} defaultOpen={true} t={t} />
       )}
       {importantChecks.length > 0 && (
-        <CategorySection category="important" checks={importantChecks} defaultOpen={true} />
+        <CategorySection category="important" checks={importantChecks} defaultOpen={true} t={t} />
       )}
       {bonusChecks.length > 0 && (
-        <CategorySection category="bonus" checks={bonusChecks} defaultOpen={false} />
+        <CategorySection category="bonus" checks={bonusChecks} defaultOpen={false} t={t} />
       )}
     </div>
   )

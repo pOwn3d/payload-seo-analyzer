@@ -76,6 +76,8 @@ export interface SeoInput {
   canonicalUrl?: string
   /** Robots meta directives (e.g. 'noindex', 'nofollow', 'noindex, nofollow') */
   robotsMeta?: string
+  /** Whether this content is a Payload Global (disables URL/slug checks) */
+  isGlobal?: boolean
 }
 
 /** Page type for adapting SEO rule severity */

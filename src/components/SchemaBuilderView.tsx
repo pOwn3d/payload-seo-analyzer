@@ -1,6 +1,9 @@
 'use client'
 
 import React, { useState, useCallback, useMemo } from 'react'
+import { useSeoLocale } from '../hooks/useSeoLocale.js'
+import { getDashboardT } from '../dashboard-i18n.js'
+import type { DashboardTranslations } from '../dashboard-i18n.js'
 
 // ---------------------------------------------------------------------------
 // Design tokens — uses Payload CSS variables for theme compatibility
@@ -101,149 +104,151 @@ interface SchemaTypeDef {
   fields: SchemaField[]
 }
 
-const SCHEMA_TYPES: Record<string, SchemaTypeDef> = {
-  LocalBusiness: {
-    label: 'Commerce local',
-    icon: '\uD83C\uDFEA',
-    color: V.orange,
-    jsonType: 'LocalBusiness',
-    fields: [
-      { name: 'name', label: 'Nom', type: 'text', required: true, placeholder: 'Ma Boulangerie' },
-      { name: 'description', label: 'Description', type: 'textarea', placeholder: 'Boulangerie artisanale depuis 1985...' },
-      { name: 'streetAddress', label: 'Adresse', type: 'text', placeholder: '12 rue de la Paix' },
-      { name: 'addressLocality', label: 'Ville', type: 'text', placeholder: 'Paris' },
-      { name: 'postalCode', label: 'Code postal', type: 'text', placeholder: '75002' },
-      { name: 'addressCountry', label: 'Pays', type: 'text', placeholder: 'FR' },
-      { name: 'telephone', label: 'Telephone', type: 'text', placeholder: '+33 1 23 45 67 89' },
-      { name: 'email', label: 'Email', type: 'text', placeholder: 'contact@boulangerie.fr' },
-      { name: 'openingHours', label: 'Horaires (schema.org format)', type: 'text', placeholder: 'Mo-Fr 07:00-19:00, Sa 08:00-18:00' },
-      { name: 'latitude', label: 'Latitude', type: 'text', placeholder: '48.8566' },
-      { name: 'longitude', label: 'Longitude', type: 'text', placeholder: '2.3522' },
-      { name: 'image', label: 'URL image', type: 'text', placeholder: 'https://example.com/photo.jpg' },
-      { name: 'priceRange', label: 'Fourchette de prix', type: 'text', placeholder: '\u20AC\u20AC' },
-      { name: 'url', label: 'URL du site', type: 'text', placeholder: 'https://boulangerie.fr' },
-    ],
-  },
-  Article: {
-    label: 'Article',
-    icon: '\uD83D\uDCDD',
-    color: V.blue,
-    jsonType: 'Article',
-    fields: [
-      { name: 'headline', label: 'Titre', type: 'text', required: true, placeholder: 'Comment faire du pain maison' },
-      { name: 'authorName', label: 'Auteur', type: 'text', placeholder: 'Jean Dupont' },
-      { name: 'datePublished', label: 'Date de publication', type: 'datetime' },
-      { name: 'dateModified', label: 'Date de modification', type: 'datetime' },
-      { name: 'image', label: 'URL image', type: 'text', placeholder: 'https://example.com/article.jpg' },
-      { name: 'publisherName', label: 'Nom de l\'editeur', type: 'text', placeholder: 'Mon Blog' },
-      { name: 'publisherLogo', label: 'Logo editeur (URL)', type: 'text', placeholder: 'https://example.com/logo.png' },
-      { name: 'description', label: 'Description', type: 'textarea', placeholder: 'Un guide complet pour...' },
-    ],
-  },
-  Product: {
-    label: 'Produit',
-    icon: '\uD83D\uDED2',
-    color: V.green,
-    jsonType: 'Product',
-    fields: [
-      { name: 'name', label: 'Nom du produit', type: 'text', required: true, placeholder: 'Pain de campagne bio' },
-      { name: 'description', label: 'Description', type: 'textarea', placeholder: 'Pain artisanal au levain naturel...' },
-      { name: 'image', label: 'URL image', type: 'text', placeholder: 'https://example.com/pain.jpg' },
-      { name: 'sku', label: 'SKU', type: 'text', placeholder: 'PAIN-BIO-001' },
-      { name: 'brand', label: 'Marque', type: 'text', placeholder: 'Boulangerie Dupont' },
-      { name: 'price', label: 'Prix', type: 'number', placeholder: '4.50' },
-      { name: 'priceCurrency', label: 'Devise', type: 'text', placeholder: 'EUR' },
-      {
-        name: 'availability',
-        label: 'Disponibilite',
-        type: 'select',
-        options: [
-          { label: 'En stock', value: 'https://schema.org/InStock' },
-          { label: 'Rupture de stock', value: 'https://schema.org/OutOfStock' },
-          { label: 'Pre-commande', value: 'https://schema.org/PreOrder' },
-          { label: 'Sur commande', value: 'https://schema.org/MadeToOrder' },
-        ],
-      },
-      { name: 'reviewCount', label: 'Nombre d\'avis', type: 'number', placeholder: '42' },
-      { name: 'ratingValue', label: 'Note moyenne', type: 'number', placeholder: '4.5' },
-    ],
-  },
-  FAQ: {
-    label: 'FAQ',
-    icon: '\u2753',
-    color: V.purple,
-    jsonType: 'FAQPage',
-    fields: [
-      {
-        name: 'questions',
-        label: 'Questions / Reponses',
-        type: 'array',
-        subFields: [
-          { name: 'question', label: 'Question', type: 'text', required: true, placeholder: 'Quels sont vos horaires ?' },
-          { name: 'answer', label: 'Reponse', type: 'textarea', required: true, placeholder: 'Nous sommes ouverts du lundi au...' },
-        ],
-      },
-    ],
-  },
-  HowTo: {
-    label: 'Guide pratique',
-    icon: '\uD83D\uDCD6',
-    color: V.cyan,
-    jsonType: 'HowTo',
-    fields: [
-      { name: 'name', label: 'Titre du guide', type: 'text', required: true, placeholder: 'Comment faire un gateau au chocolat' },
-      { name: 'description', label: 'Description', type: 'textarea', placeholder: 'Un guide etape par etape pour...' },
-      {
-        name: 'steps',
-        label: 'Etapes',
-        type: 'array',
-        subFields: [
-          { name: 'name', label: 'Titre de l\'etape', type: 'text', required: true, placeholder: 'Preparer les ingredients' },
-          { name: 'text', label: 'Description', type: 'textarea', required: true, placeholder: 'Pesez 200g de farine...' },
-          { name: 'image', label: 'Image (URL)', type: 'text', placeholder: 'https://example.com/step1.jpg' },
-        ],
-      },
-    ],
-  },
-  Organization: {
-    label: 'Organisation',
-    icon: '\uD83C\uDFE2',
-    color: '#6366f1',
-    jsonType: 'Organization',
-    fields: [
-      { name: 'name', label: 'Nom', type: 'text', required: true, placeholder: 'My Company' },
-      { name: 'url', label: 'Site web', type: 'text', placeholder: 'https://example.com' },
-      { name: 'logo', label: 'Logo (URL)', type: 'text', placeholder: 'https://example.com/logo.png' },
-      { name: 'contactEmail', label: 'Email de contact', type: 'text', placeholder: 'contact@example.com' },
-      { name: 'contactPhone', label: 'Telephone', type: 'text', placeholder: '+33 6 12 34 56 78' },
-      {
-        name: 'sameAs',
-        label: 'Reseaux sociaux (URLs)',
-        type: 'array',
-        subFields: [
-          { name: 'url', label: 'URL', type: 'text', required: true, placeholder: 'https://linkedin.com/company/...' },
-        ],
-      },
-    ],
-  },
-  Event: {
-    label: 'Evenement',
-    icon: '\uD83C\uDF89',
-    color: '#ec4899',
-    jsonType: 'Event',
-    fields: [
-      { name: 'name', label: 'Nom', type: 'text', required: true, placeholder: 'Salon du web 2026' },
-      { name: 'startDate', label: 'Date de debut', type: 'datetime' },
-      { name: 'endDate', label: 'Date de fin', type: 'datetime' },
-      { name: 'locationName', label: 'Lieu', type: 'text', placeholder: 'Palais des Congres' },
-      { name: 'locationAddress', label: 'Adresse du lieu', type: 'text', placeholder: '2 place de la Porte Maillot, Paris' },
-      { name: 'description', label: 'Description', type: 'textarea', placeholder: 'Le plus grand salon du digital en France...' },
-      { name: 'offerPrice', label: 'Prix', type: 'number', placeholder: '25' },
-      { name: 'offerCurrency', label: 'Devise', type: 'text', placeholder: 'EUR' },
-      { name: 'offerUrl', label: 'URL billetterie', type: 'text', placeholder: 'https://example.com/billets' },
-      { name: 'image', label: 'Image (URL)', type: 'text', placeholder: 'https://example.com/event.jpg' },
-    ],
-  },
+function getSchemaTypes(t: DashboardTranslations): Record<string, SchemaTypeDef> {
+  return {
+    LocalBusiness: {
+      label: t.schemaBuilder.localBusiness,
+      icon: '\uD83C\uDFEA',
+      color: V.orange,
+      jsonType: 'LocalBusiness',
+      fields: [
+        { name: 'name', label: t.schemaBuilder.name, type: 'text', required: true, placeholder: 'Ma Boulangerie' },
+        { name: 'description', label: t.schemaBuilder.description, type: 'textarea', placeholder: 'Boulangerie artisanale depuis 1985...' },
+        { name: 'streetAddress', label: t.schemaBuilder.address, type: 'text', placeholder: '12 rue de la Paix' },
+        { name: 'addressLocality', label: t.schemaBuilder.city, type: 'text', placeholder: 'Paris' },
+        { name: 'postalCode', label: t.schemaBuilder.postalCode, type: 'text', placeholder: '75002' },
+        { name: 'addressCountry', label: t.schemaBuilder.country, type: 'text', placeholder: 'FR' },
+        { name: 'telephone', label: t.schemaBuilder.phone, type: 'text', placeholder: '+33 1 23 45 67 89' },
+        { name: 'email', label: t.schemaBuilder.email, type: 'text', placeholder: 'contact@boulangerie.fr' },
+        { name: 'openingHours', label: t.schemaBuilder.openingHours, type: 'text', placeholder: 'Mo-Fr 07:00-19:00, Sa 08:00-18:00' },
+        { name: 'latitude', label: t.schemaBuilder.latitude, type: 'text', placeholder: '48.8566' },
+        { name: 'longitude', label: t.schemaBuilder.longitude, type: 'text', placeholder: '2.3522' },
+        { name: 'image', label: t.schemaBuilder.imageUrl, type: 'text', placeholder: 'https://example.com/photo.jpg' },
+        { name: 'priceRange', label: t.schemaBuilder.priceRange, type: 'text', placeholder: '\u20AC\u20AC' },
+        { name: 'url', label: t.schemaBuilder.website, type: 'text', placeholder: 'https://boulangerie.fr' },
+      ],
+    },
+    Article: {
+      label: t.schemaBuilder.article,
+      icon: '\uD83D\uDCDD',
+      color: V.blue,
+      jsonType: 'Article',
+      fields: [
+        { name: 'headline', label: t.schemaBuilder.title, type: 'text', required: true, placeholder: 'Comment faire du pain maison' },
+        { name: 'authorName', label: t.schemaBuilder.author, type: 'text', placeholder: 'Jean Dupont' },
+        { name: 'datePublished', label: t.schemaBuilder.publicationDate, type: 'datetime' },
+        { name: 'dateModified', label: t.schemaBuilder.modificationDate, type: 'datetime' },
+        { name: 'image', label: t.schemaBuilder.imageUrl, type: 'text', placeholder: 'https://example.com/article.jpg' },
+        { name: 'publisherName', label: t.schemaBuilder.publisherName, type: 'text', placeholder: 'Mon Blog' },
+        { name: 'publisherLogo', label: t.schemaBuilder.publisherLogo, type: 'text', placeholder: 'https://example.com/logo.png' },
+        { name: 'description', label: t.schemaBuilder.description, type: 'textarea', placeholder: 'Un guide complet pour...' },
+      ],
+    },
+    Product: {
+      label: t.schemaBuilder.product,
+      icon: '\uD83D\uDED2',
+      color: V.green,
+      jsonType: 'Product',
+      fields: [
+        { name: 'name', label: t.schemaBuilder.productName, type: 'text', required: true, placeholder: 'Pain de campagne bio' },
+        { name: 'description', label: t.schemaBuilder.description, type: 'textarea', placeholder: 'Pain artisanal au levain naturel...' },
+        { name: 'image', label: t.schemaBuilder.imageUrl, type: 'text', placeholder: 'https://example.com/pain.jpg' },
+        { name: 'sku', label: t.schemaBuilder.sku, type: 'text', placeholder: 'PAIN-BIO-001' },
+        { name: 'brand', label: t.schemaBuilder.brand, type: 'text', placeholder: 'Boulangerie Dupont' },
+        { name: 'price', label: t.schemaBuilder.price, type: 'number', placeholder: '4.50' },
+        { name: 'priceCurrency', label: t.schemaBuilder.currency, type: 'text', placeholder: 'EUR' },
+        {
+          name: 'availability',
+          label: t.schemaBuilder.availability,
+          type: 'select',
+          options: [
+            { label: t.schemaBuilder.inStock, value: 'https://schema.org/InStock' },
+            { label: t.schemaBuilder.outOfStock, value: 'https://schema.org/OutOfStock' },
+            { label: t.schemaBuilder.preOrder, value: 'https://schema.org/PreOrder' },
+            { label: t.schemaBuilder.madeToOrder, value: 'https://schema.org/MadeToOrder' },
+          ],
+        },
+        { name: 'reviewCount', label: t.schemaBuilder.reviewCount, type: 'number', placeholder: '42' },
+        { name: 'ratingValue', label: t.schemaBuilder.ratingValue, type: 'number', placeholder: '4.5' },
+      ],
+    },
+    FAQ: {
+      label: t.schemaBuilder.faq,
+      icon: '\u2753',
+      color: V.purple,
+      jsonType: 'FAQPage',
+      fields: [
+        {
+          name: 'questions',
+          label: t.schemaBuilder.questionsAnswers,
+          type: 'array',
+          subFields: [
+            { name: 'question', label: t.schemaBuilder.question, type: 'text', required: true, placeholder: 'Quels sont vos horaires ?' },
+            { name: 'answer', label: t.schemaBuilder.answer, type: 'textarea', required: true, placeholder: 'Nous sommes ouverts du lundi au...' },
+          ],
+        },
+      ],
+    },
+    HowTo: {
+      label: t.schemaBuilder.howTo,
+      icon: '\uD83D\uDCD6',
+      color: V.cyan,
+      jsonType: 'HowTo',
+      fields: [
+        { name: 'name', label: t.schemaBuilder.guideTitle, type: 'text', required: true, placeholder: 'Comment faire un gateau au chocolat' },
+        { name: 'description', label: t.schemaBuilder.description, type: 'textarea', placeholder: 'Un guide etape par etape pour...' },
+        {
+          name: 'steps',
+          label: t.schemaBuilder.steps,
+          type: 'array',
+          subFields: [
+            { name: 'name', label: t.schemaBuilder.stepTitle, type: 'text', required: true, placeholder: 'Preparer les ingredients' },
+            { name: 'text', label: t.schemaBuilder.stepDescription, type: 'textarea', required: true, placeholder: 'Pesez 200g de farine...' },
+            { name: 'image', label: t.schemaBuilder.imageLabel, type: 'text', placeholder: 'https://example.com/step1.jpg' },
+          ],
+        },
+      ],
+    },
+    Organization: {
+      label: t.schemaBuilder.organization,
+      icon: '\uD83C\uDFE2',
+      color: '#6366f1',
+      jsonType: 'Organization',
+      fields: [
+        { name: 'name', label: t.schemaBuilder.name, type: 'text', required: true, placeholder: 'My Company' },
+        { name: 'url', label: t.schemaBuilder.website, type: 'text', placeholder: 'https://example.com' },
+        { name: 'logo', label: t.schemaBuilder.logoUrl, type: 'text', placeholder: 'https://example.com/logo.png' },
+        { name: 'contactEmail', label: t.schemaBuilder.contactEmail, type: 'text', placeholder: 'contact@example.com' },
+        { name: 'contactPhone', label: t.schemaBuilder.phone, type: 'text', placeholder: '+33 6 12 34 56 78' },
+        {
+          name: 'sameAs',
+          label: t.schemaBuilder.socialMediaUrls,
+          type: 'array',
+          subFields: [
+            { name: 'url', label: t.schemaBuilder.urlLabel, type: 'text', required: true, placeholder: 'https://linkedin.com/company/...' },
+          ],
+        },
+      ],
+    },
+    Event: {
+      label: t.schemaBuilder.event,
+      icon: '\uD83C\uDF89',
+      color: '#ec4899',
+      jsonType: 'Event',
+      fields: [
+        { name: 'name', label: t.schemaBuilder.name, type: 'text', required: true, placeholder: 'Salon du web 2026' },
+        { name: 'startDate', label: t.schemaBuilder.startDate, type: 'datetime' },
+        { name: 'endDate', label: t.schemaBuilder.endDate, type: 'datetime' },
+        { name: 'locationName', label: t.schemaBuilder.location, type: 'text', placeholder: 'Palais des Congres' },
+        { name: 'locationAddress', label: t.schemaBuilder.locationAddress, type: 'text', placeholder: '2 place de la Porte Maillot, Paris' },
+        { name: 'description', label: t.schemaBuilder.description, type: 'textarea', placeholder: 'Le plus grand salon du digital en France...' },
+        { name: 'offerPrice', label: t.schemaBuilder.price, type: 'number', placeholder: '25' },
+        { name: 'offerCurrency', label: t.schemaBuilder.currency, type: 'text', placeholder: 'EUR' },
+        { name: 'offerUrl', label: t.schemaBuilder.ticketUrl, type: 'text', placeholder: 'https://example.com/billets' },
+        { name: 'image', label: t.schemaBuilder.imageLabel, type: 'text', placeholder: 'https://example.com/event.jpg' },
+      ],
+    },
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -252,9 +257,6 @@ const SCHEMA_TYPES: Record<string, SchemaTypeDef> = {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function buildJsonLd(type: string, values: Record<string, any>): Record<string, unknown> {
-  const def = SCHEMA_TYPES[type]
-  if (!def) return {}
-
   switch (type) {
     case 'LocalBusiness': {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -573,12 +575,16 @@ function Toast({ message, onClose }: { message: string; onClose: () => void }) {
 // ---------------------------------------------------------------------------
 
 export function SchemaBuilderView() {
+  const locale = useSeoLocale()
+  const t = getDashboardT(locale)
+
   const [selectedType, setSelectedType] = useState<string>('LocalBusiness')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [values, setValues] = useState<Record<string, any>>({})
   const [toast, setToast] = useState<string | null>(null)
 
-  const def = SCHEMA_TYPES[selectedType]
+  const schemaTypes = useMemo(() => getSchemaTypes(t), [t])
+  const def = schemaTypes[selectedType]
 
   // Reset values when type changes
   const handleTypeChange = useCallback((type: string) => {
@@ -629,12 +635,12 @@ export function SchemaBuilderView() {
     async (text: string, label: string) => {
       try {
         await navigator.clipboard.writeText(text)
-        setToast(`${label} copie !`)
+        setToast(`${label} ${t.schemaBuilder.copied}`)
       } catch {
-        setToast('Erreur de copie')
+        setToast(t.schemaBuilder.copyError)
       }
     },
-    [],
+    [t],
   )
 
   // Highlighted preview
@@ -686,7 +692,7 @@ export function SchemaBuilderView() {
                     fontSize: 10,
                   }}
                 >
-                  Supprimer
+                  {t.common.delete}
                 </button>
               </div>
               {(field.subFields || []).map((subField) => (
@@ -727,7 +733,7 @@ export function SchemaBuilderView() {
               textAlign: 'center',
             }}
           >
-            + Ajouter
+            {t.schemaBuilder.addButton}
           </button>
         </div>
       )
@@ -762,7 +768,7 @@ export function SchemaBuilderView() {
             onChange={(e) => onChangeHandler(e.target.value)}
             style={inputStyle}
           >
-            <option value="">-- Choisir --</option>
+            <option value="">{t.schemaBuilder.choose}</option>
             {(field.options || []).map((opt) => (
               <option key={opt.value} value={opt.value}>
                 {opt.label}
@@ -806,7 +812,7 @@ export function SchemaBuilderView() {
           Schema.org Builder
         </h1>
         <p style={{ fontSize: 12, color: V.textSecondary, margin: '4px 0 0' }}>
-          Generateur visuel de donnees structurees JSON-LD pour le referencement
+          {t.schemaBuilder.visualGeneratorDesc}
         </p>
       </div>
 
@@ -819,7 +825,7 @@ export function SchemaBuilderView() {
           marginBottom: 24,
         }}
       >
-        {Object.entries(SCHEMA_TYPES).map(([key, typeDef]) => {
+        {Object.entries(schemaTypes).map(([key, typeDef]) => {
           const isSelected = selectedType === key
           return (
             <button
@@ -890,7 +896,7 @@ export function SchemaBuilderView() {
                 justifyContent: 'space-between',
               }}
             >
-              <span>Apercu JSON-LD</span>
+              <span>{t.schemaBuilder.jsonLdPreview}</span>
               <span
                 style={{
                   fontSize: 10,
@@ -901,7 +907,7 @@ export function SchemaBuilderView() {
                   color: V.green,
                 }}
               >
-                Mise a jour en direct
+                {t.schemaBuilder.liveUpdate}
               </span>
             </div>
             <div
@@ -944,7 +950,7 @@ export function SchemaBuilderView() {
                 textAlign: 'center',
               }}
             >
-              Copier le JSON-LD
+              {t.schemaBuilder.copyJsonLd}
             </button>
             <button
               onClick={() => copyToClipboard(scriptTag, 'Script tag')}
@@ -959,7 +965,7 @@ export function SchemaBuilderView() {
                 textAlign: 'center',
               }}
             >
-              Copier le script tag
+              {t.schemaBuilder.copyScriptTag}
             </button>
           </div>
 
@@ -976,11 +982,11 @@ export function SchemaBuilderView() {
               lineHeight: 1.5,
             }}
           >
-            <strong style={{ color: V.blue }}>Conseil :</strong> Validez votre JSON-LD sur{' '}
+            <strong style={{ color: V.blue }}>{t.schemaBuilder.tip}</strong> {t.schemaBuilder.validateOnRichResults}{' '}
             <span style={{ fontWeight: 600, color: V.text }}>
               search.google.com/test/rich-results
             </span>{' '}
-            avant de le deployer en production.
+            {t.schemaBuilder.beforeDeploying}
           </div>
         </div>
       </div>

@@ -6,7 +6,7 @@ const CLIENT_BANNER = '"use client";\n'
 const sharedConfig: Partial<Options> = {
   format: ['esm', 'cjs'],
   dts: true,
-  sourcemap: true,
+  sourcemap: false,
   splitting: false,
   treeshake: true,
   target: 'es2022',

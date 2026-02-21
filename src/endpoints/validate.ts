@@ -9,6 +9,7 @@
 
 import type { PayloadHandler } from 'payload'
 import { analyzeSeo } from '../index.js'
+import { resolveAnalysisLocale } from '../helpers/resolveLocale.js'
 import type { SeoInput, SeoConfig } from '../types.js'
 
 /**
@@ -16,7 +17,11 @@ import type { SeoInput, SeoConfig } from '../types.js'
  * Exported for reuse in other endpoints or custom integrations.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function buildSeoInputFromDoc(doc: any, collection: string): SeoInput {
+export function buildSeoInputFromDoc(
+  doc: any,
+  collection: string,
+  options?: { isGlobal?: boolean },
+): SeoInput {
   const meta = doc.meta || {}
   const hero = doc.hero || {}
   const isPost = collection === 'posts'
@@ -43,6 +48,7 @@ export function buildSeoInputFromDoc(doc: any, collection: string): SeoInput {
     isCornerstone: !!doc.isCornerstone,
     updatedAt: (doc.updatedAt as string) || undefined,
     contentLastReviewed: (doc.contentLastReviewed as string) || undefined,
+    isGlobal: options?.isGlobal ?? false,
   }
 }
 
@@ -51,6 +57,8 @@ async function loadMergedConfig(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   payload: any,
   pluginConfig?: SeoConfig,
+  reqLocale?: string,
+  localeMapping?: Record<string, 'fr' | 'en'>,
 ): Promise<SeoConfig> {
   let mergedConfig: SeoConfig = { ...pluginConfig }
 
@@ -89,10 +97,22 @@ async function loadMergedConfig(
     // SeoSettings collection might not exist yet
   }
 
+  // Resolve locale from Payload's i18n
+  const effectiveLocale = resolveAnalysisLocale({
+    reqLocale,
+    pluginLocale: mergedConfig.locale,
+    customMapping: localeMapping,
+  })
+  mergedConfig = { ...mergedConfig, locale: effectiveLocale }
+
   return mergedConfig
 }
 
-export function createValidateHandler(_collections: string[], seoConfig?: SeoConfig): PayloadHandler {
+export function createValidateHandler(
+  _collections: string[],
+  seoConfig?: SeoConfig,
+  localeMapping?: Record<string, 'fr' | 'en'>,
+): PayloadHandler {
   return async (req) => {
     try {
       if (!req.user) {
@@ -100,7 +120,7 @@ export function createValidateHandler(_collections: string[], seoConfig?: SeoCon
       }
 
       // Load merged config from DB settings + plugin config
-      const mergedConfig = await loadMergedConfig(req.payload, seoConfig)
+      const mergedConfig = await loadMergedConfig(req.payload, seoConfig, req.locale as string | undefined, localeMapping)
 
       // GET — quick score check by ID
       if (req.method === 'GET') {
@@ -110,6 +130,27 @@ export function createValidateHandler(_collections: string[], seoConfig?: SeoCon
 
         if (!id) {
           return Response.json({ error: 'Missing id parameter' }, { status: 400 })
+        }
+
+        const globalSlug = url.searchParams.get('global')
+
+        if (globalSlug) {
+          const doc = await req.payload.findGlobal({
+            slug: globalSlug,
+            depth: 1,
+            overrideAccess: true,
+          })
+          const seoInput = buildSeoInputFromDoc(doc, `global:${globalSlug}`, { isGlobal: true })
+          const analysis = analyzeSeo(seoInput, mergedConfig)
+          return Response.json({
+            global: globalSlug,
+            score: analysis.score,
+            level: analysis.level,
+            failedChecks: analysis.checks.filter((c) => c.status === 'fail').map((c) => ({ id: c.id, label: c.label, message: c.message })),
+            warningChecks: analysis.checks.filter((c) => c.status === 'warning').map((c) => ({ id: c.id, label: c.label, message: c.message })),
+            passedChecks: analysis.checks.filter((c) => c.status === 'pass').length,
+            totalChecks: analysis.checks.length,
+          })
         }
 
         const doc = await req.payload.findByID({
@@ -142,17 +183,26 @@ export function createValidateHandler(_collections: string[], seoConfig?: SeoCon
       // POST — full analysis with multiple modes
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const body = await (req as any).json()
-      const { id, collection, data, overrides } = body as {
+      const { id, collection, data, overrides, global: globalSlug } = body as {
         id?: number | string
         collection?: string
         data?: SeoInput
         overrides?: Partial<SeoInput>
+        global?: string
       }
 
       let seoInput: SeoInput
 
       if (data) {
         seoInput = { ...data, ...(overrides || {}) }
+      } else if (globalSlug) {
+        const doc = await req.payload.findGlobal({
+          slug: globalSlug,
+          depth: 1,
+          overrideAccess: true,
+        })
+        seoInput = buildSeoInputFromDoc(doc, `global:${globalSlug}`, { isGlobal: true })
+        if (overrides) seoInput = { ...seoInput, ...overrides }
       } else if (id && collection) {
         const doc = await req.payload.findByID({
           collection,

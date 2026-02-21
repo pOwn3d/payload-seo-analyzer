@@ -1,6 +1,8 @@
 'use client'
 
 import React, { useState, useMemo } from 'react'
+import { useSeoLocale } from '../hooks/useSeoLocale.js'
+import { getDashboardT } from '../dashboard-i18n.js'
 
 // Design tokens — uses Payload CSS variables for theme compatibility
 const V = {
@@ -26,6 +28,8 @@ interface AuditItem {
 }
 
 export function ContentDecaySection({ items }: { items: AuditItem[] }) {
+  const locale = useSeoLocale()
+  const t = getDashboardT(locale)
   const [open, setOpen] = useState(false)
   const [markingReviewed, setMarkingReviewed] = useState<string | null>(null)
   const [reviewedKeys, setReviewedKeys] = useState<Set<string>>(new Set())
@@ -61,10 +65,10 @@ export function ContentDecaySection({ items }: { items: AuditItem[] }) {
     red: V.red,
   }
   const levelLabels: Record<string, string> = {
-    green: '< 3 mois',
-    yellow: '3-6 mois',
-    orange: '6-12 mois',
-    red: '> 12 mois',
+    green: t.contentDecay.lessThan3Months,
+    yellow: t.contentDecay.months3to6,
+    orange: t.contentDecay.months6to12,
+    red: t.contentDecay.moreThan12Months,
   }
 
   const handleMarkReviewed = async (item: AuditItem) => {
@@ -109,7 +113,7 @@ export function ContentDecaySection({ items }: { items: AuditItem[] }) {
         }}
       >
         <span>
-          Contenu obsolete
+          {t.contentDecay.title}
           {staleCount > 0 && (
             <span
               style={{
@@ -149,8 +153,7 @@ export function ContentDecaySection({ items }: { items: AuditItem[] }) {
               lineHeight: 1.5,
             }}
           >
-            Detecte les pages dont le contenu vieillit. Les contenus non mis a jour perdent en
-            pertinence SEO au fil du temps.
+            {t.contentDecay.description}
           </p>
 
           {/* Legend */}
@@ -192,7 +195,7 @@ export function ContentDecaySection({ items }: { items: AuditItem[] }) {
                 padding: 20,
               }}
             >
-              Aucune donnee de mise a jour disponible.
+              {t.contentDecay.noData}
             </div>
           ) : (
             <div
@@ -221,11 +224,11 @@ export function ContentDecaySection({ items }: { items: AuditItem[] }) {
                 }}
               >
                 <span></span>
-                <span>Page</span>
-                <span>Derniere MAJ</span>
-                <span>Derniere rev.</span>
-                <span>Age (j)</span>
-                <span>Action</span>
+                <span>{t.common.page}</span>
+                <span>{t.contentDecay.lastUpdate}</span>
+                <span>{t.contentDecay.lastReview}</span>
+                <span>{t.contentDecay.ageDays}</span>
+                <span>{t.contentDecay.action}</span>
               </div>
 
               {/* Table rows */}
@@ -263,7 +266,7 @@ export function ContentDecaySection({ items }: { items: AuditItem[] }) {
                           textOverflow: 'ellipsis',
                         }}
                       >
-                        {item.title || '(sans titre)'}
+                        {item.title || t.common.noTitle}
                       </div>
                       <div style={{ fontSize: 10, color: V.textSecondary }}>
                         <span
@@ -279,7 +282,7 @@ export function ContentDecaySection({ items }: { items: AuditItem[] }) {
                                 : 'rgba(217,119,6,0.2)',
                           }}
                         >
-                          {item.collection === 'pages' ? 'Page' : 'Article'}
+                          {item.collection === 'pages' ? t.common.page : t.common.article}
                         </span>{' '}
                         /{item.slug}
                       </div>
@@ -307,7 +310,7 @@ export function ContentDecaySection({ items }: { items: AuditItem[] }) {
                             textTransform: 'uppercase' as const,
                           }}
                         >
-                          Revise !
+                          {t.contentDecay.reviewed}
                         </span>
                       ) : (
                         <button
@@ -326,7 +329,7 @@ export function ContentDecaySection({ items }: { items: AuditItem[] }) {
                             opacity: markingReviewed === key ? 0.6 : 1,
                           }}
                         >
-                          {markingReviewed === key ? '...' : 'Marquer revise'}
+                          {markingReviewed === key ? '...' : t.contentDecay.markReviewed}
                         </button>
                       )}
                     </div>

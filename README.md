@@ -2,17 +2,20 @@
 <div align="center">
 
   <a href="https://git.io/typing-svg">
-    <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=32&duration=3000&pause=1000&color=3B82F6&center=true&vCenter=true&width=700&lines=%40consilioweb%2Fseo-analyzer;Payload+CMS+SEO+Plugin;50%2B+Checks+%7C+FR+%26+EN+Readability;Admin+Dashboard+Suite" alt="Typing SVG" />
+    <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=32&duration=3000&pause=1000&color=3B82F6&center=true&vCenter=true&width=700&lines=%40consilioweb%2Fseo-analyzer;Payload+CMS+SEO+Plugin;50%2B+Checks+%7C+39+Languages;Admin+Dashboard+Suite+%7C+FR+%26+EN" alt="Typing SVG" />
   </a>
 
   <br><br>
 
   <!-- Badges -->
+  <a href="https://www.npmjs.com/package/@consilioweb/seo-analyzer"><img src="https://img.shields.io/npm/v/@consilioweb/seo-analyzer?style=for-the-badge&logo=npm&logoColor=white&color=CB3837" alt="npm version"></a>
+  <a href="https://www.npmjs.com/package/@consilioweb/seo-analyzer"><img src="https://img.shields.io/npm/dw/@consilioweb/seo-analyzer?style=for-the-badge&logo=npm&logoColor=white&color=CB3837" alt="npm downloads"></a>
   <img src="https://img.shields.io/badge/Payload%20CMS-3.x-0F172A?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTIgMkw0IDdWMTdMMTIgMjJMMjAgMTdWN0wxMiAyWiIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48L3N2Zz4=&logoColor=white" alt="Payload CMS 3">
   <img src="https://img.shields.io/badge/SEO-50%2B%20Checks-10B981?style=for-the-badge" alt="50+ Checks">
-  <img src="https://img.shields.io/badge/i18n-FR%20%7C%20EN-3B82F6?style=for-the-badge" alt="i18n FR | EN">
-  <img src="https://img.shields.io/badge/License-MIT-7C3AED?style=for-the-badge" alt="MIT License">
+  <img src="https://img.shields.io/badge/i18n-39%20Languages-3B82F6?style=for-the-badge" alt="i18n 39 Languages">
+  <a href="https://github.com/pOwn3d/payload-seo-analyzer/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-7C3AED?style=for-the-badge" alt="MIT License"></a>
   <img src="https://img.shields.io/badge/TypeScript-5.x-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
+  <a href="https://github.com/pOwn3d/payload-seo-analyzer"><img src="https://img.shields.io/github/stars/pOwn3d/payload-seo-analyzer?style=for-the-badge&logo=github&color=181717" alt="GitHub stars"></a>
 
 </div>
 
@@ -20,7 +23,7 @@
 
 ## About
 
-> **@consilioweb/seo-analyzer** — A comprehensive SEO analysis plugin for Payload CMS 3 with 50+ checks, bilingual readability scoring (French & English), native Lexical JSON support, and a full admin dashboard suite.
+> **@consilioweb/seo-analyzer** — A comprehensive SEO analysis plugin for Payload CMS 3 with 50+ checks, bilingual readability scoring (French & English), native Lexical JSON support, a full admin dashboard suite with auto-locale detection, and meta field labels in 39 languages.
 
 <table>
   <tr>
@@ -36,8 +39,8 @@
     </td>
     <td align="center" width="25%">
       <img src="https://img.icons8.com/color/96/translation.png" width="50"/><br>
-      <b>i18n FR & EN</b><br>
-      <sub>Flesch FR/EN + locale-adapted</sub>
+      <b>i18n 39 Languages</b><br>
+      <sub>Meta fields UI + FR/EN dashboard</sub>
     </td>
     <td align="center" width="25%">
       <img src="https://img.icons8.com/color/96/api-settings.png" width="50"/><br>
@@ -53,7 +56,17 @@
 
 `@consilioweb/seo-analyzer` adds a complete SEO toolkit directly into your Payload CMS admin panel. It runs **50+ on-page SEO checks** in real time as editors write content, with **bilingual support (French & English)** — locale-adapted readability formulas (Kandel-Moles FR / Flesch-Kincaid EN), passive voice detection, transition words, and all SEO messages — plus **native parsing of Payload's Lexical rich text** format.
 
-The plugin provides **9 dedicated admin views**, **5 auto-managed collections**, **20+ API endpoints**, and automatic behaviors like slug-change redirect creation and score history tracking — all configured through a single plugin call.
+The plugin provides **9 dedicated admin views**, **5 auto-managed collections**, **20+ API endpoints**, and automatic behaviors like slug-change redirect creation and score history tracking — all configured through a single plugin call. The admin dashboard **automatically adapts to the user's Payload locale** (FR/EN), and meta field UI labels support **39 languages** via Payload's native i18n system.
+
+### Screenshots
+
+| SEO Dashboard | Sitemap Audit |
+|:---:|:---:|
+| ![SEO Dashboard](https://raw.githubusercontent.com/pOwn3d/payload-seo-analyzer/main/docs/screenshots/seo-dashboard.png) | ![Sitemap Audit](https://raw.githubusercontent.com/pOwn3d/payload-seo-analyzer/main/docs/screenshots/sitemap-audit.png) |
+
+| Editor Sidebar | Configuration |
+|:---:|:---:|
+| ![Editor Sidebar](https://raw.githubusercontent.com/pOwn3d/payload-seo-analyzer/main/docs/screenshots/editor-sidebar.png) | ![Configuration](https://raw.githubusercontent.com/pOwn3d/payload-seo-analyzer/main/docs/screenshots/seo-config.png) |
 
 <img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
 
@@ -129,7 +142,9 @@ Natively parses Payload CMS Lexical rich text JSON structures with:
 - List detection (ordered/unordered) for featured snippet optimization
 - Support for nested blocks, columns, and all standard Payload block types
 
-### Admin Dashboard Suite (9 Views)
+### Admin Dashboard Suite (9 Views — FR/EN auto-locale)
+
+All dashboard views automatically switch to the user's Payload admin locale (French or English). No configuration needed — the plugin detects `useLocale()` from `@payloadcms/ui` and adapts all labels, messages, dates, and UI strings accordingly.
 
 | View | Path | Description |
 |------|------|-------------|
@@ -193,41 +208,55 @@ Add the plugin to your `payload.config.ts`:
 
 ```ts
 import { buildConfig } from 'payload'
-import { seoPlugin } from '@consilioweb/seo-analyzer'
+import { seoAnalyzerPlugin } from '@consilioweb/seo-analyzer'
 
 export default buildConfig({
   // ... your existing config
   plugins: [
-    seoPlugin({
+    seoAnalyzerPlugin({
       collections: ['pages', 'posts'],
     }),
   ],
 })
 ```
 
+> **Using alongside `@payloadcms/plugin-seo`?** The export is named `seoAnalyzerPlugin` (not `seoPlugin`) specifically to avoid naming conflicts with the official Payload SEO plugin. If both plugins target the same collections, a warning will be logged at startup to help you avoid duplicate SEO fields. You can safely use both plugins together — just make sure they target different collections, or accept the overlap if intentional.
+>
+> The legacy import `import { seoPlugin } from '@consilioweb/seo-analyzer'` still works for backward compatibility.
+
 That's it. The plugin will automatically:
 
 1. Add SEO fields (`focusKeyword`, `focusKeywords`, `isCornerstone`) and the SeoAnalyzer sidebar widget to the specified collections
-2. Create 5 managed collections for score history, performance data, settings, redirects, and 404 logs
-3. Register 20+ API endpoints under `/api/seo-plugin/`
-4. Add 9 admin views with a collapsible navigation group
-5. Attach `beforeChange` (auto-redirect) and `afterChange` (score tracking) hooks to target collections
-6. Start background cache warm-up on server init
+2. Auto-create meta fields (`meta.title`, `meta.description`, `meta.image`) with SERP preview — unless `@payloadcms/plugin-seo` is already handling them
+3. Create 5 managed collections for score history, performance data, settings, redirects, and 404 logs
+4. Register 20+ API endpoints under `/api/seo-plugin/`
+5. Add 9 admin views with a collapsible navigation group
+6. Attach `beforeChange` (auto-redirect) and `afterChange` (score tracking) hooks to target collections and globals
+7. Inject meta field translations (39 languages) into Payload's i18n system
+8. Start background cache warm-up on server init
 
 <img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
 
 ## Internationalization (i18n)
 
-The plugin supports **French** and **English** via the `locale` option. All 50+ SEO check messages, tips, labels, and linguistic analysis are fully translated.
+The plugin has **three layers of internationalization**:
+
+| Layer | Languages | What it covers |
+|-------|-----------|----------------|
+| **SEO Analysis Engine** | FR, EN | 50+ check messages, tips, readability formulas, linguistic analysis |
+| **Admin Dashboard** | FR, EN | All 9 dashboard views, sidebar components, navigation labels (~500 strings) |
+| **Meta Field UI Labels** | 39 languages | Field labels, descriptions, and generate buttons in the Payload admin |
+
+### 1. SEO Analysis Locale
+
+Controls the language of SEO check messages and linguistic analysis via the `locale` option:
 
 ```ts
-seoPlugin({
+seoAnalyzerPlugin({
   collections: ['pages', 'posts'],
   locale: 'en', // 'fr' (default) | 'en'
 })
 ```
-
-### What changes with locale
 
 | Feature | `locale: 'fr'` (default) | `locale: 'en'` |
 |---------|--------------------------|-----------------|
@@ -240,6 +269,20 @@ seoPlugin({
 | Power words | 29 French words | 30 English words |
 | Page type detection | FR slugs (`mentions-legales`, `contact`) | EN slugs (`privacy-policy`, `contact-us`) |
 | Question words (title) | `comment`, `pourquoi`, `quand`... | `how`, `why`, `when`... |
+
+### 2. Dashboard Auto-Locale (FR/EN)
+
+The admin dashboard **automatically adapts** to the Payload user's locale — no configuration needed. When the admin switches their UI language in Payload (e.g. via the locale selector), all dashboard labels, messages, dates, and UI strings switch instantly.
+
+This works via `useLocale()` from `@payloadcms/ui`. Any locale starting with `en` maps to English; all others default to French.
+
+**Covered components:** SEO Dashboard, Sitemap Audit, SEO Config, Redirect Manager, Cannibalization, Performance, Keyword Research, Schema Builder, Link Graph, SeoAnalyzer sidebar, Score History, Content Decay, Social Preview, SERP Preview, Meta fields (title, description, image, overview).
+
+### 3. Meta Field Labels (39 Languages)
+
+The plugin injects translations for meta field UI labels (title, description, image, overview, SERP preview) into Payload's native i18n system. These are auto-loaded — no configuration needed.
+
+Supported languages: Arabic, Azerbaijani, Bulgarian, Catalan, Czech, German, English, Spanish, Estonian, Farsi, Finnish, French, Hebrew, Croatian, Hungarian, Indonesian, Italian, Japanese, Korean, Malay, Norwegian, Dutch, Polish, Portuguese, Romanian, Russian, Slovak, Slovenian, Swedish, Thai, Turkish, Ukrainian, Vietnamese, Chinese (Simplified & Traditional), Bengali, Greek, Latvian, Serbian.
 
 ### Backward Compatibility
 
@@ -261,10 +304,20 @@ const result = analyzeSeo(input, { locale: 'en' })
 ### `SeoPluginConfig`
 
 ```ts
-seoPlugin({
+seoAnalyzerPlugin({
   // All options are optional — sensible defaults are used
   collections: ['pages', 'posts'],
+  globals: [],
   locale: 'fr',
+  tabbedUI: false,
+  autoCreateMetaFields: true,
+  uploadsCollection: 'media',
+  generateTitle: undefined,
+  generateDescription: undefined,
+  generateImage: undefined,
+  generateURL: undefined,
+  fields: undefined,
+  localeMapping: undefined,
   addDashboardView: true,
   addSitemapAuditView: true,
   disabledRules: [],
@@ -283,7 +336,17 @@ seoPlugin({
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `collections` | `string[]` | `['pages', 'posts']` | Collections to add SEO fields and hooks to |
+| `globals` | `string[]` | `[]` | Globals to add SEO fields and hooks to |
 | `locale` | `'fr' \| 'en'` | `'fr'` | Language for SEO messages, readability analysis, and linguistic checks |
+| `tabbedUI` | `boolean` | `false` | Wrap collection/global fields in "Content" + "SEO" tabs |
+| `autoCreateMetaFields` | `boolean` | `true` | Auto-create meta fields (title, description, image) if `@payloadcms/plugin-seo` is not detected |
+| `uploadsCollection` | `string` | `'media'` | Collection slug for the meta image upload field |
+| `generateTitle` | `function` | `undefined` | Custom function to generate meta title |
+| `generateDescription` | `function` | `undefined` | Custom function to generate meta description |
+| `generateImage` | `function` | `undefined` | Custom function to generate meta image |
+| `generateURL` | `function` | `undefined` | Custom function to generate page URL for SERP preview |
+| `fields` | `function` | `undefined` | Override default meta fields: `({ defaultFields }) => Field[]` |
+| `localeMapping` | `Record<string, 'fr' \| 'en'>` | `undefined` | Map Payload locale codes to analysis locale (e.g. `{ 'fr-FR': 'fr', 'en-US': 'en' }`) |
 | `addDashboardView` | `boolean` | `true` | Register the SEO dashboard and all admin views |
 | `addSitemapAuditView` | `boolean` | `true` | Register the sitemap audit view |
 | `disabledRules` | `RuleGroup[]` | `[]` | Rule groups to skip entirely during analysis |
@@ -340,27 +403,40 @@ type RuleGroup =
 ### Advanced Configuration Example
 
 ```ts
-import { seoPlugin } from '@consilioweb/seo-analyzer'
+import { seoAnalyzerPlugin } from '@consilioweb/seo-analyzer'
 
 export default buildConfig({
   plugins: [
-    seoPlugin({
+    seoAnalyzerPlugin({
       collections: ['pages', 'posts', 'products'],
-      locale: 'en', // All messages and checks in English
+      globals: ['header', 'footer'],
+      locale: 'en',
+      tabbedUI: true, // Wrap fields in Content + SEO tabs
       siteName: 'My Website',
       endpointBasePath: '/seo',
       knownRoutes: ['blog', 'products', 'categories'],
       localSeoSlugs: ['plumber-paris', 'plumber-lyon'],
       disabledRules: ['social', 'schema'],
       overrideWeights: {
-        readability: 1,     // Lower weight for readability checks
-        cornerstone: 5,     // Higher weight for cornerstone checks
+        readability: 1,
+        cornerstone: 5,
       },
       thresholds: {
         titleLengthMax: 65,
         minWordsPost: 1000,
         fleschScorePass: 35,
       },
+      // Generate functions (called by the "Generate" buttons in meta fields)
+      generateTitle: ({ doc }) => `${(doc as any).title} | My Website`,
+      generateDescription: ({ doc }) => `Discover ${(doc as any).title} on My Website.`,
+      generateURL: ({ doc }) => `https://mywebsite.com/${(doc as any).slug || ''}`,
+      // Custom meta fields layout
+      fields: ({ defaultFields }) => [
+        ...defaultFields,
+        { name: 'canonicalUrl', type: 'text', label: 'Canonical URL' },
+      ],
+      // Map Payload locales to analysis language
+      localeMapping: { 'fr-FR': 'fr', 'en-US': 'en' },
       seoLogsSecret: process.env.SEO_LOGS_SECRET,
     }),
   ],
@@ -738,12 +814,28 @@ The plugin automatically creates and manages these collections (all hidden from 
 
 The plugin adds the following fields to each target collection specified in `collections`:
 
+### SEO Analyzer Fields (sidebar)
+
 | Field | Type | Location | Description |
 |-------|------|----------|-------------|
 | `isCornerstone` | `checkbox` | Sidebar | Marks the document as pillar/cornerstone content (triggers enhanced checks) |
 | `focusKeyword` | `text` | Sidebar | Primary SEO focus keyword for analysis |
 | `seoAnalyzer` | `ui` | Sidebar | Real-time SEO analysis widget with score, checks, and actionable tips |
 | `focusKeywords` | `array` (max 3) | Collapsible group | Secondary focus keywords for additional coverage |
+
+### Meta Fields (auto-created)
+
+When `@payloadcms/plugin-seo` is **not detected** on a collection, the plugin auto-creates a `meta` field group with generate buttons and SERP preview. Set `autoCreateMetaFields: false` to disable.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `meta._overview` | `ui` | Completeness indicator (0/3 to 3/3 — title, description, image) |
+| `meta.title` | `text` | Meta title with character counter (30-60), progress bar, and "Generate" button |
+| `meta.description` | `textarea` | Meta description with character counter (120-160) and "Generate" button |
+| `meta.image` | `upload` | Meta/OG image with status indicator and optional "Generate" button |
+| `meta._preview` | `ui` | Google SERP preview (desktop + mobile toggle, Google 2025 styling) |
+
+> **Compatibility with `@payloadcms/plugin-seo`:** If the official plugin is already adding meta fields to a collection, our plugin detects this and skips auto-creation. Both plugins can safely coexist.
 
 <img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
 
@@ -888,7 +980,11 @@ The package provides three entry points for different use contexts:
 
 ```ts
 // Main entry — plugin, analyzer, types, helpers, constants
-import { seoPlugin, analyzeSeo, seoFields } from '@consilioweb/seo-analyzer'
+import {
+  seoAnalyzerPlugin, analyzeSeo, seoFields, metaFields,
+  resolveAnalysisLocale, fetchAllDocs, createGenerateHandler,
+} from '@consilioweb/seo-analyzer'
+import type { GenerateFnArgs, MetaFieldsConfig } from '@consilioweb/seo-analyzer'
 
 // Client components — React components for Payload admin UI
 import {
@@ -897,6 +993,12 @@ import {
   ScoreHistoryChart,
   ContentDecaySection,
   SeoSocialPreview,
+  // Meta field components (used internally, also available for custom layouts)
+  MetaTitleField,
+  MetaDescriptionField,
+  MetaImageField,
+  OverviewField,
+  SerpPreview,
 } from '@consilioweb/seo-analyzer/client'
 
 // Server views — admin views wrapped in DefaultTemplate
@@ -926,11 +1028,18 @@ import {
 
 ## Uninstall
 
-To remove the plugin, delete the `seoPlugin()` call from your `payload.config.ts` and uninstall the package:
+One command handles everything — code cleanup, package removal, and importmap regeneration:
 
 ```bash
-pnpm remove @consilioweb/seo-analyzer
+npx seo-analyzer-uninstall
 ```
+
+The script automatically:
+1. Scans `src/` and removes all `import` statements and `seoAnalyzerPlugin()` / `seoPlugin()` calls
+2. Runs `pnpm remove @consilioweb/seo-analyzer` (detects your package manager)
+3. Regenerates the Payload importmap
+
+No manual editing needed.
 
 ### What happens to your data?
 

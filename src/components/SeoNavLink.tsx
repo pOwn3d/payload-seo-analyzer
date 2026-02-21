@@ -5,6 +5,8 @@
 import React from 'react'
 // @ts-ignore — next is a peer dependency
 import { usePathname } from 'next/navigation'
+import { useSeoLocale } from '../hooks/useSeoLocale.js'
+import { getDashboardT } from '../dashboard-i18n.js'
 
 interface NavItem {
   href: string
@@ -27,6 +29,8 @@ const svgProps = {
 
 export default function SeoNavLink() {
   const pathname = usePathname()
+  const locale = useSeoLocale()
+  const t = getDashboardT(locale)
 
   // Detect admin route prefix from current pathname (works with custom admin routes)
   const adminPrefix = pathname?.match(/^(\/[^/]+)\//)?.[1] || '/admin'
@@ -34,7 +38,7 @@ export default function SeoNavLink() {
   const items: NavItem[] = [
     {
       href: `${adminPrefix}/seo`,
-      label: 'Dashboard',
+      label: t.nav.dashboard,
       icon: (
         <svg {...svgProps}>
           <circle cx="11" cy="11" r="8" />
@@ -46,7 +50,7 @@ export default function SeoNavLink() {
     },
     {
       href: `${adminPrefix}/sitemap-audit`,
-      label: 'Audit Sitemap',
+      label: t.nav.sitemapAudit,
       icon: (
         <svg {...svgProps}>
           <path d="M3 3v18h18" />
@@ -56,7 +60,7 @@ export default function SeoNavLink() {
     },
     {
       href: `${adminPrefix}/redirects`,
-      label: 'Redirections',
+      label: t.nav.redirects,
       icon: (
         <svg {...svgProps}>
           <path d="M9 18l6-6-6-6" />
@@ -66,7 +70,7 @@ export default function SeoNavLink() {
     },
     {
       href: `${adminPrefix}/cannibalization`,
-      label: 'Cannibalisation',
+      label: t.nav.cannibalization,
       icon: (
         <svg {...svgProps}>
           <path d="M12 2L2 7l10 5 10-5-10-5Z" />
@@ -77,7 +81,7 @@ export default function SeoNavLink() {
     },
     {
       href: `${adminPrefix}/performance`,
-      label: 'Performance',
+      label: t.nav.performance,
       icon: (
         <svg {...svgProps}>
           <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
@@ -86,7 +90,7 @@ export default function SeoNavLink() {
     },
     {
       href: `${adminPrefix}/keyword-research`,
-      label: 'Mots-cl\u00e9s',
+      label: t.nav.keywords,
       icon: (
         <svg {...svgProps}>
           <circle cx="11" cy="11" r="8" />
@@ -96,7 +100,7 @@ export default function SeoNavLink() {
     },
     {
       href: `${adminPrefix}/schema-builder`,
-      label: 'Schema.org',
+      label: t.nav.schemaOrg,
       icon: (
         <svg {...svgProps}>
           <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2" />
@@ -108,7 +112,7 @@ export default function SeoNavLink() {
     },
     {
       href: `${adminPrefix}/link-graph`,
-      label: 'Graphe de liens',
+      label: t.nav.linkGraph,
       icon: (
         <svg {...svgProps}>
           <circle cx="5" cy="6" r="3" />
@@ -122,7 +126,7 @@ export default function SeoNavLink() {
     },
     {
       href: `${adminPrefix}/seo-config`,
-      label: 'Configuration',
+      label: t.nav.settings,
       icon: (
         <svg {...svgProps}>
           <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
@@ -144,7 +148,7 @@ export default function SeoNavLink() {
           color: 'var(--theme-elevation-400)',
         }}
       >
-        SEO
+        {t.nav.seo}
       </div>
       {items.map((item) => {
         const isActive = pathname === item.href

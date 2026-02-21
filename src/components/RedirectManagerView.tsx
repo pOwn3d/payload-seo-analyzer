@@ -1,6 +1,8 @@
 'use client'
 
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react'
+import { useSeoLocale } from '../hooks/useSeoLocale.js'
+import { getDashboardT } from '../dashboard-i18n.js'
 
 // ---------------------------------------------------------------------------
 // Design tokens — uses Payload CSS variables for theme compatibility
@@ -167,6 +169,9 @@ function StatCard({
 // Main RedirectManagerView component
 // ---------------------------------------------------------------------------
 export function RedirectManagerView() {
+  const locale = useSeoLocale()
+  const t = getDashboardT(locale)
+
   const [redirects, setRedirects] = useState<Redirect[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -240,7 +245,7 @@ export function RedirectManagerView() {
         setTotalDocs(data.totalDocs || 0)
         setCurrentPage(data.page || 1)
       } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : 'Erreur de chargement')
+        setError(e instanceof Error ? e.message : t.common.loadingError)
       }
       setLoading(false)
     },
@@ -279,16 +284,16 @@ export function RedirectManagerView() {
         setNewFrom('')
         setNewTo('')
         setNewType('301')
-        setToast({ message: 'Redirection creee', type: 'success' })
+        setToast({ message: t.redirectManager.redirectCreated, type: 'success' })
         fetchRedirects(currentPage)
       } else {
-        throw new Error(data.error || 'Erreur')
+        throw new Error(data.error || t.common.serverError)
       }
     } catch (e: unknown) {
-      setToast({ message: e instanceof Error ? e.message : 'Erreur', type: 'error' })
+      setToast({ message: e instanceof Error ? e.message : t.common.serverError, type: 'error' })
     }
     setAdding(false)
-  }, [newFrom, newTo, newType, currentPage, fetchRedirects])
+  }, [newFrom, newTo, newType, currentPage, fetchRedirects, t])
 
   // Delete single
   const handleDelete = useCallback(
@@ -301,13 +306,13 @@ export function RedirectManagerView() {
           body: JSON.stringify({ id }),
         })
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        setToast({ message: 'Redirection supprimee', type: 'success' })
+        setToast({ message: t.redirectManager.redirectDeleted, type: 'success' })
         fetchRedirects(currentPage)
       } catch (e: unknown) {
-        setToast({ message: e instanceof Error ? e.message : 'Erreur', type: 'error' })
+        setToast({ message: e instanceof Error ? e.message : t.common.serverError, type: 'error' })
       }
     },
-    [currentPage, fetchRedirects],
+    [currentPage, fetchRedirects, t],
   )
 
   // Bulk delete
@@ -325,14 +330,14 @@ export function RedirectManagerView() {
       const data = await res.json()
       setSelectedIds(new Set())
       setToast({
-        message: `${data.deletedCount || ids.length} redirection(s) supprimee(s)`,
+        message: `${data.deletedCount || ids.length} ${t.redirectManager.redirectsDeleted}`,
         type: 'success',
       })
       fetchRedirects(currentPage)
     } catch (e: unknown) {
-      setToast({ message: e instanceof Error ? e.message : 'Erreur', type: 'error' })
+      setToast({ message: e instanceof Error ? e.message : t.common.serverError, type: 'error' })
     }
-  }, [selectedIds, currentPage, fetchRedirects])
+  }, [selectedIds, currentPage, fetchRedirects, t])
 
   // Inline edit — start
   const startEdit = useCallback((r: Redirect) => {
@@ -360,13 +365,13 @@ export function RedirectManagerView() {
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       setEditId(null)
-      setToast({ message: 'Redirection modifiee', type: 'success' })
+      setToast({ message: t.redirectManager.redirectModified, type: 'success' })
       fetchRedirects(currentPage)
     } catch (e: unknown) {
-      setToast({ message: e instanceof Error ? e.message : 'Erreur', type: 'error' })
+      setToast({ message: e instanceof Error ? e.message : t.common.serverError, type: 'error' })
     }
     setSaving(false)
-  }, [editId, editFrom, editTo, editType, currentPage, fetchRedirects])
+  }, [editId, editFrom, editTo, editType, currentPage, fetchRedirects, t])
 
   // CSV import
   const handleCsvImport = useCallback(
@@ -401,7 +406,7 @@ export function RedirectManagerView() {
       }
 
       if (parsed.length === 0) {
-        setToast({ message: 'Aucune redirection valide trouvee dans le CSV', type: 'error' })
+        setToast({ message: t.redirectManager.noValidCsvRedirects, type: 'error' })
         // Reset file input
         if (fileInputRef.current) fileInputRef.current.value = ''
         return
@@ -417,13 +422,13 @@ export function RedirectManagerView() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const data = await res.json()
         setToast({
-          message: `Import: ${data.created} creee(s), ${data.skipped || 0} doublon(s), ${data.errors || 0} erreur(s)`,
+          message: `Import: ${data.created} ${t.redirectManager.createdCount}, ${data.skipped || 0} ${t.redirectManager.duplicatesCount}, ${data.errors || 0} ${t.redirectManager.errorsCount}`,
           type: data.created > 0 ? 'success' : 'info',
         })
         fetchRedirects(1)
         setCurrentPage(1)
       } catch (err: unknown) {
-        setToast({ message: err instanceof Error ? err.message : 'Erreur import', type: 'error' })
+        setToast({ message: err instanceof Error ? err.message : t.redirectManager.exportError, type: 'error' })
       }
 
       // Reset file input
@@ -449,7 +454,7 @@ export function RedirectManagerView() {
         r.from,
         r.to,
         r.type,
-        r.createdAt ? new Date(r.createdAt).toLocaleDateString('fr-FR') : '',
+        r.createdAt ? new Date(r.createdAt).toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-US') : '',
       ])
 
       const csv = [
@@ -465,9 +470,9 @@ export function RedirectManagerView() {
       a.click()
       URL.revokeObjectURL(url)
 
-      setToast({ message: `${allRedirects.length} redirection(s) exportee(s)`, type: 'success' })
+      setToast({ message: `${allRedirects.length} ${t.redirectManager.redirectsExported}`, type: 'success' })
     } catch (e: unknown) {
-      setToast({ message: e instanceof Error ? e.message : 'Erreur export', type: 'error' })
+      setToast({ message: e instanceof Error ? e.message : t.redirectManager.exportError, type: 'error' })
     }
   }, [])
 
@@ -516,7 +521,7 @@ export function RedirectManagerView() {
           fontFamily: 'var(--font-body, system-ui)',
         }}
       >
-        Chargement des redirections...
+        {t.redirectManager.loading}
       </div>
     )
   }
@@ -532,14 +537,14 @@ export function RedirectManagerView() {
         }}
       >
         <div style={{ color: V.red, fontWeight: 700, fontSize: 14, marginBottom: 8 }}>
-          Erreur de chargement
+          {t.common.loadingError}
         </div>
         <div style={{ color: V.textSecondary, fontSize: 12, marginBottom: 16 }}>{error}</div>
         <button
           onClick={() => fetchRedirects(1)}
           style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
         >
-          Reessayer
+          {t.common.retry}
         </button>
       </div>
     )
@@ -568,10 +573,10 @@ export function RedirectManagerView() {
       >
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, color: V.text }}>
-            Gestionnaire de redirections
+            {t.redirectManager.title}
           </h1>
           <p style={{ fontSize: 12, color: V.textSecondary, margin: '4px 0 0' }}>
-            {totalDocs} redirection{totalDocs > 1 ? 's' : ''} au total
+            {totalDocs} {t.redirectManager.totalRedirects}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -579,19 +584,19 @@ export function RedirectManagerView() {
             onClick={() => fetchRedirects(currentPage)}
             style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
           >
-            &#8635; Rafraichir
+            &#8635; {t.common.refresh}
           </button>
           <button
             onClick={handleExportCsv}
             style={{ ...btnBase, backgroundColor: V.cyan, color: '#000' }}
           >
-            Export CSV
+            {t.common.exportCsv}
           </button>
           <button
             onClick={() => fileInputRef.current?.click()}
             style={{ ...btnBase, backgroundColor: V.blue, color: '#fff' }}
           >
-            Import CSV
+            {t.redirectManager.importCsv}
           </button>
           <input
             ref={fileInputRef}
@@ -612,9 +617,9 @@ export function RedirectManagerView() {
           marginBottom: 20,
         }}
       >
-        <StatCard label="Total" value={stats.total} color={V.blue} />
-        <StatCard label="301 (permanentes)" value={stats.count301} color={V.green} />
-        <StatCard label="302 (temporaires)" value={stats.count302} color={V.orange} />
+        <StatCard label={t.redirectManager.total} value={stats.total} color={V.blue} />
+        <StatCard label={t.redirectManager.permanent301} value={stats.count301} color={V.green} />
+        <StatCard label={t.redirectManager.temporary302} value={stats.count302} color={V.orange} />
       </div>
 
       {/* Add form */}
@@ -637,7 +642,7 @@ export function RedirectManagerView() {
             letterSpacing: 0.4,
           }}
         >
-          Ajouter une redirection
+          {t.redirectManager.addRedirect}
         </div>
         <div
           style={{
@@ -658,13 +663,13 @@ export function RedirectManagerView() {
                 textTransform: 'uppercase',
               }}
             >
-              URL source
+              {t.redirectManager.sourceUrl}
             </label>
             <input
               type="text"
               value={newFrom}
               onChange={(e) => setNewFrom(e.target.value)}
-              placeholder="/ancienne-page"
+              placeholder={t.redirectManager.sourceUrlPlaceholder}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleAdd()
               }}
@@ -682,13 +687,13 @@ export function RedirectManagerView() {
                 textTransform: 'uppercase',
               }}
             >
-              URL destination
+              {t.redirectManager.destinationUrl}
             </label>
             <input
               type="text"
               value={newTo}
               onChange={(e) => setNewTo(e.target.value)}
-              placeholder="/nouvelle-page"
+              placeholder={t.redirectManager.destinationUrlPlaceholder}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleAdd()
               }}
@@ -706,7 +711,7 @@ export function RedirectManagerView() {
                 textTransform: 'uppercase',
               }}
             >
-              Type
+              {t.redirectManager.type}
             </label>
             <select
               value={newType}
@@ -729,7 +734,7 @@ export function RedirectManagerView() {
               cursor: adding || !newFrom.trim() || !newTo.trim() ? 'not-allowed' : 'pointer',
             }}
           >
-            {adding ? 'Ajout...' : 'Ajouter'}
+            {adding ? t.redirectManager.adding : t.common.add}
           </button>
         </div>
       </div>
@@ -747,7 +752,7 @@ export function RedirectManagerView() {
         {/* Search */}
         <input
           type="text"
-          placeholder="Rechercher (URL source ou destination)..."
+          placeholder={t.redirectManager.searchPlaceholder}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{
@@ -761,7 +766,7 @@ export function RedirectManagerView() {
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           <input
             type="text"
-            placeholder="/url-a-tester"
+            placeholder={t.redirectManager.urlToTestPlaceholder}
             value={testUrl}
             onChange={(e) => {
               setTestUrl(e.target.value)
@@ -782,7 +787,7 @@ export function RedirectManagerView() {
               opacity: !testUrl.trim() ? 0.5 : 1,
             }}
           >
-            Tester
+            {t.redirectManager.test}
           </button>
           {testResult && (
             <span
@@ -800,7 +805,7 @@ export function RedirectManagerView() {
             >
               {testResult.matched
                 ? `${testResult.redirect?.type} → ${testResult.redirect?.to}`
-                : 'Aucune correspondance'}
+                : t.redirectManager.noMatch}
             </span>
           )}
         </div>
@@ -839,11 +844,11 @@ export function RedirectManagerView() {
               style={{ cursor: 'pointer' }}
             />
           </div>
-          <span>Source (from)</span>
-          <span>Destination (to)</span>
-          <span style={{ textAlign: 'center' }}>Type</span>
-          <span style={{ textAlign: 'right' }}>Date</span>
-          <span style={{ textAlign: 'center' }}>Actions</span>
+          <span>{t.redirectManager.sourceFrom}</span>
+          <span>{t.redirectManager.destinationTo}</span>
+          <span style={{ textAlign: 'center' }}>{t.redirectManager.type}</span>
+          <span style={{ textAlign: 'right' }}>{t.redirectManager.date}</span>
+          <span style={{ textAlign: 'center' }}>{t.redirectManager.actions}</span>
         </div>
 
         {/* Table body */}
@@ -858,8 +863,8 @@ export function RedirectManagerView() {
               }}
             >
               {search
-                ? 'Aucune redirection correspondante.'
-                : 'Aucune redirection. Ajoutez-en une ci-dessus.'}
+                ? t.redirectManager.noMatchingRedirects
+                : t.redirectManager.noRedirects}
             </div>
           ) : (
             redirects.map((r) => {
@@ -1027,7 +1032,7 @@ export function RedirectManagerView() {
                     }}
                   >
                     {r.createdAt
-                      ? new Date(r.createdAt).toLocaleDateString('fr-FR')
+                      ? new Date(r.createdAt).toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-US')
                       : '-'}
                   </div>
 
@@ -1042,7 +1047,7 @@ export function RedirectManagerView() {
                     <span
                       role="button"
                       tabIndex={0}
-                      title="Modifier"
+                      title={t.common.modify}
                       onClick={() => startEdit(r)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') startEdit(r)
@@ -1059,7 +1064,7 @@ export function RedirectManagerView() {
                     <span
                       role="button"
                       tabIndex={0}
-                      title="Supprimer"
+                      title={t.common.delete}
                       onClick={() => handleDelete(r.id)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') handleDelete(r.id)
@@ -1115,7 +1120,7 @@ export function RedirectManagerView() {
               opacity: currentPage === 1 ? 0.5 : 1,
             }}
           >
-            &lsaquo; Precedent
+            &lsaquo; {t.common.previous}
           </button>
           <span
             style={{
@@ -1124,7 +1129,7 @@ export function RedirectManagerView() {
               padding: '0 8px',
             }}
           >
-            Page {currentPage} / {totalPages}
+            {t.common.page} {currentPage} / {totalPages}
           </span>
           <button
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
@@ -1136,7 +1141,7 @@ export function RedirectManagerView() {
               opacity: currentPage === totalPages ? 0.5 : 1,
             }}
           >
-            Suivant &rsaquo;
+            {t.common.next} &rsaquo;
           </button>
           <button
             onClick={() => setCurrentPage(totalPages)}
@@ -1174,13 +1179,13 @@ export function RedirectManagerView() {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: V.text }}>
-              {selectedIds.size} selectionne{selectedIds.size > 1 ? 's' : ''}
+              {selectedIds.size} {t.common.selected}{selectedIds.size > 1 ? 's' : ''}
             </span>
             <button
               onClick={() => setSelectedIds(new Set())}
               style={{ ...btnBase, backgroundColor: V.bg, color: V.textSecondary }}
             >
-              Tout deselectionner
+              {t.common.deselectAll}
             </button>
           </div>
           <button
@@ -1192,7 +1197,7 @@ export function RedirectManagerView() {
               border: 'none',
             }}
           >
-            Supprimer ({selectedIds.size})
+            {t.common.delete} ({selectedIds.size})
           </button>
         </div>
       )}
