@@ -1,6 +1,6 @@
 {
   "name": "@consilioweb/seo-analyzer",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "description": "Payload CMS SEO plugin — 50+ checks, dashboard, Lexical JSON support, Flesch FR/EN readability, i18n",
   "type": "module",
   "main": "./dist/index.cjs",

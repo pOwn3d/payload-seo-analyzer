@@ -184,7 +184,35 @@ function isPrivateUrl(urlString: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Check a single URL via HEAD request with timeout
+// Concurrency pool — runs async tasks with a max concurrency limit
+// ---------------------------------------------------------------------------
+
+async function asyncPool<T, R>(
+  concurrency: number,
+  items: T[],
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = []
+  const executing = new Set<Promise<void>>()
+
+  for (let i = 0; i < items.length; i++) {
+    const p = fn(items[i]).then((result) => {
+      results[i] = result
+    })
+    const wrapped = p.then(() => { executing.delete(wrapped) })
+    executing.add(wrapped)
+
+    if (executing.size >= concurrency) {
+      await Promise.race(executing)
+    }
+  }
+
+  await Promise.all(executing)
+  return results
+}
+
+// ---------------------------------------------------------------------------
+// Check a single URL via HEAD request with 5s AbortController timeout
 // ---------------------------------------------------------------------------
 
 async function checkUrl(url: string): Promise<CachedResult> {
@@ -198,10 +226,13 @@ async function checkUrl(url: string): Promise<CachedResult> {
     }
   }
 
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 5000)
+
   try {
     const response = await fetch(url, {
       method: 'HEAD',
-      signal: AbortSignal.timeout(5000),
+      signal: controller.signal,
       redirect: 'follow',
       headers: {
         'User-Agent': 'SeoAnalyzer-LinkChecker/1.0',
@@ -231,6 +262,8 @@ async function checkUrl(url: string): Promise<CachedResult> {
       error: errorType,
       checkedAt: Date.now(),
     }
+  } finally {
+    clearTimeout(timeoutId)
   }
 }
 
@@ -337,49 +370,35 @@ export function createExternalLinksHandler(collections: string[], globals: strin
       // 2. Limit to MAX_URLS unique URLs
       const uniqueUrls = Array.from(urlSources.keys()).slice(0, MAX_URLS)
 
-      // 3. Check each URL (use cache when possible)
+      // 3. Check each URL (use cache when possible) with concurrency pool of 10
       const now = Date.now()
-      const results: Array<{
-        url: string
-        status: number
-        ok: boolean
-        error?: string
-        sourcePages: Array<{ title: string; slug: string; collection: string }>
-      }> = []
+      const CONCURRENCY = 10
 
-      // Check URLs in parallel batches of 10 to avoid overwhelming
-      const BATCH_SIZE = 10
-      for (let i = 0; i < uniqueUrls.length; i += BATCH_SIZE) {
-        const batch = uniqueUrls.slice(i, i + BATCH_SIZE)
-        const promises = batch.map(async (url) => {
-          // Check cache
-          const cached = linkCache.get(url)
-          if (!forceRefresh && cached && now - cached.checkedAt < CACHE_TTL_MS) {
-            return {
-              url,
-              status: cached.status,
-              ok: cached.ok,
-              ...(cached.error && { error: cached.error }),
-              sourcePages: urlSources.get(url) || [],
-            }
-          }
-
-          // Perform check
-          const result = await checkUrl(url)
-          linkCache.set(url, result)
-
+      const results = await asyncPool(CONCURRENCY, uniqueUrls, async (url: string) => {
+        // Check cache
+        const cached = linkCache.get(url)
+        if (!forceRefresh && cached && now - cached.checkedAt < CACHE_TTL_MS) {
           return {
             url,
-            status: result.status,
-            ok: result.ok,
-            ...(result.error && { error: result.error }),
+            status: cached.status,
+            ok: cached.ok,
+            ...(cached.error && { error: cached.error }),
             sourcePages: urlSources.get(url) || [],
           }
-        })
+        }
 
-        const batchResults = await Promise.all(promises)
-        results.push(...batchResults)
-      }
+        // Perform check
+        const result = await checkUrl(url)
+        linkCache.set(url, result)
+
+        return {
+          url,
+          status: result.status,
+          ok: result.ok,
+          ...(result.error && { error: result.error }),
+          sourcePages: urlSources.get(url) || [],
+        }
+      })
 
       // 4. Compute stats
       const stats = {

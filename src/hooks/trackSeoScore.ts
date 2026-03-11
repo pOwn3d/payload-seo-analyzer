@@ -104,13 +104,21 @@ export function createTrackSeoScoreHook(seoConfig?: SeoConfig): CollectionAfterC
           },
           overrideAccess: true,
         })
+
+        // Invalidate specific expensive cache keys after score save
+        seoCache.invalidateKey('audit')
+        seoCache.invalidateKey('cannibalization')
+        seoCache.invalidateKey('keyword-research')
+        seoCache.invalidateKey('external-links')
+        seoCache.invalidateKey('link-graph')
+        seoCache.invalidateKey('sitemap-audit')
       } catch (error) {
         // Fire-and-forget: log but never block the save
         console.error('[seo-plugin/trackSeoScore] Error recording snapshot:', error)
       }
     }
 
-    // Invalidate all cached SEO data (audit, sitemap-audit, link-graph, etc.)
+    // Invalidate all cached SEO data immediately on document save
     seoCache.invalidate()
 
     // Run async without awaiting (fire-and-forget)
@@ -217,13 +225,21 @@ export function createTrackSeoScoreGlobalHook(seoConfig?: SeoConfig): GlobalAfte
           },
           overrideAccess: true,
         })
+
+        // Invalidate specific expensive cache keys after score save
+        seoCache.invalidateKey('audit')
+        seoCache.invalidateKey('cannibalization')
+        seoCache.invalidateKey('keyword-research')
+        seoCache.invalidateKey('external-links')
+        seoCache.invalidateKey('link-graph')
+        seoCache.invalidateKey('sitemap-audit')
       } catch (error) {
         // Fire-and-forget: log but never block the save
         console.error('[seo-plugin/trackSeoScoreGlobal] Error recording snapshot:', error)
       }
     }
 
-    // Invalidate all cached SEO data (audit, sitemap-audit, link-graph, etc.)
+    // Invalidate all cached SEO data immediately on document save
     seoCache.invalidate()
 
     // Run async without awaiting (fire-and-forget)

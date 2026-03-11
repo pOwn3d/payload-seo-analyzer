@@ -54,6 +54,7 @@ import { createTrackSeoScoreGlobalHook } from './hooks/trackSeoScore.js'
 import { startCacheWarmUp } from './warmCache.js'
 import { createGenerateHandler } from './endpoints/generate.js'
 import { seoTranslations } from './translations.js'
+import { createRateLimiter, getClientIp } from './rateLimiter.js'
 
 /** Arguments passed to generate functions (generateTitle, generateDescription, etc.) */
 export interface GenerateFnArgs {
@@ -332,6 +333,23 @@ export const seoAnalyzerPlugin =
       createSeoLogsCollection(),
     ]
 
+    // Rate limiter for expensive endpoints: 10 requests per 60 seconds per IP
+    const expensiveEndpointLimiter = createRateLimiter(10, 60_000)
+
+    /** Wrap a handler with rate limiting. Returns 429 if limit exceeded. */
+    function withRateLimit(handler: ReturnType<typeof createAuditHandler>): typeof handler {
+      return async (req) => {
+        const ip = getClientIp(req)
+        if (!expensiveEndpointLimiter.check(ip)) {
+          return Response.json(
+            { error: 'Too Many Requests. Please try again later.' },
+            { status: 429 },
+          )
+        }
+        return handler(req)
+      }
+    }
+
     // 2. Add SEO API endpoints
     config.endpoints = [
       ...(config.endpoints || []),
@@ -353,7 +371,7 @@ export const seoAnalyzerPlugin =
       {
         path: `${basePath}/audit`,
         method: 'get' as const,
-        handler: createAuditHandler(targetCollections, seoConfig, targetGlobals),
+        handler: withRateLimit(createAuditHandler(targetCollections, seoConfig, targetGlobals)),
       },
       {
         path: `${basePath}/history`,
@@ -427,13 +445,13 @@ export const seoAnalyzerPlugin =
       {
         path: `${basePath}/cannibalization`,
         method: 'get' as const,
-        handler: createCannibalizationHandler(targetCollections, targetGlobals),
+        handler: withRateLimit(createCannibalizationHandler(targetCollections, targetGlobals)),
       },
       // External links checker
       {
         path: `${basePath}/external-links`,
         method: 'post' as const,
-        handler: createExternalLinksHandler(targetCollections, targetGlobals),
+        handler: withRateLimit(createExternalLinksHandler(targetCollections, targetGlobals)),
       },
       // Sitemap configuration
       {
@@ -456,7 +474,7 @@ export const seoAnalyzerPlugin =
       {
         path: `${basePath}/keyword-research`,
         method: 'get' as const,
-        handler: createKeywordResearchHandler(targetCollections, targetGlobals),
+        handler: withRateLimit(createKeywordResearchHandler(targetCollections, targetGlobals)),
       },
       // Breadcrumb configuration
       {
