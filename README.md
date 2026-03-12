@@ -306,7 +306,7 @@ const result = analyzeSeo(input, { locale: 'en' })
 
 ```ts
 seoAnalyzerPlugin({
-  // All options are optional — sensible defaults are used
+  // Toutes les options sont optionnelles — des valeurs par défaut sont utilisées
   collections: ['pages', 'posts'],
   globals: [],
   locale: 'fr',
@@ -326,57 +326,61 @@ seoAnalyzerPlugin({
   thresholds: {},
   localSeoSlugs: [],
   siteName: undefined,
+  siteUrl: undefined,
   endpointBasePath: '/seo-plugin',
   trackScoreHistory: true,
   redirectsCollection: 'seo-redirects',
   knownRoutes: [],
   seoLogsSecret: undefined,
+  interfaceName: undefined,
 })
 ```
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `collections` | `string[]` | `['pages', 'posts']` | Collections to add SEO fields and hooks to |
-| `globals` | `string[]` | `[]` | Globals to add SEO fields and hooks to |
-| `locale` | `'fr' \| 'en'` | `'fr'` | Language for SEO messages, readability analysis, and linguistic checks |
-| `tabbedUI` | `boolean` | `false` | Wrap collection/global fields in "Content" + "SEO" tabs |
-| `autoCreateMetaFields` | `boolean` | `true` | Auto-create meta fields (title, description, image) if `@payloadcms/plugin-seo` is not detected |
-| `uploadsCollection` | `string` | `'media'` | Collection slug for the meta image upload field |
-| `generateTitle` | `function` | `undefined` | Custom function to generate meta title |
-| `generateDescription` | `function` | `undefined` | Custom function to generate meta description |
-| `generateImage` | `function` | `undefined` | Custom function to generate meta image |
-| `generateURL` | `function` | `undefined` | Custom function to generate page URL for SERP preview |
-| `fields` | `function` | `undefined` | Override default meta fields: `({ defaultFields }) => Field[]` |
-| `localeMapping` | `Record<string, 'fr' \| 'en'>` | `undefined` | Map Payload locale codes to analysis locale (e.g. `{ 'fr-FR': 'fr', 'en-US': 'en' }`) |
-| `addDashboardView` | `boolean` | `true` | Register the SEO dashboard and all admin views |
-| `addSitemapAuditView` | `boolean` | `true` | Register the sitemap audit view |
-| `disabledRules` | `RuleGroup[]` | `[]` | Rule groups to skip entirely during analysis |
-| `overrideWeights` | `Partial<Record<RuleGroup, number>>` | `{}` | Override the weight of all checks in a rule group |
-| `thresholds` | `SeoThresholds` | See below | Custom thresholds for analysis checks |
-| `localSeoSlugs` | `string[]` | `[]` | Additional slugs recognized as local SEO pages |
-| `siteName` | `string` | `undefined` | Site name for brand duplicate detection in titles |
-| `endpointBasePath` | `string` | `'/seo-plugin'` | Base path prefix for all API endpoints |
-| `trackScoreHistory` | `boolean` | `true` | Enable score history collection and afterChange tracking hook |
-| `redirectsCollection` | `string` | `'seo-redirects'` | Slug for the auto-created redirects collection |
-| `knownRoutes` | `string[]` | `[]` | Dynamic routes that should not be flagged as broken links |
-| `seoLogsSecret` | `string` | `undefined` | Shared secret for the SEO logs POST endpoint (middleware auth) |
+| `collections` | `string[]` | `['pages', 'posts']` | Collections auxquelles ajouter les champs SEO et les hooks |
+| `globals` | `string[]` | `[]` | Globals auxquels ajouter les champs SEO et les hooks |
+| `locale` | `'fr' \| 'en'` | `'fr'` | Langue pour les messages SEO, l'analyse de lisibilité et les vérifications linguistiques |
+| `tabbedUI` | `boolean` | `false` | Organiser les champs en onglets "Content" + "SEO" |
+| `autoCreateMetaFields` | `boolean` | `true` | Créer automatiquement les champs meta (title, description, image) si `@payloadcms/plugin-seo` n'est pas détecté |
+| `uploadsCollection` | `string` | `'media'` | Slug de la collection pour le champ d'upload meta image |
+| `generateTitle` | `function` | `undefined` | Fonction custom pour générer le meta title |
+| `generateDescription` | `function` | `undefined` | Fonction custom pour générer la meta description |
+| `generateImage` | `function` | `undefined` | Fonction custom pour générer la meta image (retourne un ID media ou URL) |
+| `generateURL` | `function` | `undefined` | Fonction custom pour générer l'URL de la page (aperçu SERP) |
+| `fields` | `function` | `undefined` | Surcharger les champs meta par défaut : `({ defaultFields }) => Field[]` |
+| `localeMapping` | `Record<string, 'fr' \| 'en'>` | `undefined` | Mapper les codes locale Payload vers la locale d'analyse (ex: `{ 'fr-FR': 'fr', 'en-US': 'en' }`) |
+| `addDashboardView` | `boolean` | `true` | Enregistrer le dashboard SEO et toutes les vues admin |
+| `addSitemapAuditView` | `boolean` | `true` | Enregistrer la vue d'audit sitemap |
+| `disabledRules` | `RuleGroup[]` | `[]` | Groupes de règles à désactiver entièrement |
+| `overrideWeights` | `Partial<Record<RuleGroup, number>>` | `{}` | Surcharger le poids de tous les checks d'un groupe de règles |
+| `thresholds` | `SeoThresholds` | Voir ci-dessous | Seuils personnalisés pour les vérifications d'analyse |
+| `localSeoSlugs` | `string[]` | `[]` | Slugs supplémentaires reconnus comme pages SEO local |
+| `siteName` | `string` | `undefined` | Nom du site pour la détection de duplication de marque dans les titres |
+| `siteUrl` | `string` | `undefined` | URL de base du site (utilisée pour la validation d'URL canonique, ex: `'https://example.com'`) |
+| `endpointBasePath` | `string` | `'/seo-plugin'` | Préfixe du chemin de base pour tous les endpoints API |
+| `trackScoreHistory` | `boolean` | `true` | Activer la collection d'historique des scores et le hook afterChange de suivi |
+| `redirectsCollection` | `string` | `'seo-redirects'` | Slug de la collection de redirections auto-créée |
+| `knownRoutes` | `string[]` | `[]` | Routes dynamiques qui ne doivent pas être signalées comme liens cassés |
+| `seoLogsSecret` | `string` | `undefined` | Secret partagé pour l'endpoint POST des logs SEO (auth middleware) |
+| `interfaceName` | `string` | `undefined` | Nom d'interface TypeScript personnalisé pour le type du groupe meta généré (ex: `'SharedSEO'`) |
 
 ### `SeoThresholds`
 
-All thresholds are optional. Defaults are used when omitted.
+Tous les seuils sont optionnels. Les valeurs par défaut sont utilisées si omis.
 
-| Threshold | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `titleLengthMin` | `number` | `30` | Minimum meta title length (characters) |
-| `titleLengthMax` | `number` | `60` | Maximum meta title length (characters) |
-| `metaDescLengthMin` | `number` | `120` | Minimum meta description length |
-| `metaDescLengthMax` | `number` | `160` | Maximum meta description length |
-| `minWordsGeneric` | `number` | `300` | Minimum word count for generic pages |
-| `minWordsPost` | `number` | `800` | Minimum word count for blog posts |
-| `keywordDensityMin` | `number` | `0.5` | Minimum keyword density (%) |
-| `keywordDensityMax` | `number` | `3` | Maximum keyword density (%) |
-| `fleschScorePass` | `number` | `40` | Flesch FR passing score threshold |
-| `slugMaxLength` | `number` | `75` | Maximum slug length (characters) |
+| Seuil | Type | Default | Description |
+|-------|------|---------|-------------|
+| `titleLengthMin` | `number` | `30` | Longueur minimale du meta title (caractères) |
+| `titleLengthMax` | `number` | `60` | Longueur maximale du meta title (caractères) |
+| `metaDescLengthMin` | `number` | `120` | Longueur minimale de la meta description |
+| `metaDescLengthMax` | `number` | `160` | Longueur maximale de la meta description |
+| `minWordsGeneric` | `number` | `300` | Nombre minimum de mots pour les pages génériques |
+| `minWordsPost` | `number` | `800` | Nombre minimum de mots pour les articles de blog |
+| `keywordDensityMin` | `number` | `0.5` | Densité minimale du mot-clé (%) |
+| `keywordDensityMax` | `number` | `3` | Densité maximale du mot-clé (%) |
+| `fleschScorePass` | `number` | `40` | Score Flesch FR seuil de réussite |
+| `slugMaxLength` | `number` | `75` | Longueur maximale du slug (caractères) |
 
 ### `RuleGroup` Values
 

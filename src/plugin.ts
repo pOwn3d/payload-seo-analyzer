@@ -86,6 +86,8 @@ export interface SeoPluginConfig {
   localSeoSlugs?: string[]
   /** Site name (used for brand duplicate check in titles) */
   siteName?: string
+  /** Base URL of the site (used for canonical URL validation, e.g. 'https://example.com') */
+  siteUrl?: string
   /** Base path for API endpoints (default: '/seo-plugin') */
   endpointBasePath?: string
   /** Whether to track SEO score history (adds a collection + afterChange hook, default: true) */
@@ -130,6 +132,7 @@ function buildSeoConfig(pluginConfig: SeoPluginConfig): SeoConfig {
   return {
     ...(pluginConfig.localSeoSlugs && { localSeoSlugs: pluginConfig.localSeoSlugs }),
     ...(pluginConfig.siteName && { siteName: pluginConfig.siteName }),
+    ...(pluginConfig.siteUrl && { siteUrl: pluginConfig.siteUrl }),
     ...(pluginConfig.disabledRules && { disabledRules: pluginConfig.disabledRules }),
     ...(pluginConfig.overrideWeights && { overrideWeights: pluginConfig.overrideWeights }),
     ...(pluginConfig.thresholds && { thresholds: pluginConfig.thresholds }),
