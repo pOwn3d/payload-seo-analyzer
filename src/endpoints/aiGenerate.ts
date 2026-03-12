@@ -224,8 +224,9 @@ export function createAiGenerateHandler(): PayloadHandler {
 
       return Response.json({ metaTitle, metaDescription })
     } catch (error) {
-      console.error('[seo-plugin/ai-generate] Error:', error)
-      return Response.json({ error: 'Internal server error' }, { status: 500 })
+      const message = error instanceof Error ? error.message : 'Internal server error'
+      req.payload.logger.error(`[seo] ai-generate error: ${message}`)
+      return Response.json({ error: message }, { status: 500 })
     }
   }
 }

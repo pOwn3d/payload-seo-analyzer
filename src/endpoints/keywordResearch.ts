@@ -478,8 +478,9 @@ export function createKeywordResearchHandler(targetCollections: string[], global
       seoCache.set(CACHE_KEY, responseData)
       return Response.json({ ...responseData, cached: false })
     } catch (error) {
-      console.error('[seo-plugin/keyword-research] Error:', error)
-      return Response.json({ error: 'Internal server error' }, { status: 500 })
+      const message = error instanceof Error ? error.message : 'Internal server error'
+      req.payload.logger.error(`[seo] keyword-research error: ${message}`)
+      return Response.json({ error: message }, { status: 500 })
     }
   }
 }

@@ -411,8 +411,9 @@ export function createPerformanceHandler(): PayloadHandler {
 
       return Response.json({ error: 'Method not allowed' }, { status: 405 })
     } catch (error) {
-      console.error('[seo-plugin/performance] Error:', error)
-      return Response.json({ error: 'Internal server error' }, { status: 500 })
+      const message = error instanceof Error ? error.message : 'Internal server error'
+      req.payload.logger.error(`[seo] performance error: ${message}`)
+      return Response.json({ error: message }, { status: 500 })
     }
   }
 }

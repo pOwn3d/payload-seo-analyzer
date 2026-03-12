@@ -42,6 +42,10 @@ import { createPerformanceHandler } from './endpoints/performance.js'
 import { createKeywordResearchHandler } from './endpoints/keywordResearch.js'
 import { createBreadcrumbHandler } from './endpoints/breadcrumb.js'
 import { createLinkGraphHandler } from './endpoints/linkGraph.js'
+import { createSchemaGeneratorHandler } from './endpoints/schemaGenerator.js'
+import { createRedirectChainsHandler } from './endpoints/redirectChains.js'
+import { createDuplicateContentHandler } from './endpoints/duplicateContent.js'
+import { createAiRewriteHandler } from './endpoints/aiRewrite.js'
 import { createSeoScoreHistoryCollection } from './collections/SeoScoreHistory.js'
 import { createSeoPerformanceCollection } from './collections/SeoPerformance.js'
 import { createSeoSettingsCollection } from './collections/SeoSettings.js'
@@ -503,6 +507,30 @@ export const seoAnalyzerPlugin =
         path: `${basePath}/seo-logs`,
         method: 'delete' as const,
         handler: createSeoLogsHandler(pluginConfig.seoLogsSecret),
+      },
+      // Schema.org JSON-LD generator
+      {
+        path: `${basePath}/schema-generator`,
+        method: 'get' as const,
+        handler: createSchemaGeneratorHandler(),
+      },
+      // Redirect chain detection
+      {
+        path: `${basePath}/redirect-chains`,
+        method: 'get' as const,
+        handler: withRateLimit(createRedirectChainsHandler(redirectsSlug)),
+      },
+      // Duplicate content detection (sitewide)
+      {
+        path: `${basePath}/duplicate-content`,
+        method: 'get' as const,
+        handler: withRateLimit(createDuplicateContentHandler(targetCollections)),
+      },
+      // AI meta rewrite (with optional Claude API)
+      {
+        path: `${basePath}/ai-rewrite`,
+        method: 'post' as const,
+        handler: createAiRewriteHandler(),
       },
     ]
 

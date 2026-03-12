@@ -114,7 +114,7 @@ export function createTrackSeoScoreHook(seoConfig?: SeoConfig): CollectionAfterC
         seoCache.invalidateKey('sitemap-audit')
       } catch (error) {
         // Fire-and-forget: log but never block the save
-        console.error('[seo-plugin/trackSeoScore] Error recording snapshot:', error)
+        req.payload.logger.error(`[seo] trackSeoScore error: ${error instanceof Error ? error.message : 'unknown'}`)
       }
     }
 
@@ -235,7 +235,7 @@ export function createTrackSeoScoreGlobalHook(seoConfig?: SeoConfig): GlobalAfte
         seoCache.invalidateKey('sitemap-audit')
       } catch (error) {
         // Fire-and-forget: log but never block the save
-        console.error('[seo-plugin/trackSeoScoreGlobal] Error recording snapshot:', error)
+        req.payload.logger.error(`[seo] trackSeoScoreGlobal error: ${error instanceof Error ? error.message : 'unknown'}`)
       }
     }
 

@@ -82,6 +82,10 @@ export { createTrackSeoScoreHook } from './hooks/trackSeoScore.js'
 export { createPerformanceHandler } from './endpoints/performance.js'
 export { createKeywordResearchHandler } from './endpoints/keywordResearch.js'
 export { createGenerateHandler } from './endpoints/generate.js'
+export { createSchemaGeneratorHandler } from './endpoints/schemaGenerator.js'
+export { createRedirectChainsHandler } from './endpoints/redirectChains.js'
+export { createDuplicateContentHandler } from './endpoints/duplicateContent.js'
+export { createAiRewriteHandler } from './endpoints/aiRewrite.js'
 
 // Re-export constants for consumers that need thresholds
 export {

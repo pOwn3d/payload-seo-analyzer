@@ -19,13 +19,17 @@ export function createRedirectHandler(redirectsCollection: string): PayloadHandl
     }
 
     try {
-      const body = await req.json?.() || {}
-      const { from, to, type = '301', redirects } = body as {
-        from?: string
-        to?: string
-        type?: string
-        redirects?: Array<{ from: string; to: string; type?: string }>
+      let body: Record<string, unknown> = {}
+      try {
+        body = (await req.json?.()) ?? {}
+      } catch {
+        return Response.json({ error: 'Invalid JSON body' }, { status: 400 })
       }
+
+      const from = typeof body.from === 'string' ? body.from.trim() : undefined
+      const to = typeof body.to === 'string' ? body.to.trim() : undefined
+      const type = typeof body.type === 'string' ? body.type.trim() : '301'
+      const redirects = Array.isArray(body.redirects) ? body.redirects as Array<{ from: string; to: string; type?: string }> : undefined
 
       // Bulk mode: array of redirects
       if (Array.isArray(redirects) && redirects.length > 0) {
@@ -109,8 +113,9 @@ export function createRedirectHandler(redirectsCollection: string): PayloadHandl
 
       return Response.json({ success: true, redirect })
     } catch (error) {
-      console.error('[seo-plugin/create-redirect] Error:', error)
-      return Response.json({ error: 'Failed to create redirect' }, { status: 500 })
+      const message = error instanceof Error ? error.message : 'Failed to create redirect'
+      req.payload.logger.error(`[seo] create-redirect error: ${message}`)
+      return Response.json({ error: message }, { status: 500 })
     }
   }
 }

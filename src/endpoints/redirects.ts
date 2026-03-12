@@ -50,8 +50,13 @@ export function createRedirectsHandler(redirectsCollection: string): PayloadHand
 
       // DELETE — Single or bulk delete
       if (method === 'DELETE') {
-        const body = (await req.json?.()) || {}
-        const { id, ids } = body as { id?: string; ids?: string[] }
+        let deleteBody: Record<string, unknown> = {}
+        try {
+          deleteBody = (await req.json?.()) ?? {}
+        } catch {
+          return Response.json({ error: 'Invalid JSON body' }, { status: 400 })
+        }
+        const { id, ids } = deleteBody as { id?: string; ids?: string[] }
 
         if (ids && ids.length > 0) {
           // Bulk delete — sequential to avoid SQLite busy
@@ -85,13 +90,16 @@ export function createRedirectsHandler(redirectsCollection: string): PayloadHand
 
       // PATCH — Update a single redirect
       if (method === 'PATCH') {
-        const body = (await req.json?.()) || {}
-        const { id, from, to, type } = body as {
-          id: string
-          from?: string
-          to?: string
-          type?: string
+        let patchBody: Record<string, unknown> = {}
+        try {
+          patchBody = (await req.json?.()) ?? {}
+        } catch {
+          return Response.json({ error: 'Invalid JSON body' }, { status: 400 })
         }
+        const id = typeof patchBody.id === 'string' ? patchBody.id.trim() : undefined
+        const from = typeof patchBody.from === 'string' ? patchBody.from.trim() : undefined
+        const to = typeof patchBody.to === 'string' ? patchBody.to.trim() : undefined
+        const type = typeof patchBody.type === 'string' ? patchBody.type.trim() : undefined
 
         if (!id) {
           return Response.json({ error: 'Missing id' }, { status: 400 })
@@ -114,10 +122,14 @@ export function createRedirectsHandler(redirectsCollection: string): PayloadHand
 
       // POST — Bulk import
       if (method === 'POST') {
-        const body = (await req.json?.()) || {}
-        const { redirects } = body as {
-          redirects?: Array<{ from: string; to: string; type?: string }>
+        let body: Record<string, unknown> = {}
+        try {
+          body = (await req.json?.()) ?? {}
+        } catch {
+          return Response.json({ error: 'Invalid JSON body' }, { status: 400 })
         }
+
+        const redirects = body.redirects as Array<{ from: string; to: string; type?: string }> | undefined
 
         if (!redirects || !Array.isArray(redirects)) {
           return Response.json({ error: 'Missing redirects array' }, { status: 400 })
@@ -177,8 +189,9 @@ export function createRedirectsHandler(redirectsCollection: string): PayloadHand
 
       return Response.json({ error: 'Method not allowed' }, { status: 405 })
     } catch (error) {
-      console.error('[seo-plugin/redirects] Error:', error)
-      return Response.json({ error: 'Internal error' }, { status: 500 })
+      const message = error instanceof Error ? error.message : 'Internal error'
+      req.payload.logger.error(`[seo] redirects error: ${message}`)
+      return Response.json({ error: message }, { status: 500 })
     }
   }
 }

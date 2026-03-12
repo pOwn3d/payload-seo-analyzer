@@ -35,14 +35,18 @@ export function createSuggestLinksHandler(collections: string[], globals: string
       }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const body = await (req as any).json()
-      const { documentId, collection: currentCollection, content } = body as {
-        documentId?: string | number
-        collection?: string
-        content?: string
+      let body: Record<string, unknown>
+      try {
+        body = await (req as any).json()
+      } catch {
+        return Response.json({ error: 'Invalid JSON body' }, { status: 400 })
       }
 
-      if (!content || !content.trim()) {
+      const documentId = body.documentId as string | number | undefined
+      const currentCollection = typeof body.collection === 'string' ? body.collection.trim() : undefined
+      const content = typeof body.content === 'string' ? body.content.trim() : undefined
+
+      if (!content) {
         return Response.json({ suggestions: [] })
       }
 
@@ -185,8 +189,9 @@ export function createSuggestLinksHandler(collections: string[], globals: string
 
       return Response.json({ suggestions: topSuggestions })
     } catch (error) {
-      console.error('[seo-plugin/suggest-links] Error:', error)
-      return Response.json({ error: 'Internal server error' }, { status: 500 })
+      const message = error instanceof Error ? error.message : 'Internal server error'
+      req.payload.logger.error(`[seo] suggest-links error: ${message}`)
+      return Response.json({ error: message }, { status: 500 })
     }
   }
 }

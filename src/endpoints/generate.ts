@@ -147,8 +147,9 @@ export function createGenerateHandler(pluginConfig: GeneratePluginConfig): Paylo
 
       return Response.json({ result })
     } catch (error) {
-      console.error('[seo-plugin/generate] Error:', error)
-      return Response.json({ error: 'Internal server error' }, { status: 500 })
+      const message = error instanceof Error ? error.message : 'Internal server error'
+      req.payload.logger.error(`[seo] generate error: ${message}`)
+      return Response.json({ error: message }, { status: 500 })
     }
   }
 }

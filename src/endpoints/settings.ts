@@ -30,7 +30,12 @@ export function createSettingsHandler(): PayloadHandler {
 
       // PATCH — update settings
       if (req.method === 'PATCH') {
-        const rawBody = await (req as any).json()
+        let rawBody: Record<string, unknown>
+        try {
+          rawBody = await (req as any).json()
+        } catch {
+          return Response.json({ error: 'Invalid JSON body' }, { status: 400 })
+        }
 
         // Whitelist allowed fields — strip everything else
         const ALLOWED_FIELDS = ['siteName', 'ignoredSlugs', 'disabledRules', 'thresholds', 'sitemap', 'breadcrumb']
@@ -69,8 +74,9 @@ export function createSettingsHandler(): PayloadHandler {
 
       return Response.json({ error: 'Method not allowed' }, { status: 405 })
     } catch (error) {
-      console.error('[seo-plugin/settings] Error:', error)
-      return Response.json({ error: 'Internal server error' }, { status: 500 })
+      const message = error instanceof Error ? error.message : 'Internal server error'
+      req.payload.logger.error(`[seo] settings error: ${message}`)
+      return Response.json({ error: message }, { status: 500 })
     }
   }
 }

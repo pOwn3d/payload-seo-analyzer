@@ -44,7 +44,7 @@ export function createAutoRedirectHook(redirectsCollection: string): CollectionB
               overrideAccess: true,
             })
             if (destinationRedirects.docs.length > 0) {
-              console.warn(`[seo-plugin] Auto-redirect: potential chain detected — ${toPath} already redirects somewhere`)
+              req.payload.logger.warn(`[seo] Auto-redirect: potential chain detected — ${toPath} already redirects somewhere`)
             }
 
             // Check if something already redirects TO the old slug (would create a chain)
@@ -55,7 +55,7 @@ export function createAutoRedirectHook(redirectsCollection: string): CollectionB
               overrideAccess: true,
             })
             if (incomingRedirects.docs.length > 0) {
-              console.warn(`[seo-plugin] Auto-redirect: potential chain detected — something already redirects to ${fromPath}`)
+              req.payload.logger.warn(`[seo] Auto-redirect: potential chain detected — something already redirects to ${fromPath}`)
             }
           } catch {
             // Non-blocking loop detection — proceed with creation
@@ -70,13 +70,13 @@ export function createAutoRedirectHook(redirectsCollection: string): CollectionB
             },
             overrideAccess: true,
           })
-          console.log(`[seo-plugin] Auto-redirect: ${fromPath} → ${toPath}`)
+          req.payload.logger.info(`[seo] Auto-redirect: ${fromPath} → ${toPath}`)
         } else {
-          console.log(`[seo-plugin] Auto-redirect skipped (already exists): ${fromPath} → ${toPath}`)
+          req.payload.logger.info(`[seo] Auto-redirect skipped (already exists): ${fromPath} → ${toPath}`)
         }
       } catch (err) {
         // Non-blocking — log but don't prevent save
-        console.error('[seo-plugin] Auto-redirect failed:', err)
+        req.payload.logger.error(`[seo] Auto-redirect failed: ${err instanceof Error ? err.message : 'unknown'}`)
       }
     }
 

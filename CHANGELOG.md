@@ -5,6 +5,16 @@ All notable changes to `@consilioweb/seo-analyzer` will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.4] - 2026-03-12
+
+### Changed
+- Replaced all `console.log/warn/error` with `payload.logger` for proper structured logging (34 occurrences across 23 endpoint files, 2 hooks, 1 utility)
+- Improved error messages in catch blocks — now return actual error message instead of generic "Internal server error"
+
+### Fixed
+- Added `try/catch` with JSON parse error handling on POST endpoints: `createRedirect`, `suggestLinks`, `aiRewrite`, `seoLogs`, `redirects` (POST/DELETE/PATCH), `settings`, `validate`
+- Input trimming on string fields (`from`, `to`, `type`, `url`, `collection`, `id`, etc.) to prevent whitespace issues
+
 ## [1.4.2] - 2026-02-21
 
 ### Changed
@@ -58,6 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Content freshness tracking
 - Uninstall script (`npx seo-analyzer-uninstall`)
 
+[1.4.4]: https://github.com/pOwn3d/payload-seo-analyzer/compare/v1.4.2...v1.4.4
 [1.4.2]: https://github.com/pOwn3d/payload-seo-analyzer/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/pOwn3d/payload-seo-analyzer/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/pOwn3d/payload-seo-analyzer/compare/v1.3.0...v1.4.0

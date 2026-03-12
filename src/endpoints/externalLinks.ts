@@ -418,8 +418,9 @@ export function createExternalLinksHandler(collections: string[], globals: strin
       seoCache.set(CACHE_KEY, responseData)
       return Response.json({ ...responseData, cached: false })
     } catch (error) {
-      console.error('[seo-plugin/external-links] Error:', error)
-      return Response.json({ error: 'Internal server error' }, { status: 500 })
+      const message = error instanceof Error ? error.message : 'Internal server error'
+      req.payload.logger.error(`[seo] external-links error: ${message}`)
+      return Response.json({ error: message }, { status: 500 })
     }
   }
 }

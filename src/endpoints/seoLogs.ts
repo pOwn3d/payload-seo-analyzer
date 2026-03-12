@@ -33,13 +33,17 @@ export function createSeoLogsHandler(seoLogsSecret?: string): PayloadHandler {
           }
         }
 
-        const body = await req.json?.() || {}
-        const { url, type = '404', referrer, userAgent } = body as {
-          url?: string
-          type?: string
-          referrer?: string
-          userAgent?: string
+        let body: Record<string, unknown> = {}
+        try {
+          body = (await req.json?.()) ?? {}
+        } catch {
+          return Response.json({ error: 'Invalid JSON body' }, { status: 400 })
         }
+
+        const url = typeof body.url === 'string' ? body.url.trim() : undefined
+        const type = typeof body.type === 'string' ? body.type.trim() : '404'
+        const referrer = typeof body.referrer === 'string' ? body.referrer.trim() : undefined
+        const userAgent = typeof body.userAgent === 'string' ? body.userAgent.trim() : undefined
 
         if (!url) {
           return Response.json({ error: 'Missing url' }, { status: 400 })
@@ -104,8 +108,9 @@ export function createSeoLogsHandler(seoLogsSecret?: string): PayloadHandler {
 
         return Response.json({ success: true, action: 'created' })
       } catch (error) {
-        console.error('[seo-plugin/seo-logs] POST error:', error)
-        return Response.json({ error: 'Failed to log' }, { status: 500 })
+        const message = error instanceof Error ? error.message : 'Failed to log'
+        req.payload.logger.error(`[seo] seo-logs POST error: ${message}`)
+        return Response.json({ error: message }, { status: 500 })
       }
     }
 
@@ -157,8 +162,9 @@ export function createSeoLogsHandler(seoLogsSecret?: string): PayloadHandler {
         }
         return Response.json({ success: true, deleted: all.docs.length })
       } catch (error) {
-        console.error('[seo-plugin/seo-logs] DELETE error:', error)
-        return Response.json({ error: 'Failed to delete' }, { status: 500 })
+        const message = error instanceof Error ? error.message : 'Failed to delete'
+        req.payload.logger.error(`[seo] seo-logs DELETE error: ${message}`)
+        return Response.json({ error: message }, { status: 500 })
       }
     }
 
@@ -202,8 +208,9 @@ export function createSeoLogsHandler(seoLogsSecret?: string): PayloadHandler {
 
       return Response.json({ logs, stats })
     } catch (error) {
-      console.error('[seo-plugin/seo-logs] GET error:', error)
-      return Response.json({ error: 'Internal server error' }, { status: 500 })
+      const message = error instanceof Error ? error.message : 'Internal server error'
+      req.payload.logger.error(`[seo] seo-logs GET error: ${message}`)
+      return Response.json({ error: message }, { status: 500 })
     }
   }
 }

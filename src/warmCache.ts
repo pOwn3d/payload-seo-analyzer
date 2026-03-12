@@ -35,7 +35,7 @@ async function doWarmUp(payload: Payload, globals: string[] = []): Promise<void>
           depth: 1,
           overrideAccess: true,
         })
-        console.log(`[seo-plugin/warm-cache] Pre-loaded: ${collectionSlug}`)
+        payload.logger.info(`[seo] warm-cache: pre-loaded ${collectionSlug}`)
       } catch {
         // Collection might not exist — skip
       }
@@ -49,15 +49,15 @@ async function doWarmUp(payload: Payload, globals: string[] = []): Promise<void>
           depth: 1,
           overrideAccess: true,
         })
-        console.log(`[seo-plugin/warm-cache] Pre-loaded global: ${globalSlug}`)
+        payload.logger.info(`[seo] warm-cache: pre-loaded global ${globalSlug}`)
       } catch {
         // Global might not exist — skip
       }
     }
 
-    console.log('[seo-plugin/warm-cache] Warm-up complete')
+    payload.logger.info('[seo] warm-cache: warm-up complete')
   } catch (error) {
-    console.error('[seo-plugin/warm-cache] Warm-up error:', error)
+    payload.logger.error(`[seo] warm-cache error: ${error instanceof Error ? error.message : 'unknown'}`)
   }
 }
 
@@ -85,7 +85,7 @@ export function startCacheWarmUp(payload: Payload, _basePath: string, globals: s
   process.on('SIGTERM', cleanup)
   process.on('SIGINT', cleanup)
 
-  console.log('[seo-plugin/warm-cache] Scheduled: startup + every 1h')
+  payload.logger.info('[seo] warm-cache: scheduled startup + every 1h')
 }
 
 /**

@@ -181,8 +181,13 @@ export function createValidateHandler(
       }
 
       // POST — full analysis with multiple modes
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const body = await (req as any).json()
+      let body: Record<string, unknown>
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        body = await (req as any).json()
+      } catch {
+        return Response.json({ error: 'Invalid JSON body' }, { status: 400 })
+      }
       const { id, collection, data, overrides, global: globalSlug } = body as {
         id?: number | string
         collection?: string
@@ -235,8 +240,9 @@ export function createValidateHandler(
         },
       })
     } catch (error) {
-      console.error('[seo-plugin/validate] Error:', error)
-      return Response.json({ error: 'Internal server error' }, { status: 500 })
+      const message = error instanceof Error ? error.message : 'Internal server error'
+      req.payload.logger.error(`[seo] validate error: ${message}`)
+      return Response.json({ error: message }, { status: 500 })
     }
   }
 }

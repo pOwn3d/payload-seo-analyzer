@@ -348,8 +348,9 @@ export function createAuditHandler(collections: string[], seoConfig?: SeoConfig,
         cached: !noCache && seoCache.get(CACHE_KEY) !== null,
       }, { headers: { 'Cache-Control': 'no-store' } })
     } catch (error) {
-      console.error('[seo-plugin/audit] Error:', error)
-      return Response.json({ error: 'Internal server error' }, { status: 500 })
+      const message = error instanceof Error ? error.message : 'Internal server error'
+      req.payload.logger.error(`[seo] audit error: ${message}`)
+      return Response.json({ error: message }, { status: 500 })
     }
   }
 }

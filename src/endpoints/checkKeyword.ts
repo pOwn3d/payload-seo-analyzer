@@ -100,8 +100,9 @@ export function createCheckKeywordHandler(collections: string[], globals: string
 
       return Response.json({ used: results.length > 0, keyword, pages: results })
     } catch (error) {
-      console.error('[seo-plugin/check-keyword] Error:', error)
-      return Response.json({ error: 'Internal server error' }, { status: 500 })
+      const message = error instanceof Error ? error.message : 'Internal server error'
+      req.payload.logger.error(`[seo] check-keyword error: ${message}`)
+      return Response.json({ error: message }, { status: 500 })
     }
   }
 }

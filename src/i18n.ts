@@ -182,6 +182,15 @@ export interface RuleTranslations {
     quantityLabel: string
     quantityPass: (total: number) => string
     quantityFail: string
+    formatLabel: string
+    formatPass: string
+    formatFail: (count: number) => string
+    dimensionsLabel: string
+    dimensionsPass: string
+    dimensionsFail: (count: number) => string
+    filenameLabel: string
+    filenamePass: string
+    filenameFail: (count: number) => string
   }
   linking: {
     internalLabel: string
@@ -676,6 +685,15 @@ const rulesFr: RuleTranslations = {
     quantityLabel: 'Nombre d\'images',
     quantityPass: (total) => `${total} image(s) — Visuels presents.`,
     quantityFail: 'Aucune image dans cet article — Les articles sans images sont moins engageants.',
+    formatLabel: 'Format d\'images',
+    formatPass: 'Toutes les images utilisent un format optimise (WebP/AVIF).',
+    formatFail: (count) => `${count} image(s) n'utilisent pas un format optimise (WebP/AVIF) — Convertissez pour de meilleures performances.`,
+    dimensionsLabel: 'Dimensions des images',
+    dimensionsPass: 'Toutes les images ont des dimensions width/height definies.',
+    dimensionsFail: (count) => `${count} image(s) sans dimensions width/height — Ajoutez-les pour eviter le CLS.`,
+    filenameLabel: 'Noms de fichiers images',
+    filenamePass: 'Toutes les images ont des noms de fichiers descriptifs.',
+    filenameFail: (count) => `${count} image(s) avec des noms generiques (IMG_, screenshot...) — Renommez-les pour le SEO.`,
   },
   linking: {
     internalLabel: 'Liens internes',
@@ -1040,6 +1058,15 @@ const rulesEn: RuleTranslations = {
     quantityLabel: 'Number of images',
     quantityPass: (total) => `${total} image(s) — Visuals present.`,
     quantityFail: 'No image in this article — Articles without images are less engaging.',
+    formatLabel: 'Image format',
+    formatPass: 'All images use an optimized format (WebP/AVIF).',
+    formatFail: (count) => `${count} image(s) not using an optimized format (WebP/AVIF) — Convert for better performance.`,
+    dimensionsLabel: 'Image dimensions',
+    dimensionsPass: 'All images have width/height dimensions defined.',
+    dimensionsFail: (count) => `${count} image(s) without width/height dimensions — Add them to prevent CLS.`,
+    filenameLabel: 'Image filenames',
+    filenamePass: 'All images have descriptive filenames.',
+    filenameFail: (count) => `${count} image(s) with generic filenames (IMG_, screenshot...) — Rename them for SEO.`,
   },
   linking: {
     internalLabel: 'Internal links',
