@@ -10,7 +10,10 @@
  */
 
 import type { PayloadHandler } from 'payload'
+import { promises as dns } from 'dns'
 import { seoCache } from '../cache.js'
+import { fetchAllDocs } from '../helpers/fetchAllDocs.js'
+import { parseJsonBody } from '../helpers/parseBody.js'
 
 // ---------------------------------------------------------------------------
 // In-memory cache with 1-hour TTL
@@ -140,45 +143,57 @@ function extractDocExternalLinks(
 // SSRF protection: block requests to private/internal IP ranges
 // ---------------------------------------------------------------------------
 
+/** Check if a resolved IP address is in a private/reserved range */
+function isPrivateIP(ip: string): boolean {
+  // Localhost variants
+  if (ip === '127.0.0.1' || ip === '::1' || ip === '0.0.0.0') return true
+
+  // Private IPv4 ranges: 10.x.x.x, 172.16-31.x.x, 192.168.x.x, 169.254.x.x
+  const ipv4Match = ip.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)
+  if (ipv4Match) {
+    const [, a, b] = ipv4Match.map(Number)
+    if (a === 10) return true                              // 10.0.0.0/8
+    if (a === 172 && b >= 16 && b <= 31) return true       // 172.16.0.0/12
+    if (a === 192 && b === 168) return true                 // 192.168.0.0/16
+    if (a === 169 && b === 254) return true                 // 169.254.0.0/16 (link-local)
+    if (a === 0) return true                                // 0.0.0.0/8
+    if (a === 127) return true                              // 127.0.0.0/8
+  }
+
+  // IPv6 private ranges (simplified)
+  const ipv6 = ip.toLowerCase()
+  if (ipv6.startsWith('fc') || ipv6.startsWith('fd')) return true  // Unique local
+  if (ipv6.startsWith('fe80')) return true                          // Link-local
+  if (ipv6 === '::1' || ipv6 === '::') return true                // Loopback / unspecified
+
+  return false
+}
+
+/** Hostname-level checks (localhost aliases, raw IP literals) */
 function isPrivateUrl(urlString: string): boolean {
   try {
     const parsed = new URL(urlString)
     const hostname = parsed.hostname
 
     // Block localhost variants
-    if (
-      hostname === 'localhost' ||
-      hostname === '127.0.0.1' ||
-      hostname === '::1' ||
-      hostname === '0.0.0.0' ||
-      hostname === '[::1]'
-    ) {
-      return true
-    }
+    if (hostname === 'localhost') return true
 
-    // Block private IPv4 ranges: 10.x.x.x, 172.16-31.x.x, 192.168.x.x, 169.254.x.x
-    const ipv4Match = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)
-    if (ipv4Match) {
-      const [, a, b] = ipv4Match.map(Number)
-      if (a === 10) return true                              // 10.0.0.0/8
-      if (a === 172 && b >= 16 && b <= 31) return true       // 172.16.0.0/12
-      if (a === 192 && b === 168) return true                 // 192.168.0.0/16
-      if (a === 169 && b === 254) return true                 // 169.254.0.0/16 (link-local)
-      if (a === 0) return true                                // 0.0.0.0/8
-      if (a === 127) return true                              // 127.0.0.0/8
-    }
-
-    // Block IPv6 private ranges (simplified)
-    if (hostname.startsWith('[')) {
-      const ipv6 = hostname.slice(1, -1).toLowerCase()
-      if (ipv6.startsWith('fc') || ipv6.startsWith('fd')) return true  // Unique local
-      if (ipv6.startsWith('fe80')) return true                          // Link-local
-      if (ipv6 === '::1' || ipv6 === '::') return true                // Loopback / unspecified
-    }
-
-    return false
+    // Check raw IP in hostname (strip brackets for IPv6)
+    const rawIp = hostname.startsWith('[') ? hostname.slice(1, -1) : hostname
+    return isPrivateIP(rawIp)
   } catch {
     // If URL parsing fails, block the request as a precaution
+    return true
+  }
+}
+
+/** Resolve hostname via DNS and check if the resolved IP is private (DNS rebinding protection) */
+async function resolveAndCheckPrivate(hostname: string): Promise<boolean> {
+  try {
+    const { address } = await dns.lookup(hostname)
+    return isPrivateIP(address)
+  } catch {
+    // DNS resolution failed — treat as private (block)
     return true
   }
 }
@@ -218,6 +233,29 @@ async function asyncPool<T, R>(
 async function checkUrl(url: string): Promise<CachedResult> {
   // SSRF protection: never make requests to private/internal networks
   if (isPrivateUrl(url)) {
+    return {
+      status: 0,
+      ok: false,
+      error: 'blocked-private-ip',
+      checkedAt: Date.now(),
+    }
+  }
+
+  // DNS rebinding protection: resolve hostname and verify the IP is not private
+  try {
+    const parsed = new URL(url)
+    const hostname = parsed.hostname.startsWith('[')
+      ? parsed.hostname.slice(1, -1)
+      : parsed.hostname
+    if (await resolveAndCheckPrivate(hostname)) {
+      return {
+        status: 0,
+        ok: false,
+        error: 'blocked-private-ip',
+        checkedAt: Date.now(),
+      }
+    }
+  } catch {
     return {
       status: 0,
       ok: false,
@@ -289,13 +327,9 @@ export function createExternalLinksHandler(collections: string[], globals: strin
       // Parse optional forceRefresh from request body
       let forceRefresh = false
       if (req.method === 'POST') {
-        try {
-          const body = await req.json?.()
-          if (body && typeof body === 'object' && (body as Record<string, unknown>).forceRefresh) {
-            forceRefresh = true
-          }
-        } catch {
-          // No body or invalid JSON — proceed with defaults
+        const body = await parseJsonBody(req)
+        if (body.forceRefresh) {
+          forceRefresh = true
         }
       }
 
@@ -305,66 +339,35 @@ export function createExternalLinksHandler(collections: string[], globals: strin
       // 1. Collect all external links across all documents
       const urlSources = new Map<string, Array<{ title: string; slug: string; collection: string }>>()
 
-      for (const collectionSlug of collections) {
-        try {
-          const result = await req.payload.find({
-            collection: collectionSlug,
-            limit: 500,
-            depth: 0,
-            overrideAccess: true,
-          })
+      const allFetched = await fetchAllDocs(req.payload, {
+        collections,
+        globals,
+        depth: 0,
+      })
 
-          for (const doc of result.docs) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const d = doc as any
-            const links = extractDocExternalLinks(d, siteUrl)
+      for (const { doc, sourceType, sourceSlug } of allFetched) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const d = doc as any
+        const collectionLabel = sourceType === 'global' ? `global:${sourceSlug}` : sourceSlug
+        const links = extractDocExternalLinks(d, siteUrl)
 
-            for (const url of links) {
-              if (!urlSources.has(url)) {
-                urlSources.set(url, [])
-              }
-              const sources = urlSources.get(url)!
-              // Avoid duplicate source pages for the same URL
-              const already = sources.some(
-                (s) => s.slug === (d.slug || '') && s.collection === collectionSlug,
-              )
-              if (!already) {
-                sources.push({
-                  title: d.title || '',
-                  slug: d.slug || '',
-                  collection: collectionSlug,
-                })
-              }
-            }
+        for (const link of links) {
+          if (!urlSources.has(link)) {
+            urlSources.set(link, [])
           }
-        } catch {
-          // Collection might not exist — skip silently
+          const sources = urlSources.get(link)!
+          // Avoid duplicate source pages for the same URL
+          const already = sources.some(
+            (s) => s.slug === (d.slug || '') && s.collection === collectionLabel,
+          )
+          if (!already) {
+            sources.push({
+              title: d.title || sourceSlug,
+              slug: d.slug || '',
+              collection: collectionLabel,
+            })
+          }
         }
-      }
-
-      // Check globals for external links
-      for (const globalSlug of globals) {
-        try {
-          const doc = await req.payload.findGlobal({ slug: globalSlug, depth: 0, overrideAccess: true })
-          const links = extractDocExternalLinks(doc, siteUrl)
-
-          for (const linkUrl of links) {
-            if (!urlSources.has(linkUrl)) {
-              urlSources.set(linkUrl, [])
-            }
-            const sources = urlSources.get(linkUrl)!
-            const already = sources.some(
-              (s) => s.collection === `global:${globalSlug}`,
-            )
-            if (!already) {
-              sources.push({
-                title: (doc as Record<string, unknown>).title as string || globalSlug,
-                slug: '',
-                collection: `global:${globalSlug}`,
-              })
-            }
-          }
-        } catch { /* skip */ }
       }
 
       // 2. Limit to MAX_URLS unique URLs
@@ -390,6 +393,14 @@ export function createExternalLinksHandler(collections: string[], globals: strin
         // Perform check
         const result = await checkUrl(url)
         linkCache.set(url, result)
+
+        // Evict oldest entries if cache exceeds max size
+        if (linkCache.size > 1000) {
+          const firstKey = linkCache.keys().next().value
+          if (firstKey !== undefined) {
+            linkCache.delete(firstKey)
+          }
+        }
 
         return {
           url,

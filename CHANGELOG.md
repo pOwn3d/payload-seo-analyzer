@@ -5,6 +5,41 @@ All notable changes to `@consilioweb/seo-analyzer` will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-04-08
+
+### Added
+- Granular feature flags — disable collections/endpoints/views you don't need
+- robots.txt dynamic generation and management endpoint
+- XML sitemap dynamic generation endpoint
+- Custom dashboard translations via `customTranslations` config option
+- `registerDashboardTranslations()` API for runtime locale registration
+- `extractDocContent` shared helper — single source of truth for document text extraction
+- `parseJsonBody` shared helper — consistent JSON body parsing across all endpoints
+- `fetchAllDocs` pagination helper — replaces hardcoded limit:500
+- `loadMergedConfig` shared helper (deduplicated from audit.ts and validate.ts)
+- `metaGeneration` shared helper (deduplicated from aiGenerate.ts and aiRewrite.ts)
+- Admin role check (RBAC) on all destructive endpoints
+- Timing-safe secret comparison for SEO logs endpoint
+- Rate limiting on SEO logs POST endpoint
+- SSRF DNS rebinding protection in external links checker
+- Collection injection protection — validates collection parameter against whitelist
+- API key read from environment variable instead of request body
+- Cache eviction with LRU (max 500 entries)
+- linkCache size limit (max 1000 entries)
+- SeoLogs collection type options aligned with endpoint validation
+
+### Changed
+- warmCache accepts dynamic collections instead of hardcoded ['pages', 'posts']
+- All POST endpoints use parseJsonBody for consistent error handling
+- Error messages now include error type for easier debugging
+- SeoSettings access restricted to admin role
+
+### Fixed
+- Variable shadow in externalLinks.ts (`url` → `link` in loop)
+- typeOverride cast before validation in schemaGenerator.ts
+- warmCache timer .unref() to prevent process hang
+- Double cache invalidation in trackSeoScore
+
 ## [1.4.4] - 2026-03-12
 
 ### Changed
@@ -68,6 +103,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Content freshness tracking
 - Uninstall script (`npx seo-analyzer-uninstall`)
 
+[1.7.0]: https://github.com/pOwn3d/payload-seo-analyzer/compare/v1.4.4...v1.7.0
 [1.4.4]: https://github.com/pOwn3d/payload-seo-analyzer/compare/v1.4.2...v1.4.4
 [1.4.2]: https://github.com/pOwn3d/payload-seo-analyzer/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/pOwn3d/payload-seo-analyzer/compare/v1.4.0...v1.4.1

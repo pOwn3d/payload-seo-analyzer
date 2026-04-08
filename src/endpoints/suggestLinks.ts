@@ -10,9 +10,9 @@
 import type { PayloadHandler } from 'payload'
 import {
   normalizeForComparison,
-  extractTextFromLexical,
-  extractHeadingsFromLexical,
 } from '../helpers.js'
+import { parseJsonBody } from '../helpers/parseBody.js'
+import { fetchAllDocs } from '../helpers/fetchAllDocs.js'
 
 interface LinkSuggestion {
   title: string
@@ -34,13 +34,7 @@ export function createSuggestLinksHandler(collections: string[], globals: string
         return Response.json({ error: 'Method not allowed' }, { status: 405 })
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let body: Record<string, unknown>
-      try {
-        body = await (req as any).json()
-      } catch {
-        return Response.json({ error: 'Invalid JSON body' }, { status: 400 })
-      }
+      const body = await parseJsonBody(req)
 
       const documentId = body.documentId as string | number | undefined
       const currentCollection = typeof body.collection === 'string' ? body.collection.trim() : undefined
@@ -53,134 +47,79 @@ export function createSuggestLinksHandler(collections: string[], globals: string
       const normalizedContent = normalizeForComparison(content)
       const suggestions: LinkSuggestion[] = []
 
-      // Fetch all documents from target collections
-      for (const collectionSlug of collections) {
-        try {
-          const result = await req.payload.find({
-            collection: collectionSlug,
-            limit: 500,
-            depth: 1,
-            overrideAccess: true,
-          })
+      // Fetch all documents from target collections and globals
+      const allFetched = await fetchAllDocs(req.payload, {
+        collections,
+        globals,
+        depth: 0,
+      })
 
-          for (const doc of result.docs) {
-            // Skip current document
-            if (String(doc.id) === String(documentId) && collectionSlug === currentCollection) {
-              continue
-            }
+      for (const { doc, sourceType, sourceSlug } of allFetched) {
+        const collectionLabel = sourceType === 'global' ? `global:${sourceSlug}` : sourceSlug
 
-            const docTitle = (doc.title as string) || ''
-            const docSlug = (doc.slug as string) || ''
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const docKeyword = (doc as any).focusKeyword || ''
-
-            if (!docTitle && !docSlug) continue
-
-            let score = 0
-            let bestMatchType: LinkSuggestion['matchType'] = 'slug'
-            let contextPhrase = ''
-
-            // 1. Focus keyword match (highest priority)
-            if (docKeyword) {
-              const normalizedKw = normalizeForComparison(docKeyword)
-              if (normalizedKw.length > 2 && normalizedContent.includes(normalizedKw)) {
-                score += 3
-                bestMatchType = 'keyword'
-                contextPhrase = extractContext(normalizedContent, normalizedKw, content)
-              }
-            }
-
-            // 2. Title words match
-            const titleWords = normalizeForComparison(docTitle)
-              .split(/\s+/)
-              .filter((w) => w.length > 3)
-
-            if (titleWords.length >= 2) {
-              const matchingWords = titleWords.filter((w) => normalizedContent.includes(w))
-              if (matchingWords.length >= 2) {
-                score += 2
-                if (!contextPhrase) {
-                  bestMatchType = 'title'
-                  contextPhrase = extractContext(normalizedContent, matchingWords[0], content)
-                }
-              }
-            }
-
-            // 3. Slug match
-            const slugParts = docSlug.split('-').filter((w) => w.length > 3)
-            if (slugParts.length >= 1) {
-              const matchingSlugs = slugParts.filter((w) => normalizedContent.includes(w))
-              if (matchingSlugs.length >= 1 && score === 0) {
-                score += 1
-                bestMatchType = 'slug'
-                contextPhrase = extractContext(normalizedContent, matchingSlugs[0], content)
-              }
-            }
-
-            if (score > 0) {
-              suggestions.push({
-                title: docTitle,
-                slug: docSlug,
-                collection: collectionSlug,
-                score,
-                contextPhrase: contextPhrase || '',
-                matchType: bestMatchType,
-              })
-            }
-          }
-        } catch {
-          // Collection might not exist — skip silently
+        // Skip current document
+        if (sourceType === 'collection' && String(doc.id) === String(documentId) && sourceSlug === currentCollection) {
+          continue
         }
-      }
 
-      // Check globals as candidate link targets
-      for (const globalSlug of globals) {
-        try {
-          const doc = await req.payload.findGlobal({ slug: globalSlug, depth: 1, overrideAccess: true }) as Record<string, unknown>
-          const docTitle = (doc.title as string) || globalSlug
-          const docKeyword = (doc.focusKeyword as string) || ''
+        const docTitle = (doc.title as string) || (sourceType === 'global' ? sourceSlug : '')
+        const docSlug = (doc.slug as string) || ''
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const docKeyword = (doc as any).focusKeyword || ''
 
-          let score = 0
-          let bestMatchType: LinkSuggestion['matchType'] = 'title'
-          let contextPhrase = ''
+        if (!docTitle && !docSlug) continue
 
-          // Focus keyword match
-          if (docKeyword) {
-            const normalizedKw = normalizeForComparison(docKeyword)
-            if (normalizedKw.length > 2 && normalizedContent.includes(normalizedKw)) {
-              score += 3
-              bestMatchType = 'keyword'
-              contextPhrase = extractContext(normalizedContent, normalizedKw, content)
+        let score = 0
+        let bestMatchType: LinkSuggestion['matchType'] = 'slug'
+        let contextPhrase = ''
+
+        // 1. Focus keyword match (highest priority)
+        if (docKeyword) {
+          const normalizedKw = normalizeForComparison(docKeyword)
+          if (normalizedKw.length > 2 && normalizedContent.includes(normalizedKw)) {
+            score += 3
+            bestMatchType = 'keyword'
+            contextPhrase = extractContext(normalizedContent, normalizedKw, content)
+          }
+        }
+
+        // 2. Title words match
+        const titleWords = normalizeForComparison(docTitle)
+          .split(/\s+/)
+          .filter((w) => w.length > 3)
+
+        if (titleWords.length >= 2) {
+          const matchingWords = titleWords.filter((w) => normalizedContent.includes(w))
+          if (matchingWords.length >= 2) {
+            score += 2
+            if (!contextPhrase) {
+              bestMatchType = 'title'
+              contextPhrase = extractContext(normalizedContent, matchingWords[0], content)
             }
           }
+        }
 
-          // Title words match
-          const titleWords = normalizeForComparison(docTitle)
-            .split(/\s+/)
-            .filter((w) => w.length > 3)
-
-          if (titleWords.length >= 2) {
-            const matchingWords = titleWords.filter((w) => normalizedContent.includes(w))
-            if (matchingWords.length >= 2) {
-              score += 2
-              if (!contextPhrase) {
-                bestMatchType = 'title'
-                contextPhrase = extractContext(normalizedContent, matchingWords[0], content)
-              }
-            }
+        // 3. Slug match
+        const slugParts = docSlug.split('-').filter((w) => w.length > 3)
+        if (slugParts.length >= 1) {
+          const matchingSlugs = slugParts.filter((w) => normalizedContent.includes(w))
+          if (matchingSlugs.length >= 1 && score === 0) {
+            score += 1
+            bestMatchType = 'slug'
+            contextPhrase = extractContext(normalizedContent, matchingSlugs[0], content)
           }
+        }
 
-          if (score > 0) {
-            suggestions.push({
-              title: docTitle,
-              slug: '',
-              collection: `global:${globalSlug}`,
-              score,
-              contextPhrase: contextPhrase || '',
-              matchType: bestMatchType,
-            })
-          }
-        } catch { /* skip */ }
+        if (score > 0) {
+          suggestions.push({
+            title: docTitle,
+            slug: docSlug,
+            collection: collectionLabel,
+            score,
+            contextPhrase: contextPhrase || '',
+            matchType: bestMatchType,
+          })
+        }
       }
 
       // Sort by score descending, take top 10

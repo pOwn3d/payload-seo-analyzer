@@ -16,7 +16,7 @@ export function createSeoPerformanceCollection(): CollectionConfig {
   return {
     slug: 'seo-performance',
     admin: {
-      hidden: true,
+      custom: { navHidden: true },
     },
     access: {
       read: ({ req }) => !!req.user,

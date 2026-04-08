@@ -11,131 +11,13 @@
  */
 
 import type { PayloadHandler } from 'payload'
-import { extractTextFromLexical } from '../helpers.js'
-
-// ---------------------------------------------------------------------------
-// Heuristic generation (same logic as aiGenerate.ts, self-contained)
-// ---------------------------------------------------------------------------
-
-const TITLE_PREFIXES = [
-  'Découvrez',
-  'Guide',
-  'Tout savoir sur',
-  'Conseils pour',
-  'Les clés pour',
-]
-
-const DESC_PREFIXES = [
-  'Découvrez',
-  'Consultez notre guide sur',
-  'Tout savoir sur',
-  'Apprenez comment',
-  'Explorez',
-]
-
-function cleanText(text: string): string {
-  return text.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
-}
-
-function truncateWords(text: string, maxLen: number, ellipsis = false): string {
-  if (text.length <= maxLen) return text
-  const truncated = text.substring(0, maxLen)
-  const lastSpace = truncated.lastIndexOf(' ')
-  const result = lastSpace > 0 ? truncated.substring(0, lastSpace) : truncated
-  const cleaned = result.replace(/[,;:\-–—]\s*$/, '').trim()
-  return ellipsis ? cleaned + '...' : cleaned
-}
-
-function extractSentences(content: string): string[] {
-  const cleaned = cleanText(content)
-  const raw = cleaned.split(/(?<=[.!?])\s+/)
-  return raw.filter((s) => s.trim().length >= 20)
-}
-
-function pickPrefix(prefixes: string[], slug: string): string {
-  let hash = 0
-  for (let i = 0; i < slug.length; i++) {
-    hash = (hash * 31 + slug.charCodeAt(i)) | 0
-  }
-  return prefixes[Math.abs(hash) % prefixes.length]!
-}
-
-function heuristicTitle(title: string, focusKeyword: string | undefined, slug: string): string {
-  if (!title || !title.trim()) {
-    const fromSlug = slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
-    return truncateWords(fromSlug, 60)
-  }
-
-  let result = title.trim()
-
-  if (focusKeyword && focusKeyword.trim()) {
-    const kwLower = focusKeyword.toLowerCase()
-    if (!result.toLowerCase().includes(kwLower)) {
-      const candidate = `${focusKeyword} — ${result}`
-      if (candidate.length <= 60) {
-        result = candidate
-      } else {
-        const prefix = pickPrefix(TITLE_PREFIXES, slug)
-        const candidate2 = `${prefix} ${focusKeyword}`
-        if (candidate2.length <= 60) result = candidate2
-      }
-    }
-  }
-
-  if (result.length < 40 && !result.startsWith('Découvrez') && !result.startsWith('Guide')) {
-    const prefix = pickPrefix(TITLE_PREFIXES, slug)
-    const candidate = `${prefix} : ${result}`
-    if (candidate.length <= 60) result = candidate
-  }
-
-  return truncateWords(result, 60)
-}
-
-function heuristicDescription(content: string, focusKeyword: string | undefined, slug: string): string {
-  const sentences = extractSentences(content)
-
-  if (sentences.length === 0) {
-    if (focusKeyword && focusKeyword.trim()) {
-      const prefix = pickPrefix(DESC_PREFIXES, slug)
-      return truncateWords(`${prefix} ${focusKeyword}.`, 160)
-    }
-    return ''
-  }
-
-  const prefix = pickPrefix(DESC_PREFIXES, slug)
-  let desc = ''
-
-  const firstSentenceLower = sentences[0]!.toLowerCase()
-  const startsWithAction = DESC_PREFIXES.some((p) => firstSentenceLower.startsWith(p.toLowerCase()))
-
-  if (startsWithAction) {
-    desc = sentences[0]!
-  } else {
-    let firstClean = sentences[0]!
-    const leadingArticle = firstClean.match(/^(Le|La|Les|Un|Une|L'|D')\s*/i)
-    if (leadingArticle) {
-      firstClean = firstClean.substring(leadingArticle[0].length)
-      firstClean = firstClean.charAt(0).toLowerCase() + firstClean.slice(1)
-    }
-    desc = `${prefix} ${firstClean}`
-  }
-
-  for (let i = 1; i < Math.min(sentences.length, 3); i++) {
-    const candidate = `${desc} ${sentences[i]}`
-    if (candidate.length > 160) break
-    desc = candidate
-  }
-
-  if (focusKeyword && focusKeyword.trim()) {
-    if (!desc.toLowerCase().includes(focusKeyword.toLowerCase())) {
-      const withKw = `${desc} ${focusKeyword}.`
-      if (withKw.length <= 160) desc = withKw
-    }
-  }
-
-  if (desc.length > 160) desc = truncateWords(desc, 157, true)
-  return desc
-}
+import { extractDocContent as extractDocContentHelper } from '../helpers/extractDocContent.js'
+import { parseJsonBody } from '../helpers/parseBody.js'
+import {
+  truncateWords,
+  generateMetaTitle as heuristicTitle,
+  generateMetaDescription as heuristicDescription,
+} from '../helpers/metaGeneration.js'
 
 // ---------------------------------------------------------------------------
 // Claude API call
@@ -198,64 +80,29 @@ Generate the optimized ${fieldLabel}:`
 }
 
 // ---------------------------------------------------------------------------
-// Extract text content from a document
+// Extract text content from a document (delegates to shared helper)
 // ---------------------------------------------------------------------------
 
 function extractDocContent(doc: Record<string, unknown>): string {
-  const parts: string[] = []
-
-  const hero = doc.hero as Record<string, unknown> | undefined
-  if (hero?.richText) parts.push(extractTextFromLexical(hero.richText, 10))
-
-  const layout = doc.layout as unknown[] | undefined
-  if (layout && Array.isArray(layout)) {
-    for (const block of layout) {
-      if (!block || typeof block !== 'object') continue
-      const b = block as Record<string, unknown>
-      if (b.richText) parts.push(extractTextFromLexical(b.richText, 10))
-      if (b.columns && Array.isArray(b.columns)) {
-        for (const col of b.columns) {
-          if (col && typeof col === 'object') {
-            const colObj = col as Record<string, unknown>
-            if (colObj.richText) parts.push(extractTextFromLexical(colObj.richText, 10))
-          }
-        }
-      }
-    }
-  }
-
-  if (doc.content) parts.push(extractTextFromLexical(doc.content, 10))
-
-  return parts.join(' ').trim()
+  return extractDocContentHelper(doc).text
 }
 
 // ---------------------------------------------------------------------------
 // Endpoint handler factory
 // ---------------------------------------------------------------------------
 
-export function createAiRewriteHandler(): PayloadHandler {
+export function createAiRewriteHandler(targetCollections?: string[]): PayloadHandler {
   return async (req) => {
     try {
       if (!req.user) {
         return Response.json({ error: 'Unauthorized' }, { status: 401 })
       }
 
-      let body: {
-        collection?: string
-        id?: string
-        field?: 'title' | 'description'
-        anthropicApiKey?: string
-      }
-      try {
-        body = await req.json!()
-      } catch {
-        return Response.json({ error: 'Invalid JSON body' }, { status: 400 })
-      }
+      const body = await parseJsonBody(req)
 
       const collection = typeof body.collection === 'string' ? body.collection.trim() : undefined
       const id = typeof body.id === 'string' ? body.id.trim() : undefined
-      const field = body.field as 'title' | 'description' | undefined
-      const anthropicApiKey = typeof body.anthropicApiKey === 'string' ? body.anthropicApiKey : undefined
+      const field = (body.field as 'title' | 'description') || undefined
 
       if (!collection || !id || !field) {
         return Response.json(
@@ -269,6 +116,11 @@ export function createAiRewriteHandler(): PayloadHandler {
           { error: 'Field must be "title" or "description"' },
           { status: 400 },
         )
+      }
+
+      // Validate collection against allowed target collections
+      if (targetCollections && !targetCollections.includes(collection)) {
+        return Response.json({ error: 'Collection not allowed' }, { status: 403 })
       }
 
       // Fetch the document
@@ -293,10 +145,13 @@ export function createAiRewriteHandler(): PayloadHandler {
       let result: string
       let method: 'heuristic' | 'ai'
 
-      if (anthropicApiKey) {
+      // Read API key from environment variable (never from client request)
+      const apiKey = process.env.ANTHROPIC_API_KEY
+
+      if (apiKey) {
         // Use Claude API
         try {
-          result = await callClaudeApi(anthropicApiKey, field, title, pageContent, focusKeyword)
+          result = await callClaudeApi(apiKey, field, title, pageContent, focusKeyword)
           method = 'ai'
         } catch (error) {
           req.payload.logger.error(`[seo] ai-rewrite Claude API error: ${error instanceof Error ? error.message : 'unknown'}`)
@@ -307,7 +162,7 @@ export function createAiRewriteHandler(): PayloadHandler {
           method = 'heuristic'
         }
       } else {
-        // Heuristic mode
+        // Heuristic mode (no ANTHROPIC_API_KEY configured)
         result = field === 'title'
           ? heuristicTitle(title, focusKeyword, slug)
           : heuristicDescription(pageContent, focusKeyword, slug)

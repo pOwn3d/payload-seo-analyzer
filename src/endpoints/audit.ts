@@ -13,13 +13,12 @@ import { analyzeSeo } from '../index.js'
 import type { SeoConfig } from '../types.js'
 import { buildSeoInputFromDoc } from './validate.js'
 import {
-  extractTextFromLexical,
-  extractLinksFromLexical,
-  extractHeadingsFromLexical,
   calculateFleschFR,
   countWords,
 } from '../helpers.js'
 import { seoCache } from '../cache.js'
+import { loadMergedConfig } from '../helpers/loadMergedConfig.js'
+import { extractDocContent } from '../helpers/extractDocContent.js'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function analyzeDoc(doc: any, collection: string, seoConfig?: SeoConfig) {
@@ -32,53 +31,13 @@ function analyzeDoc(doc: any, collection: string, seoConfig?: SeoConfig) {
   }
   const analysis = analyzeSeo(seoInput, seoConfig)
 
-  // Extract enriched data for the dashboard (word count, links, headings, readability)
-  let fullText = ''
-  const allLinks: { url: string; text: string }[] = []
-  const allHeadings: { tag: string; text: string }[] = []
+  // Extract enriched data for the dashboard using the shared helper
+  // (single extraction pass instead of duplicating logic from analyzeSeo's buildContext)
+  const extracted = extractDocContent(doc)
+  const fullText = extracted.text
+  const allLinks = extracted.links
+  const allHeadings = extracted.headings
 
-  if (doc.hero?.richText) {
-    fullText += ' ' + extractTextFromLexical(doc.hero.richText)
-    allLinks.push(...extractLinksFromLexical(doc.hero.richText))
-    allHeadings.push(...extractHeadingsFromLexical(doc.hero.richText))
-  }
-
-  const blocks = Array.isArray(doc.layout) ? doc.layout : []
-  for (const block of blocks) {
-    if (block.richText) {
-      fullText += ' ' + extractTextFromLexical(block.richText)
-      allLinks.push(...extractLinksFromLexical(block.richText))
-      allHeadings.push(...extractHeadingsFromLexical(block.richText))
-    }
-    if (block.columns) {
-      for (const col of block.columns) {
-        if (col?.richText) {
-          fullText += ' ' + extractTextFromLexical(col.richText)
-          allLinks.push(...extractLinksFromLexical(col.richText))
-          allHeadings.push(...extractHeadingsFromLexical(col.richText))
-        }
-      }
-    }
-    if (block.blockType === 'services' && Array.isArray(block.services)) {
-      for (const svc of block.services) {
-        if (svc?.title) fullText += ' ' + svc.title
-        if (svc?.description) fullText += ' ' + svc.description
-      }
-    }
-    if (block.blockType === 'testimonials' && Array.isArray(block.testimonials)) {
-      for (const t of block.testimonials) {
-        if (t?.quote) fullText += ' ' + t.quote
-      }
-    }
-  }
-
-  if (doc.content && typeof doc.content === 'object' && !Array.isArray(doc.content)) {
-    fullText += ' ' + extractTextFromLexical(doc.content)
-    allLinks.push(...extractLinksFromLexical(doc.content))
-    allHeadings.push(...extractHeadingsFromLexical(doc.content))
-  }
-
-  fullText = fullText.trim()
   const wordCount = countWords(fullText)
   const readabilityScore = wordCount > 30 ? calculateFleschFR(fullText) : 0
 
@@ -127,64 +86,6 @@ function analyzeDoc(doc: any, collection: string, seoConfig?: SeoConfig) {
   }
 }
 
-/** Load SeoSettings from DB and merge with plugin config */
-async function loadMergedConfig(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  payload: any,
-  pluginConfig?: SeoConfig,
-): Promise<{ config: SeoConfig; ignoredSlugs: string[] }> {
-  let ignoredSlugs: string[] = []
-  let mergedConfig: SeoConfig = { ...pluginConfig }
-
-  try {
-    const settingsResult = await payload.find({
-      collection: 'seo-settings',
-      limit: 1,
-      overrideAccess: true,
-    })
-    const settings = settingsResult.docs?.[0]
-    if (settings) {
-      // Merge ignored slugs
-      if (Array.isArray(settings.ignoredSlugs)) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ignoredSlugs = settings.ignoredSlugs.map((s: any) => s.slug || s).filter(Boolean)
-      }
-
-      // Merge disabled rules
-      if (Array.isArray(settings.disabledRules) && settings.disabledRules.length > 0) {
-        const existing = mergedConfig.disabledRules || []
-        const combined = [...new Set([...existing, ...settings.disabledRules])]
-        mergedConfig = { ...mergedConfig, disabledRules: combined as SeoConfig['disabledRules'] }
-      }
-
-      // Merge site name
-      if (settings.siteName) {
-        mergedConfig = { ...mergedConfig, siteName: settings.siteName }
-      }
-
-      // Merge thresholds
-      if (settings.thresholds && typeof settings.thresholds === 'object') {
-        const thresholds: Record<string, number> = {}
-        for (const [key, val] of Object.entries(settings.thresholds)) {
-          if (val != null && typeof val === 'number') {
-            thresholds[key] = val
-          }
-        }
-        if (Object.keys(thresholds).length > 0) {
-          mergedConfig = {
-            ...mergedConfig,
-            thresholds: { ...(mergedConfig.thresholds || {}), ...thresholds },
-          }
-        }
-      }
-    }
-  } catch {
-    // SeoSettings collection might not exist yet — use plugin config as-is
-  }
-
-  return { config: mergedConfig, ignoredSlugs }
-}
-
 export function createAuditHandler(collections: string[], seoConfig?: SeoConfig, globals: string[] = []): PayloadHandler {
   return async (req) => {
     try {
@@ -224,17 +125,22 @@ export function createAuditHandler(collections: string[], seoConfig?: SeoConfig,
 
         for (const collectionSlug of collections) {
           try {
-            const result = await req.payload.find({
-              collection: collectionSlug,
-              limit: 500,
-              depth: 1,
-              overrideAccess: true,
-            })
-
-            for (const doc of result.docs) {
-              // Skip ignored slugs
-              if (ignoredSlugs.includes(doc.slug as string)) continue
-              allResults.push(analyzeDoc(doc, collectionSlug, mergedConfig))
+            let page = 1
+            let hasMore = true
+            while (hasMore) {
+              const result = await req.payload.find({
+                collection: collectionSlug,
+                limit: 100,
+                page,
+                depth: 1,
+                overrideAccess: true,
+              })
+              for (const doc of result.docs) {
+                if (ignoredSlugs.includes(doc.slug as string)) continue
+                allResults.push(analyzeDoc(doc, collectionSlug, mergedConfig))
+              }
+              hasMore = result.hasNextPage
+              page++
             }
           } catch {
             // Collection might not exist — skip silently

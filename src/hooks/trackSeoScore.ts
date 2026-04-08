@@ -13,7 +13,8 @@ import type { CollectionAfterChangeHook, GlobalAfterChangeHook } from 'payload'
 import type { SeoConfig } from '../types.js'
 import { analyzeSeo } from '../index.js'
 import { buildSeoInputFromDoc } from '../endpoints/validate.js'
-import { countWords, extractTextFromLexical } from '../helpers.js'
+import { countWords } from '../helpers.js'
+import { extractDocContent } from '../helpers/extractDocContent.js'
 import { seoCache } from '../cache.js'
 
 /** Minimum interval between snapshots in milliseconds (1 hour) */
@@ -57,30 +58,8 @@ export function createTrackSeoScoreHook(seoConfig?: SeoConfig): CollectionAfterC
         const seoInput = buildSeoInputFromDoc(doc, collectionSlug)
         const analysis = analyzeSeo(seoInput, seoConfig)
 
-        // Compute word count for the snapshot
-        let fullText = ''
-        if (doc.hero?.richText) {
-          fullText += extractTextFromLexical(doc.hero.richText) + ' '
-        }
-        const blocks = Array.isArray(doc.layout) ? doc.layout : []
-        for (const block of blocks) {
-          if (block?.richText) fullText += extractTextFromLexical(block.richText) + ' '
-          if (block?.columns && Array.isArray(block.columns)) {
-            for (const col of block.columns) {
-              if (col?.richText) fullText += extractTextFromLexical(col.richText) + ' '
-            }
-          }
-          if (block?.blockType === 'services' && Array.isArray(block.services)) {
-            for (const svc of block.services) {
-              if (svc?.title) fullText += svc.title + ' '
-              if (svc?.description) fullText += svc.description + ' '
-            }
-          }
-        }
-        if (doc.content && typeof doc.content === 'object' && !Array.isArray(doc.content)) {
-          fullText += extractTextFromLexical(doc.content) + ' '
-        }
-        const wordCount = countWords(fullText.trim())
+        // Compute word count using shared extraction helper
+        const wordCount = countWords(extractDocContent(doc).text)
 
         // Compute checks summary
         const checksSummary = {
@@ -178,30 +157,8 @@ export function createTrackSeoScoreGlobalHook(seoConfig?: SeoConfig): GlobalAfte
         }
         const analysis = analyzeSeo(seoInput, seoConfig)
 
-        // Compute word count for the snapshot
-        let fullText = ''
-        if (doc.hero?.richText) {
-          fullText += extractTextFromLexical(doc.hero.richText) + ' '
-        }
-        const blocks = Array.isArray(doc.layout) ? doc.layout : []
-        for (const block of blocks) {
-          if (block?.richText) fullText += extractTextFromLexical(block.richText) + ' '
-          if (block?.columns && Array.isArray(block.columns)) {
-            for (const col of block.columns) {
-              if (col?.richText) fullText += extractTextFromLexical(col.richText) + ' '
-            }
-          }
-          if (block?.blockType === 'services' && Array.isArray(block.services)) {
-            for (const svc of block.services) {
-              if (svc?.title) fullText += svc.title + ' '
-              if (svc?.description) fullText += svc.description + ' '
-            }
-          }
-        }
-        if (doc.content && typeof doc.content === 'object' && !Array.isArray(doc.content)) {
-          fullText += extractTextFromLexical(doc.content) + ' '
-        }
-        const wordCount = countWords(fullText.trim())
+        // Compute word count using shared extraction helper
+        const wordCount = countWords(extractDocContent(doc).text)
 
         // Compute checks summary
         const checksSummary = {

@@ -9,6 +9,16 @@
  */
 
 import type { PayloadHandler, Where } from 'payload'
+import { parseJsonBody } from '../helpers/parseBody.js'
+
+/** Check if the user has admin role */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function isAdmin(user: any): boolean {
+  if (!user) return false
+  if (user.role === 'admin') return true
+  if (Array.isArray(user.roles) && user.roles.includes('admin')) return true
+  return false
+}
 
 export function createRedirectsHandler(redirectsCollection: string): PayloadHandler {
   return async (req) => {
@@ -19,7 +29,7 @@ export function createRedirectsHandler(redirectsCollection: string): PayloadHand
     const method = req.method?.toUpperCase()
 
     try {
-      // GET — List all redirects with pagination and search
+      // GET — List all redirects with pagination and search (any authenticated user)
       if (method === 'GET') {
         const url = new URL(req.url || '', 'http://localhost')
         const page = parseInt(url.searchParams.get('page') || '1', 10)
@@ -48,14 +58,12 @@ export function createRedirectsHandler(redirectsCollection: string): PayloadHand
         return Response.json(result)
       }
 
-      // DELETE — Single or bulk delete
+      // DELETE — Single or bulk delete (admin only)
       if (method === 'DELETE') {
-        let deleteBody: Record<string, unknown> = {}
-        try {
-          deleteBody = (await req.json?.()) ?? {}
-        } catch {
-          return Response.json({ error: 'Invalid JSON body' }, { status: 400 })
+        if (!isAdmin(req.user)) {
+          return Response.json({ error: 'Admin access required' }, { status: 403 })
         }
+        const deleteBody = await parseJsonBody(req)
         const { id, ids } = deleteBody as { id?: string; ids?: string[] }
 
         if (ids && ids.length > 0) {
@@ -90,12 +98,7 @@ export function createRedirectsHandler(redirectsCollection: string): PayloadHand
 
       // PATCH — Update a single redirect
       if (method === 'PATCH') {
-        let patchBody: Record<string, unknown> = {}
-        try {
-          patchBody = (await req.json?.()) ?? {}
-        } catch {
-          return Response.json({ error: 'Invalid JSON body' }, { status: 400 })
-        }
+        const patchBody = await parseJsonBody(req)
         const id = typeof patchBody.id === 'string' ? patchBody.id.trim() : undefined
         const from = typeof patchBody.from === 'string' ? patchBody.from.trim() : undefined
         const to = typeof patchBody.to === 'string' ? patchBody.to.trim() : undefined
@@ -120,14 +123,12 @@ export function createRedirectsHandler(redirectsCollection: string): PayloadHand
         return Response.json({ success: true, redirect: result })
       }
 
-      // POST — Bulk import
+      // POST — Bulk import (admin only)
       if (method === 'POST') {
-        let body: Record<string, unknown> = {}
-        try {
-          body = (await req.json?.()) ?? {}
-        } catch {
-          return Response.json({ error: 'Invalid JSON body' }, { status: 400 })
+        if (!isAdmin(req.user)) {
+          return Response.json({ error: 'Admin access required' }, { status: 403 })
         }
+        const body = await parseJsonBody(req)
 
         const redirects = body.redirects as Array<{ from: string; to: string; type?: string }> | undefined
 
@@ -139,48 +140,76 @@ export function createRedirectsHandler(redirectsCollection: string): PayloadHand
         let skipped = 0
         let errors = 0
 
-        // Sequential to avoid SQLite busy
+        // Pre-process: normalize paths, filter self-referencing
+        const validRedirects: Array<{ from: string; to: string; type: string }> = []
         for (const r of redirects) {
+          const fromPath = r.from.startsWith('/') ? r.from : `/${r.from}`
+          const toPath = r.to.startsWith('/') ? r.to : `/${r.to}`
+          if (fromPath === toPath) {
+            skipped++
+            continue
+          }
+          validRedirects.push({ from: fromPath, to: toPath, type: r.type || '301' })
+        }
+
+        // Batch find: collect all "from" paths and check existing in bulk
+        const BATCH_SIZE = 50
+        for (let i = 0; i < validRedirects.length; i += BATCH_SIZE) {
+          const batch = validRedirects.slice(i, i + BATCH_SIZE)
+          const batchFromPaths = [...new Set(batch.map((r) => r.from))]
+
+          // Single query to find all existing redirects with matching "from" paths
+          let existingDocs: Array<Record<string, unknown>> = []
           try {
-            const fromPath = r.from.startsWith('/') ? r.from : `/${r.from}`
-            const toPath = r.to.startsWith('/') ? r.to : `/${r.to}`
-
-            // Skip self-referencing redirects
-            if (fromPath === toPath) {
-              skipped++
-              continue
-            }
-
-            // Check for existing duplicate
-            const existing = await req.payload.find({
+            const result = await req.payload.find({
               collection: redirectsCollection,
-              where: {
-                and: [
-                  { from: { equals: fromPath } },
-                  { to: { equals: toPath } },
-                ],
-              },
-              limit: 1,
+              where: { from: { in: batchFromPaths } },
+              limit: batch.length * 2,
+              depth: 0,
               overrideAccess: true,
             })
-
-            if (existing.docs.length > 0) {
-              skipped++
-              continue
-            }
-
-            await req.payload.create({
-              collection: redirectsCollection,
-              data: {
-                from: fromPath,
-                to: toPath,
-                type: r.type || '301',
-              },
-              overrideAccess: true,
-            })
-            created++
+            existingDocs = result.docs as Array<Record<string, unknown>>
           } catch {
-            errors++
+            errors += batch.length
+            continue
+          }
+
+          // Build a set of existing "from::to" pairs
+          const existingPairs = new Set<string>()
+          for (const doc of existingDocs) {
+            const from = (doc.from as string) || ''
+            const to = (doc.to as string) || ''
+            existingPairs.add(`${from}::${to}`)
+          }
+
+          // Filter batch: skip existing, create new
+          const toCreate = batch.filter((r) => {
+            if (existingPairs.has(`${r.from}::${r.to}`)) {
+              skipped++
+              return false
+            }
+            return true
+          })
+
+          // Create in parallel (batched)
+          const createResults = await Promise.all(
+            toCreate.map(async (r) => {
+              try {
+                await req.payload.create({
+                  collection: redirectsCollection,
+                  data: { from: r.from, to: r.to, type: r.type },
+                  overrideAccess: true,
+                })
+                return true
+              } catch {
+                return false
+              }
+            }),
+          )
+
+          for (const success of createResults) {
+            if (success) created++
+            else errors++
           }
         }
 

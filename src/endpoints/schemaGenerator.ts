@@ -259,7 +259,7 @@ function buildAuthors(authors: unknown[]): unknown[] {
 // Endpoint handler factory
 // ---------------------------------------------------------------------------
 
-export function createSchemaGeneratorHandler(): PayloadHandler {
+export function createSchemaGeneratorHandler(targetCollections?: string[]): PayloadHandler {
   return async (req) => {
     try {
       if (!req.user) {
@@ -269,13 +269,28 @@ export function createSchemaGeneratorHandler(): PayloadHandler {
       const url = new URL(req.url || '', 'http://localhost')
       const collection = url.searchParams.get('collection')
       const id = url.searchParams.get('id')
-      const typeOverride = url.searchParams.get('type') as SchemaType | null
+      const typeOverrideRaw = url.searchParams.get('type')
 
       if (!collection || !id) {
         return Response.json(
           { error: 'Missing required query params: collection, id' },
           { status: 400 },
         )
+      }
+
+      // Validate type override BEFORE casting to SchemaType
+      const validTypes: SchemaType[] = ['Article', 'LocalBusiness', 'BreadcrumbList', 'FAQPage', 'Product', 'Organization']
+      if (typeOverrideRaw !== null && !validTypes.includes(typeOverrideRaw as SchemaType)) {
+        return Response.json(
+          { error: `Invalid schema type. Valid types: ${validTypes.join(', ')}` },
+          { status: 400 },
+        )
+      }
+      const typeOverride: SchemaType | null = typeOverrideRaw as SchemaType | null
+
+      // Validate collection against allowed target collections
+      if (targetCollections && !targetCollections.includes(collection)) {
+        return Response.json({ error: 'Collection not allowed' }, { status: 403 })
       }
 
       // Fetch the document
@@ -299,17 +314,8 @@ export function createSchemaGeneratorHandler(): PayloadHandler {
         'http://localhost:3000'
       ).replace(/\/$/, '')
 
-      // Detect or use overridden type
+      // Detect or use overridden type (already validated above)
       const schemaType = typeOverride || detectSchemaType(collection, doc)
-
-      // Validate type override
-      const validTypes: SchemaType[] = ['Article', 'LocalBusiness', 'BreadcrumbList', 'FAQPage', 'Product', 'Organization']
-      if (!validTypes.includes(schemaType)) {
-        return Response.json(
-          { error: `Invalid schema type. Valid types: ${validTypes.join(', ')}` },
-          { status: 400 },
-        )
-      }
 
       // Build the JSON-LD
       let jsonLd: Record<string, unknown>

@@ -10,7 +10,7 @@ export function createSeoRedirectsCollection(slug: string = 'seo-redirects'): Co
   return {
     slug,
     admin: {
-      hidden: true,
+      custom: { navHidden: true },
     },
     access: {
       read: ({ req }) => !!req.user,

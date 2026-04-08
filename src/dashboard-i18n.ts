@@ -3,7 +3,7 @@
  * Provides a simple, pragmatic translation system for the SEO Analyzer dashboard.
  */
 
-export type DashboardLocale = 'fr' | 'en'
+export type DashboardLocale = 'fr' | 'en' | (string & {})
 
 export interface DashboardTranslations {
   common: {
@@ -1739,8 +1739,46 @@ const en: DashboardTranslations = {
 // Registry & accessor
 // ---------------------------------------------------------------------------
 
-const translations: Record<DashboardLocale, DashboardTranslations> = { fr, en }
+const translations: Record<string, DashboardTranslations> = { fr, en }
+
+/**
+ * Register custom translations for a locale.
+ * Supports partial overrides — only the keys you provide will be replaced.
+ * Call this before the dashboard renders (e.g. in plugin init).
+ *
+ * @example
+ * ```ts
+ * registerDashboardTranslations('cs', {
+ *   common: { loading: 'Načítání...', save: 'Uložit', cancel: 'Zrušit', ... },
+ *   nav: { dashboard: 'Přehled', seo: 'SEO', ... },
+ *   ...
+ * })
+ * ```
+ */
+export function registerDashboardTranslations(
+  locale: string,
+  custom: Partial<DashboardTranslations> | DashboardTranslations,
+  /** Base locale to use for missing keys (default: 'en') */
+  fallbackLocale: string = 'en',
+): void {
+  const fallback = translations[fallbackLocale] || translations.en
+  translations[locale] = deepMergeTranslations(fallback, custom)
+}
+
+/** Deep merge translation objects — custom overrides base */
+function deepMergeTranslations(
+  base: DashboardTranslations,
+  custom: Partial<DashboardTranslations>,
+): DashboardTranslations {
+  const result = { ...base } as Record<string, Record<string, string>>
+  for (const [section, values] of Object.entries(custom)) {
+    if (values && typeof values === 'object') {
+      result[section] = { ...(result[section] || {}), ...values }
+    }
+  }
+  return result as unknown as DashboardTranslations
+}
 
 export function getDashboardT(locale: DashboardLocale): DashboardTranslations {
-  return translations[locale] || translations.fr
+  return translations[locale] || translations.en || translations.fr
 }

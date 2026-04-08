@@ -22,6 +22,7 @@ export type {
   PageType,
   SeoConfig,
   SeoThresholds,
+  SeoFeatures,
 } from './types'
 
 // Re-export helpers for external consumers
@@ -86,6 +87,10 @@ export { createSchemaGeneratorHandler } from './endpoints/schemaGenerator.js'
 export { createRedirectChainsHandler } from './endpoints/redirectChains.js'
 export { createDuplicateContentHandler } from './endpoints/duplicateContent.js'
 export { createAiRewriteHandler } from './endpoints/aiRewrite.js'
+
+// Re-export dashboard i18n for custom locale registration
+export { registerDashboardTranslations, getDashboardT } from './dashboard-i18n.js'
+export type { DashboardTranslations, DashboardLocale } from './dashboard-i18n.js'
 
 // Re-export constants for consumers that need thresholds
 export {

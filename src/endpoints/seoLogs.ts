@@ -10,20 +10,51 @@
  */
 
 import type { PayloadHandler, Where } from 'payload'
+import { timingSafeEqual } from 'crypto'
+import { createRateLimiter, getClientIp } from '../rateLimiter.js'
+import { parseJsonBody } from '../helpers/parseBody.js'
 
 const VALID_LOG_TYPES = ['404', 'redirect', 'error']
 
+/** Check if the user has admin role */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function isAdmin(user: any): boolean {
+  if (!user) return false
+  if (user.role === 'admin') return true
+  if (Array.isArray(user.roles) && user.roles.includes('admin')) return true
+  return false
+}
+
 export function createSeoLogsHandler(seoLogsSecret?: string): PayloadHandler {
+  // Rate limiter for POST: 30 requests per 60 seconds per IP
+  const postLimiter = createRateLimiter(30, 60_000)
+
   return async (req) => {
     const method = req.method?.toUpperCase()
 
     // POST: Log a hit (requires secret header or authenticated admin)
     if (method === 'POST') {
       try {
+        // Rate limit POST requests
+        const ip = getClientIp(req)
+        if (!postLimiter.check(ip)) {
+          return Response.json(
+            { error: 'Too Many Requests. Please try again later.' },
+            { status: 429 },
+          )
+        }
+
         // Auth check: secret header OR authenticated user
         if (seoLogsSecret) {
           const headerSecret = req.headers.get('x-seo-secret')
-          if (headerSecret !== seoLogsSecret) {
+          if (!headerSecret) {
+            return Response.json({ error: 'Unauthorized' }, { status: 401 })
+          }
+          // Timing-safe comparison to prevent timing attacks
+          const isValid =
+            headerSecret.length === seoLogsSecret.length &&
+            timingSafeEqual(Buffer.from(headerSecret), Buffer.from(seoLogsSecret))
+          if (!isValid) {
             return Response.json({ error: 'Unauthorized' }, { status: 401 })
           }
         } else {
@@ -33,12 +64,7 @@ export function createSeoLogsHandler(seoLogsSecret?: string): PayloadHandler {
           }
         }
 
-        let body: Record<string, unknown> = {}
-        try {
-          body = (await req.json?.()) ?? {}
-        } catch {
-          return Response.json({ error: 'Invalid JSON body' }, { status: 400 })
-        }
+        const body = await parseJsonBody(req)
 
         const url = typeof body.url === 'string' ? body.url.trim() : undefined
         const type = typeof body.type === 'string' ? body.type.trim() : '404'
@@ -119,8 +145,11 @@ export function createSeoLogsHandler(seoLogsSecret?: string): PayloadHandler {
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // DELETE: Clear or ignore logs
+    // DELETE: Clear or ignore logs (admin only)
     if (method === 'DELETE') {
+      if (!isAdmin(req.user)) {
+        return Response.json({ error: 'Admin access required' }, { status: 403 })
+      }
       try {
         const urlObj = new URL(req.url as string)
         const id = urlObj.searchParams.get('id')
@@ -145,22 +174,14 @@ export function createSeoLogsHandler(seoLogsSecret?: string): PayloadHandler {
           return Response.json({ success: true })
         }
 
-        // Clear all non-ignored logs
-        const all = await req.payload.find({
+        // Clear all non-ignored logs in a single bulk delete operation
+        const deleteResult = await req.payload.delete({
           collection: 'seo-logs',
           where: { ignored: { not_equals: true } },
-          limit: 1000,
-          depth: 0,
           overrideAccess: true,
         })
-        for (const doc of all.docs) {
-          await req.payload.delete({
-            collection: 'seo-logs',
-            id: doc.id,
-            overrideAccess: true,
-          })
-        }
-        return Response.json({ success: true, deleted: all.docs.length })
+        const deletedCount = Array.isArray(deleteResult.docs) ? deleteResult.docs.length : 0
+        return Response.json({ success: true, deleted: deletedCount })
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to delete'
         req.payload.logger.error(`[seo] seo-logs DELETE error: ${message}`)

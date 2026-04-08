@@ -22,7 +22,7 @@
  */
 
 import type { Config, Field, Plugin } from 'payload'
-import type { SeoConfig, RuleGroup, SeoThresholds } from './types.js'
+import type { SeoConfig, SeoFeatures, RuleGroup, SeoThresholds } from './types.js'
 import { seoFields } from './fields.js'
 import { metaFields } from './metaFields.js'
 import { createValidateHandler } from './endpoints/validate.js'
@@ -46,6 +46,8 @@ import { createSchemaGeneratorHandler } from './endpoints/schemaGenerator.js'
 import { createRedirectChainsHandler } from './endpoints/redirectChains.js'
 import { createDuplicateContentHandler } from './endpoints/duplicateContent.js'
 import { createAiRewriteHandler } from './endpoints/aiRewrite.js'
+import { createRobotsHandler, createRobotsUpdateHandler } from './endpoints/robots.js'
+import { createSitemapHandler } from './endpoints/sitemap.js'
 import { createSeoScoreHistoryCollection } from './collections/SeoScoreHistory.js'
 import { createSeoPerformanceCollection } from './collections/SeoPerformance.js'
 import { createSeoSettingsCollection } from './collections/SeoSettings.js'
@@ -58,6 +60,7 @@ import { createTrackSeoScoreGlobalHook } from './hooks/trackSeoScore.js'
 import { startCacheWarmUp } from './warmCache.js'
 import { createGenerateHandler } from './endpoints/generate.js'
 import { seoTranslations } from './translations.js'
+import { registerDashboardTranslations } from './dashboard-i18n.js'
 import { createRateLimiter, getClientIp } from './rateLimiter.js'
 
 /** Arguments passed to generate functions (generateTitle, generateDescription, etc.) */
@@ -106,6 +109,10 @@ export interface SeoPluginConfig {
   uploadsCollection?: string
   /** Auto-create meta fields (title, description, image) on target collections. Default: true */
   autoCreateMetaFields?: boolean
+  /** Granular feature flags — all default to true. Disable features you don't need
+   *  to reduce collections, endpoints, and admin views loaded by the plugin.
+   *  The core analyzer sidebar, validate endpoint, and meta fields are always active. */
+  features?: SeoFeatures
   /** Custom function to generate meta title */
   generateTitle?: (args: GenerateFnArgs) => string | Promise<string>
   /** Custom function to generate meta description */
@@ -116,6 +123,19 @@ export interface SeoPluginConfig {
   generateURL?: (args: GenerateFnArgs) => string | Promise<string>
   /** Mapping from Payload locale codes to analysis locale ('fr' | 'en') */
   localeMapping?: Record<string, 'fr' | 'en'>
+  /** Custom dashboard translations for additional locales (e.g. 'cs', 'de', 'es').
+   *  Partial overrides are supported — missing keys fall back to English.
+   *  @example
+   *  ```ts
+   *  customTranslations: {
+   *    cs: {
+   *      common: { loading: 'Načítání...', save: 'Uložit' },
+   *      nav: { dashboard: 'Přehled', seo: 'SEO' },
+   *    }
+   *  }
+   *  ```
+   */
+  customTranslations?: Record<string, Partial<import('./dashboard-i18n.js').DashboardTranslations>>
   /** Override or reorganize the default meta fields inside the 'meta' group.
    *  Receives the default fields (overview, title, description, image, preview) and must return a Field[].
    *  Use this to add custom fields, remove defaults, or reorder them. */
@@ -148,6 +168,26 @@ export const seoAnalyzerPlugin =
     const targetGlobals = pluginConfig.globals ?? []
     const basePath = pluginConfig.endpointBasePath ?? '/seo-plugin'
     const seoConfig = buildSeoConfig(pluginConfig)
+
+    // Resolve feature flags — all default to true
+    const features: Required<SeoFeatures> = {
+      analyzer: true,
+      dashboard: true,
+      redirects: true,
+      performance: true,
+      linkGraph: true,
+      keywords: true,
+      cannibalization: true,
+      schemaBuilder: true,
+      sitemapAudit: true,
+      seoLogs: true,
+      scoreHistory: true,
+      externalLinks: true,
+      aiFeatures: true,
+      duplicateContent: true,
+      settings: true,
+      ...pluginConfig.features,
+    }
 
     // Helper: detect if a collection already has @payloadcms/plugin-seo meta fields
     function hasExistingSeoMeta(fields: unknown[]): boolean {
@@ -192,7 +232,7 @@ export const seoAnalyzerPlugin =
       return [{ ...metaGroup, fields: overridden } as Field]
     }
 
-    const trackHistory = pluginConfig.trackScoreHistory !== false
+    const trackHistory = pluginConfig.trackScoreHistory !== false && features.scoreHistory
 
     // Helper: build the final fields array, optionally wrapping in tabs
     function assembleFields(
@@ -267,13 +307,15 @@ export const seoAnalyzerPlugin =
             fields: assembleFields(existingFields, fieldsToAdd, { label, isAuth }),
           }
           // Add auto-redirect hook (beforeChange — detects slug changes)
-          const existingBeforeHooks = updated.hooks?.beforeChange || []
-          updated.hooks = {
-            ...updated.hooks,
-            beforeChange: [
-              ...(Array.isArray(existingBeforeHooks) ? existingBeforeHooks : [existingBeforeHooks]),
-              createAutoRedirectHook(pluginConfig.redirectsCollection ?? 'seo-redirects'),
-            ],
+          if (features.redirects) {
+            const existingBeforeHooks = updated.hooks?.beforeChange || []
+            updated.hooks = {
+              ...updated.hooks,
+              beforeChange: [
+                ...(Array.isArray(existingBeforeHooks) ? existingBeforeHooks : [existingBeforeHooks]),
+                createAutoRedirectHook(pluginConfig.redirectsCollection ?? 'seo-redirects'),
+              ],
+            }
           }
           // Add score tracking hook
           if (trackHistory) {
@@ -328,16 +370,18 @@ export const seoAnalyzerPlugin =
       })
     }
 
-    // 1b. Add plugin-managed collections (score history, settings, redirects)
+    // 1b. Add plugin-managed collections (conditionally based on features)
     const redirectsSlug = pluginConfig.redirectsCollection ?? 'seo-redirects'
     const hasExistingRedirects = config.collections?.some((c) => c.slug === redirectsSlug)
+    const pluginCollections = []
+    if (trackHistory) pluginCollections.push(createSeoScoreHistoryCollection())
+    if (features.settings) pluginCollections.push(createSeoSettingsCollection())
+    if (features.redirects && !hasExistingRedirects) pluginCollections.push(createSeoRedirectsCollection(redirectsSlug))
+    if (features.performance) pluginCollections.push(createSeoPerformanceCollection())
+    if (features.seoLogs) pluginCollections.push(createSeoLogsCollection())
     config.collections = [
       ...(config.collections || []),
-      ...(trackHistory ? [createSeoScoreHistoryCollection()] : []),
-      createSeoSettingsCollection(),
-      ...(!hasExistingRedirects ? [createSeoRedirectsCollection(redirectsSlug)] : []),
-      createSeoPerformanceCollection(),
-      createSeoLogsCollection(),
+      ...pluginCollections,
     ]
 
     // Rate limiter for expensive endpoints: 10 requests per 60 seconds per IP
@@ -357,90 +401,29 @@ export const seoAnalyzerPlugin =
       }
     }
 
-    // 2. Add SEO API endpoints
-    config.endpoints = [
-      ...(config.endpoints || []),
+    // 2. Add SEO API endpoints (conditionally based on features)
+    type EndpointDef = { path: string; method: 'get' | 'post' | 'patch' | 'delete'; handler: ReturnType<typeof createValidateHandler> }
+    const pluginEndpoints: EndpointDef[] = [
+      // Core — always active (analyzer sidebar needs these)
       {
         path: `${basePath}/validate`,
-        method: 'post' as const,
+        method: 'post',
         handler: createValidateHandler(targetCollections, seoConfig),
       },
       {
         path: `${basePath}/validate`,
-        method: 'get' as const,
+        method: 'get',
         handler: createValidateHandler(targetCollections, seoConfig),
       },
       {
         path: `${basePath}/check-keyword`,
-        method: 'get' as const,
+        method: 'get',
         handler: createCheckKeywordHandler(targetCollections, targetGlobals),
       },
-      {
-        path: `${basePath}/audit`,
-        method: 'get' as const,
-        handler: withRateLimit(createAuditHandler(targetCollections, seoConfig, targetGlobals)),
-      },
-      {
-        path: `${basePath}/history`,
-        method: 'get' as const,
-        handler: createHistoryHandler(),
-      },
-      {
-        path: `${basePath}/sitemap-audit`,
-        method: 'get' as const,
-        handler: createSitemapAuditHandler(targetCollections, redirectsSlug, pluginConfig.knownRoutes || []),
-      },
-      {
-        path: `${basePath}/settings`,
-        method: 'get' as const,
-        handler: createSettingsHandler(),
-      },
-      {
-        path: `${basePath}/settings`,
-        method: 'patch' as const,
-        handler: createSettingsHandler(),
-      },
-      {
-        path: `${basePath}/suggest-links`,
-        method: 'post' as const,
-        handler: createSuggestLinksHandler(targetCollections, targetGlobals),
-      },
-      {
-        path: `${basePath}/create-redirect`,
-        method: 'post' as const,
-        handler: createRedirectHandler(pluginConfig.redirectsCollection ?? 'seo-redirects'),
-      },
-      // Redirect manager CRUD (GET/POST/PATCH/DELETE)
-      {
-        path: `${basePath}/redirects`,
-        method: 'get' as const,
-        handler: createRedirectsHandler(pluginConfig.redirectsCollection ?? 'seo-redirects'),
-      },
-      {
-        path: `${basePath}/redirects`,
-        method: 'post' as const,
-        handler: createRedirectsHandler(pluginConfig.redirectsCollection ?? 'seo-redirects'),
-      },
-      {
-        path: `${basePath}/redirects`,
-        method: 'patch' as const,
-        handler: createRedirectsHandler(pluginConfig.redirectsCollection ?? 'seo-redirects'),
-      },
-      {
-        path: `${basePath}/redirects`,
-        method: 'delete' as const,
-        handler: createRedirectsHandler(pluginConfig.redirectsCollection ?? 'seo-redirects'),
-      },
-      // AI meta generation
-      {
-        path: `${basePath}/ai-generate`,
-        method: 'post' as const,
-        handler: createAiGenerateHandler(),
-      },
-      // Generate meta values via custom functions
+      // Generate meta values via custom functions — always active (used by meta field UI)
       {
         path: `${basePath}/generate`,
-        method: 'post' as const,
+        method: 'post',
         handler: createGenerateHandler({
           generateTitle: pluginConfig.generateTitle,
           generateDescription: pluginConfig.generateDescription,
@@ -448,154 +431,254 @@ export const seoAnalyzerPlugin =
           generateURL: pluginConfig.generateURL,
         }),
       },
-      // Keyword cannibalization detection
-      {
-        path: `${basePath}/cannibalization`,
-        method: 'get' as const,
-        handler: withRateLimit(createCannibalizationHandler(targetCollections, targetGlobals)),
-      },
-      // External links checker
-      {
-        path: `${basePath}/external-links`,
-        method: 'post' as const,
-        handler: withRateLimit(createExternalLinksHandler(targetCollections, targetGlobals)),
-      },
-      // Sitemap configuration
-      {
-        path: `${basePath}/sitemap-config`,
-        method: 'get' as const,
-        handler: createSitemapConfigHandler(targetCollections),
-      },
-      // Performance data (GSC import)
-      {
-        path: `${basePath}/performance`,
-        method: 'get' as const,
-        handler: createPerformanceHandler(),
-      },
-      {
-        path: `${basePath}/performance`,
-        method: 'post' as const,
-        handler: createPerformanceHandler(),
-      },
-      // Keyword research / suggestions
-      {
-        path: `${basePath}/keyword-research`,
-        method: 'get' as const,
-        handler: withRateLimit(createKeywordResearchHandler(targetCollections, targetGlobals)),
-      },
-      // Breadcrumb configuration
-      {
-        path: `${basePath}/breadcrumb`,
-        method: 'get' as const,
-        handler: createBreadcrumbHandler(targetCollections),
-      },
-      // Internal link graph
-      {
-        path: `${basePath}/link-graph`,
-        method: 'get' as const,
-        handler: createLinkGraphHandler(targetCollections, targetGlobals),
-      },
-      // 404 logs (GET: list, POST: log hit, DELETE: clear/ignore)
-      {
-        path: `${basePath}/seo-logs`,
-        method: 'get' as const,
-        handler: createSeoLogsHandler(pluginConfig.seoLogsSecret),
-      },
-      {
-        path: `${basePath}/seo-logs`,
-        method: 'post' as const,
-        handler: createSeoLogsHandler(pluginConfig.seoLogsSecret),
-      },
-      {
-        path: `${basePath}/seo-logs`,
-        method: 'delete' as const,
-        handler: createSeoLogsHandler(pluginConfig.seoLogsSecret),
-      },
-      // Schema.org JSON-LD generator
-      {
-        path: `${basePath}/schema-generator`,
-        method: 'get' as const,
-        handler: createSchemaGeneratorHandler(),
-      },
-      // Redirect chain detection
-      {
-        path: `${basePath}/redirect-chains`,
-        method: 'get' as const,
-        handler: withRateLimit(createRedirectChainsHandler(redirectsSlug)),
-      },
-      // Duplicate content detection (sitewide)
-      {
-        path: `${basePath}/duplicate-content`,
-        method: 'get' as const,
-        handler: withRateLimit(createDuplicateContentHandler(targetCollections)),
-      },
-      // AI meta rewrite (with optional Claude API)
-      {
-        path: `${basePath}/ai-rewrite`,
-        method: 'post' as const,
-        handler: createAiRewriteHandler(),
-      },
     ]
 
-    // 3. Add SEO dashboard view + nav link
-    if (pluginConfig.addDashboardView !== false) {
+    // Dashboard: audit endpoint
+    if (features.dashboard) {
+      pluginEndpoints.push({
+        path: `${basePath}/audit`,
+        method: 'get',
+        handler: withRateLimit(createAuditHandler(targetCollections, seoConfig, targetGlobals)),
+      })
+    }
+
+    // Score history
+    if (features.scoreHistory) {
+      pluginEndpoints.push({
+        path: `${basePath}/history`,
+        method: 'get',
+        handler: createHistoryHandler(),
+      })
+    }
+
+    // Sitemap audit
+    if (features.sitemapAudit) {
+      pluginEndpoints.push(
+        {
+          path: `${basePath}/sitemap-audit`,
+          method: 'get',
+          handler: createSitemapAuditHandler(targetCollections, redirectsSlug, pluginConfig.knownRoutes || []),
+        },
+        {
+          path: `${basePath}/sitemap-config`,
+          method: 'get',
+          handler: createSitemapConfigHandler(targetCollections),
+        },
+      )
+    }
+
+    // Settings
+    if (features.settings) {
+      pluginEndpoints.push(
+        { path: `${basePath}/settings`, method: 'get', handler: createSettingsHandler() },
+        { path: `${basePath}/settings`, method: 'patch', handler: createSettingsHandler() },
+      )
+    }
+
+    // Internal linking (suggest-links + breadcrumb — part of analyzer core helpers)
+    pluginEndpoints.push(
+      {
+        path: `${basePath}/suggest-links`,
+        method: 'post',
+        handler: createSuggestLinksHandler(targetCollections, targetGlobals),
+      },
+      {
+        path: `${basePath}/breadcrumb`,
+        method: 'get',
+        handler: createBreadcrumbHandler(targetCollections),
+      },
+    )
+
+    // Redirects (CRUD + chain detection + auto-create)
+    if (features.redirects) {
+      const rSlug = pluginConfig.redirectsCollection ?? 'seo-redirects'
+      pluginEndpoints.push(
+        { path: `${basePath}/create-redirect`, method: 'post', handler: createRedirectHandler(rSlug) },
+        { path: `${basePath}/redirects`, method: 'get', handler: createRedirectsHandler(rSlug) },
+        { path: `${basePath}/redirects`, method: 'post', handler: createRedirectsHandler(rSlug) },
+        { path: `${basePath}/redirects`, method: 'patch', handler: createRedirectsHandler(rSlug) },
+        { path: `${basePath}/redirects`, method: 'delete', handler: createRedirectsHandler(rSlug) },
+        { path: `${basePath}/redirect-chains`, method: 'get', handler: withRateLimit(createRedirectChainsHandler(rSlug)) },
+      )
+    }
+
+    // AI features (generate + rewrite)
+    if (features.aiFeatures) {
+      pluginEndpoints.push(
+        { path: `${basePath}/ai-generate`, method: 'post', handler: createAiGenerateHandler() },
+        { path: `${basePath}/ai-rewrite`, method: 'post', handler: createAiRewriteHandler(targetCollections) },
+      )
+    }
+
+    // Cannibalization detection
+    if (features.cannibalization) {
+      pluginEndpoints.push({
+        path: `${basePath}/cannibalization`,
+        method: 'get',
+        handler: withRateLimit(createCannibalizationHandler(targetCollections, targetGlobals)),
+      })
+    }
+
+    // External links checker
+    if (features.externalLinks) {
+      pluginEndpoints.push({
+        path: `${basePath}/external-links`,
+        method: 'post',
+        handler: withRateLimit(createExternalLinksHandler(targetCollections, targetGlobals)),
+      })
+    }
+
+    // Performance (GSC import)
+    if (features.performance) {
+      pluginEndpoints.push(
+        { path: `${basePath}/performance`, method: 'get', handler: createPerformanceHandler() },
+        { path: `${basePath}/performance`, method: 'post', handler: createPerformanceHandler() },
+      )
+    }
+
+    // Keyword research
+    if (features.keywords) {
+      pluginEndpoints.push({
+        path: `${basePath}/keyword-research`,
+        method: 'get',
+        handler: withRateLimit(createKeywordResearchHandler(targetCollections, targetGlobals)),
+      })
+    }
+
+    // Link graph
+    if (features.linkGraph) {
+      pluginEndpoints.push({
+        path: `${basePath}/link-graph`,
+        method: 'get',
+        handler: createLinkGraphHandler(targetCollections, targetGlobals),
+      })
+    }
+
+    // SEO Logs (404 tracking)
+    if (features.seoLogs) {
+      pluginEndpoints.push(
+        { path: `${basePath}/seo-logs`, method: 'get', handler: createSeoLogsHandler(pluginConfig.seoLogsSecret) },
+        { path: `${basePath}/seo-logs`, method: 'post', handler: createSeoLogsHandler(pluginConfig.seoLogsSecret) },
+        { path: `${basePath}/seo-logs`, method: 'delete', handler: createSeoLogsHandler(pluginConfig.seoLogsSecret) },
+      )
+    }
+
+    // Schema.org JSON-LD generator
+    if (features.schemaBuilder) {
+      pluginEndpoints.push({
+        path: `${basePath}/schema-generator`,
+        method: 'get',
+        handler: createSchemaGeneratorHandler(targetCollections),
+      })
+    }
+
+    // Duplicate content detection
+    if (features.duplicateContent) {
+      pluginEndpoints.push({
+        path: `${basePath}/duplicate-content`,
+        method: 'get',
+        handler: withRateLimit(createDuplicateContentHandler(targetCollections)),
+      })
+    }
+
+    // robots.txt and sitemap.xml — always active (public endpoints)
+    pluginEndpoints.push(
+      {
+        path: `${basePath}/robots.txt`,
+        method: 'get' as const,
+        handler: createRobotsHandler(targetCollections),
+      },
+      {
+        path: `${basePath}/robots.txt`,
+        method: 'post' as const,
+        handler: createRobotsUpdateHandler(),
+      },
+      {
+        path: `${basePath}/sitemap.xml`,
+        method: 'get' as const,
+        handler: createSitemapHandler(targetCollections),
+      },
+    )
+
+    config.endpoints = [
+      ...(config.endpoints || []),
+      ...pluginEndpoints,
+    ]
+
+    // 3. Add admin views + nav link (conditionally based on features)
+    // At least one view-based feature must be enabled to inject admin components
+    const hasAnyView = features.dashboard || features.sitemapAudit || features.settings
+      || features.redirects || features.cannibalization || features.performance
+      || features.keywords || features.schemaBuilder || features.linkGraph
+
+    if (pluginConfig.addDashboardView !== false && hasAnyView) {
       if (!config.admin) config.admin = {}
       if (!config.admin.components) config.admin.components = {}
       if (!config.admin.components.views) config.admin.components.views = {}
 
-      ;(config.admin.components.views as Record<string, unknown>).seo = {
-        Component: '@consilioweb/seo-analyzer/views#SeoView',
-        path: '/seo',
+      const views = config.admin.components.views as Record<string, unknown>
+
+      if (features.dashboard) {
+        views.seo = {
+          Component: '@consilioweb/seo-analyzer/views#SeoView',
+          path: '/seo',
+        }
       }
 
-      // Add sitemap audit view
-      if (pluginConfig.addSitemapAuditView !== false) {
-        ;(config.admin.components.views as Record<string, unknown>)['sitemap-audit'] = {
+      if (features.sitemapAudit && pluginConfig.addSitemapAuditView !== false) {
+        views['sitemap-audit'] = {
           Component: '@consilioweb/seo-analyzer/views#SitemapAuditView',
           path: '/sitemap-audit',
         }
       }
 
-      // Add SEO configuration view
-      ;(config.admin.components.views as Record<string, unknown>)['seo-config'] = {
-        Component: '@consilioweb/seo-analyzer/views#SeoConfigView',
-        path: '/seo-config',
+      if (features.settings) {
+        views['seo-config'] = {
+          Component: '@consilioweb/seo-analyzer/views#SeoConfigView',
+          path: '/seo-config',
+        }
       }
 
-      // Add redirect manager view
-      ;(config.admin.components.views as Record<string, unknown>)['redirects'] = {
-        Component: '@consilioweb/seo-analyzer/views#RedirectManagerView',
-        path: '/redirects',
+      if (features.redirects) {
+        views['redirects'] = {
+          Component: '@consilioweb/seo-analyzer/views#RedirectManagerView',
+          path: '/redirects',
+        }
       }
 
-      // Add keyword cannibalization view
-      ;(config.admin.components.views as Record<string, unknown>)['cannibalization'] = {
-        Component: '@consilioweb/seo-analyzer/views#CannibalizationView',
-        path: '/cannibalization',
+      if (features.cannibalization) {
+        views['cannibalization'] = {
+          Component: '@consilioweb/seo-analyzer/views#CannibalizationView',
+          path: '/cannibalization',
+        }
       }
 
-      // Add performance (GSC) view
-      ;(config.admin.components.views as Record<string, unknown>)['performance'] = {
-        Component: '@consilioweb/seo-analyzer/views#PerformanceView',
-        path: '/performance',
+      if (features.performance) {
+        views['performance'] = {
+          Component: '@consilioweb/seo-analyzer/views#PerformanceView',
+          path: '/performance',
+        }
       }
 
-      // Add keyword research view
-      ;(config.admin.components.views as Record<string, unknown>)['keyword-research'] = {
-        Component: '@consilioweb/seo-analyzer/views#KeywordResearchView',
-        path: '/keyword-research',
+      if (features.keywords) {
+        views['keyword-research'] = {
+          Component: '@consilioweb/seo-analyzer/views#KeywordResearchView',
+          path: '/keyword-research',
+        }
       }
 
-      // Add schema builder view
-      ;(config.admin.components.views as Record<string, unknown>)['schema-builder'] = {
-        Component: '@consilioweb/seo-analyzer/views#SchemaBuilderView',
-        path: '/schema-builder',
+      if (features.schemaBuilder) {
+        views['schema-builder'] = {
+          Component: '@consilioweb/seo-analyzer/views#SchemaBuilderView',
+          path: '/schema-builder',
+        }
       }
 
-      // Add link graph view
-      ;(config.admin.components.views as Record<string, unknown>)['link-graph'] = {
-        Component: '@consilioweb/seo-analyzer/views#LinkGraphView',
-        path: '/link-graph',
+      if (features.linkGraph) {
+        views['link-graph'] = {
+          Component: '@consilioweb/seo-analyzer/views#LinkGraphView',
+          path: '/link-graph',
+        }
       }
 
       // Inject nav link into admin sidebar
@@ -619,11 +702,18 @@ export const seoAnalyzerPlugin =
     }
     ;(config.i18n as Record<string, unknown>).translations = merged
 
+    // 5. Register custom dashboard translations if provided
+    if (pluginConfig.customTranslations) {
+      for (const [locale, translations] of Object.entries(pluginConfig.customTranslations)) {
+        registerDashboardTranslations(locale, translations)
+      }
+    }
+
     // 5. Add cache warm-up on server init
     const existingOnInit = config.onInit
     config.onInit = async (payload) => {
       if (existingOnInit) await existingOnInit(payload)
-      startCacheWarmUp(payload, basePath, targetGlobals)
+      startCacheWarmUp(payload, basePath, targetGlobals, targetCollections)
     }
 
     return config

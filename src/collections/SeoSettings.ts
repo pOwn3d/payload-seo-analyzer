@@ -16,7 +16,7 @@ export function createSeoSettingsCollection(): CollectionConfig {
   return {
     slug: 'seo-settings',
     admin: {
-      hidden: true,
+      custom: { navHidden: true },
     },
     access: {
       read: ({ req }) => !!req.user,
@@ -149,6 +149,15 @@ export function createSeoSettingsCollection(): CollectionConfig {
             ],
           },
         ],
+      },
+      {
+        name: 'robotsCustomRules',
+        type: 'textarea',
+        label: 'Custom robots.txt rules',
+        admin: {
+          description:
+            'Additional rules to include in robots.txt (one per line). Example: Disallow: /private/',
+        },
       },
       {
         name: 'breadcrumb',

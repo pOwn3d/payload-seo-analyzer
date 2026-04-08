@@ -9,6 +9,16 @@
  */
 
 import type { PayloadHandler } from 'payload'
+import { parseJsonBody } from '../helpers/parseBody.js'
+
+/** Check if the user has admin role */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function isAdmin(user: any): boolean {
+  if (!user) return false
+  if (user.role === 'admin') return true
+  if (Array.isArray(user.roles) && user.roles.includes('admin')) return true
+  return false
+}
 
 export function createSettingsHandler(): PayloadHandler {
   return async (req) => {
@@ -17,7 +27,7 @@ export function createSettingsHandler(): PayloadHandler {
         return Response.json({ error: 'Unauthorized' }, { status: 401 })
       }
 
-      // GET — return current settings
+      // GET — return current settings (any authenticated user)
       if (req.method === 'GET') {
         const result = await req.payload.find({
           collection: 'seo-settings',
@@ -28,17 +38,15 @@ export function createSettingsHandler(): PayloadHandler {
         return Response.json({ settings })
       }
 
-      // PATCH — update settings
+      // PATCH — update settings (admin only)
       if (req.method === 'PATCH') {
-        let rawBody: Record<string, unknown>
-        try {
-          rawBody = await (req as any).json()
-        } catch {
-          return Response.json({ error: 'Invalid JSON body' }, { status: 400 })
+        if (!isAdmin(req.user)) {
+          return Response.json({ error: 'Admin access required' }, { status: 403 })
         }
+        const rawBody = await parseJsonBody(req)
 
         // Whitelist allowed fields — strip everything else
-        const ALLOWED_FIELDS = ['siteName', 'ignoredSlugs', 'disabledRules', 'thresholds', 'sitemap', 'breadcrumb']
+        const ALLOWED_FIELDS = ['siteName', 'ignoredSlugs', 'disabledRules', 'thresholds', 'sitemap', 'breadcrumb', 'robotsCustomRules']
         const body: Record<string, unknown> = {}
         for (const key of ALLOWED_FIELDS) {
           if (rawBody[key] !== undefined) {

@@ -20,7 +20,30 @@
 
 </div>
 
+<p align="center">
+  <a href="https://buymeacoffee.com/pown3d">
+    <img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-☕-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black" alt="Buy me a coffee" />
+  </a>
+</p>
+
 <img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
+
+> [!IMPORTANT]
+> ## ⚠️ Next.js 16 + Turbopack — Known Issue
+>
+> If you're using **Next.js 16** with Turbopack (default bundler), you may encounter a `createContext is not a function` error during `next build`. This is a **known Payload CMS issue** ([#15429](https://github.com/payloadcms/payload/issues/15429), [#14330](https://github.com/payloadcms/payload/discussions/14330)) — not specific to this plugin.
+>
+> **Workaround** — Add this to your admin page (`src/app/(payload)/admin/[[...segments]]/page.tsx`):
+> ```ts
+> export const dynamic = 'force-dynamic'
+> ```
+>
+> And ensure all `@consilioweb/*` packages are in `transpilePackages` in your `next.config.ts`:
+> ```ts
+> transpilePackages: ['@consilioweb/seo-analyzer', '@consilioweb/admin-nav', /* ...other @consilioweb packages */],
+> ```
+>
+> ✅ **Next.js 15** works without any workaround.
 
 ## About
 
@@ -173,6 +196,16 @@ All dashboard views automatically switch to the user's Payload admin locale (Fre
 - **Cache warm-up** — Pre-loads collection data on startup and hourly for instant dashboard response
 - **SEO Logs (404 monitoring)** — Tracks 404 errors with hit count, referrer, and user agent for proactive redirect management
 
+### New in v1.7.0
+
+- **Granular feature flags** — Disable collections, endpoints, or views independently via `features` config
+- **robots.txt generation** — Dynamic robots.txt endpoint with admin management
+- **XML sitemap generation** — Dynamic sitemap.xml endpoint built from your collections
+- **Custom dashboard translations** — Extend or override dashboard labels via `customTranslations` config or `registerDashboardTranslations()` API
+- **RBAC on destructive endpoints** — Admin role check on all write/delete operations
+- **Security hardening** — SSRF DNS rebinding protection, collection injection protection, timing-safe secret comparison, LRU cache eviction
+- **Shared helpers** — `extractDocContent`, `parseJsonBody`, `fetchAllDocs`, `loadMergedConfig`, `metaGeneration` reduce code duplication across endpoints
+
 <img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
 
 ## Installation
@@ -306,7 +339,7 @@ const result = analyzeSeo(input, { locale: 'en' })
 
 ```ts
 seoAnalyzerPlugin({
-  // Toutes les options sont optionnelles — des valeurs par défaut sont utilisées
+  // All options are optional — defaults are used if omitted
   collections: ['pages', 'posts'],
   globals: [],
   locale: 'fr',
@@ -333,6 +366,21 @@ seoAnalyzerPlugin({
   knownRoutes: [],
   seoLogsSecret: undefined,
   interfaceName: undefined,
+
+  // v1.7.0 — Feature flags
+  features: {
+    collections: true,       // Auto-create managed collections
+    endpoints: true,         // Register API endpoints
+    views: true,             // Register admin views
+    robotsTxt: false,        // Enable robots.txt generation endpoint
+    xmlSitemap: false,       // Enable XML sitemap generation endpoint
+  },
+
+  // v1.7.0 — Custom dashboard translations
+  customTranslations: {
+    en: { 'seo:myKey': 'My custom label' },
+    fr: { 'seo:myKey': 'Mon label custom' },
+  },
 })
 ```
 
@@ -363,7 +411,14 @@ seoAnalyzerPlugin({
 | `redirectsCollection` | `string` | `'seo-redirects'` | Slug de la collection de redirections auto-créée |
 | `knownRoutes` | `string[]` | `[]` | Routes dynamiques qui ne doivent pas être signalées comme liens cassés |
 | `seoLogsSecret` | `string` | `undefined` | Secret partagé pour l'endpoint POST des logs SEO (auth middleware) |
-| `interfaceName` | `string` | `undefined` | Nom d'interface TypeScript personnalisé pour le type du groupe meta généré (ex: `'SharedSEO'`) |
+| `interfaceName` | `string` | `undefined` | Custom TypeScript interface name for the generated meta group type (e.g. `'SharedSEO'`) |
+| `features` | `object` | All `true` | Granular feature flags to disable collections, endpoints, or views (see below) |
+| `features.collections` | `boolean` | `true` | Auto-create managed collections (score history, redirects, settings, SEO logs, performance) |
+| `features.endpoints` | `boolean` | `true` | Register API endpoints under the base path |
+| `features.views` | `boolean` | `true` | Register admin dashboard views |
+| `features.robotsTxt` | `boolean` | `false` | Enable dynamic robots.txt generation endpoint (`GET /api/seo-plugin/robots.txt`) |
+| `features.xmlSitemap` | `boolean` | `false` | Enable dynamic XML sitemap generation endpoint (`GET /api/seo-plugin/sitemap.xml`) |
+| `customTranslations` | `Record<string, Record<string, string>>` | `undefined` | Custom dashboard translations keyed by locale (merged at startup) |
 
 ### `SeoThresholds`
 
@@ -1093,6 +1148,14 @@ db.getCollection('seo-logs').drop()
 > **Note:** The plugin never drops tables or deletes data automatically. This is by design — your SEO history and redirects are valuable data that should only be removed intentionally.
 
 <img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
+
+## ☕ Support
+
+If this plugin saves you time, consider buying me a coffee!
+
+<a href="https://buymeacoffee.com/pown3d">
+  <img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=☕&slug=pown3d&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" />
+</a>
 
 ## License
 

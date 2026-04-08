@@ -11,6 +11,7 @@
 import type { PayloadHandler } from 'payload'
 import { seoCache } from '../cache.js'
 import { extractAllInternalLinks, normalizeToSlug } from '../helpers/linkExtractor.js'
+import { fetchAllDocs } from '../helpers/fetchAllDocs.js'
 
 // ---------------------------------------------------------------------------
 // Slug suggestion for broken links (C1)
@@ -108,37 +109,29 @@ export function createSitemapAuditHandler(
       // Map of slug -> incoming link sources with anchor text
       const incomingMap = new Map<string, Array<{ slug: string; anchorText: string }>>()
 
-      for (const collectionSlug of collections) {
-        try {
-          const result = await req.payload.find({
-            collection: collectionSlug,
-            limit: 500,
-            depth: 1,
-            overrideAccess: true,
-          })
+      const allFetched = await fetchAllDocs(req.payload, {
+        collections,
+        depth: 1,
+      })
 
-          for (const doc of result.docs) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const d = doc as any
-            const slug = (d.slug as string) || ''
-            const title = (d.title as string) || ''
+      for (const { doc, sourceSlug: collectionSlug } of allFetched) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const d = doc as any
+        const slug = (d.slug as string) || ''
+        const title = (d.title as string) || ''
 
-            const docInfo = {
-              id: d.id,
-              title,
-              slug,
-              collection: collectionSlug,
-            }
-            allDocs.push(docInfo)
-            slugMap.set(slug, docInfo)
-
-            // Extract all internal links from this document
-            const internalLinks = extractAllInternalLinks(d)
-            outgoingMap.set(slug, internalLinks)
-          }
-        } catch {
-          // Collection might not exist — skip silently
+        const docInfo = {
+          id: d.id,
+          title,
+          slug,
+          collection: collectionSlug,
         }
+        allDocs.push(docInfo)
+        slugMap.set(slug, docInfo)
+
+        // Extract all internal links from this document
+        const internalLinks = extractAllInternalLinks(d)
+        outgoingMap.set(slug, internalLinks)
       }
 
       // 2. Build the incoming links map (with anchor text)

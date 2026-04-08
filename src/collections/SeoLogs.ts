@@ -14,7 +14,7 @@ export function createSeoLogsCollection(): CollectionConfig {
       plural: 'Logs SEO',
     },
     admin: {
-      hidden: true,
+      custom: { navHidden: true },
       group: 'SEO',
     },
     access: {
@@ -38,7 +38,8 @@ export function createSeoLogsCollection(): CollectionConfig {
         defaultValue: '404',
         options: [
           { label: '404 Not Found', value: '404' },
-          { label: '500 Server Error', value: '500' },
+          { label: 'Redirect', value: 'redirect' },
+          { label: 'Error', value: 'error' },
         ],
       },
       {

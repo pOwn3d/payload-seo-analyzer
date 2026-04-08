@@ -13,9 +13,10 @@ import { seoCache } from '../cache.js'
 import {
   getStopWordsFR,
   normalizeForComparison,
-  extractTextFromLexical,
   countWords,
 } from '../helpers.js'
+import { extractDocContent } from '../helpers/extractDocContent.js'
+import { fetchAllDocs } from '../helpers/fetchAllDocs.js'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -134,54 +135,12 @@ function simpleStem(word: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Extract text from a document
+// Extract text from a document (delegates to shared helper)
 // ---------------------------------------------------------------------------
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function extractDocText(doc: any): string {
-  let text = ''
-
-  // Title
-  if (doc.title) text += doc.title + ' '
-
-  // Meta
-  if (doc.meta?.title) text += doc.meta.title + ' '
-  if (doc.meta?.description) text += doc.meta.description + ' '
-
-  // Hero
-  if (doc.hero?.richText) {
-    text += extractTextFromLexical(doc.hero.richText) + ' '
-  }
-
-  // Blocks (layout)
-  if (Array.isArray(doc.layout)) {
-    for (const block of doc.layout) {
-      if (!block || typeof block !== 'object') continue
-      if (block.richText) {
-        text += extractTextFromLexical(block.richText) + ' '
-      }
-      if (Array.isArray(block.columns)) {
-        for (const col of block.columns) {
-          if (col?.richText) {
-            text += extractTextFromLexical(col.richText) + ' '
-          }
-        }
-      }
-      if (block.blockType === 'services' && Array.isArray(block.services)) {
-        for (const svc of block.services) {
-          if (svc?.title) text += svc.title + ' '
-          if (svc?.description) text += svc.description + ' '
-        }
-      }
-    }
-  }
-
-  // Post content
-  if (doc.content && typeof doc.content === 'object' && !Array.isArray(doc.content)) {
-    text += extractTextFromLexical(doc.content) + ' '
-  }
-
-  return text.trim()
+  return extractDocContent(doc).text
 }
 
 // ---------------------------------------------------------------------------
@@ -206,49 +165,25 @@ export function createKeywordResearchHandler(targetCollections: string[], global
       // 1. Fetch all documents from target collections
       const allDocs: DocData[] = []
 
-      for (const collectionSlug of targetCollections) {
-        try {
-          const result = await req.payload.find({
-            collection: collectionSlug,
-            limit: 500,
-            depth: 1,
-            overrideAccess: true,
-          })
+      const allFetched = await fetchAllDocs(req.payload, {
+        collections: targetCollections,
+        globals,
+        depth: 1,
+      })
 
-          for (const doc of result.docs) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const d = doc as any
-            const fullText = extractDocText(d)
-            allDocs.push({
-              id: d.id,
-              title: d.title || '(sans titre)',
-              slug: d.slug || '',
-              collection: collectionSlug,
-              focusKeyword: d.focusKeyword || '',
-              fullText,
-              wordCount: countWords(fullText),
-            })
-          }
-        } catch {
-          // Collection might not exist — skip
-        }
-      }
-
-      // Include globals in the document corpus
-      for (const globalSlug of globals) {
-        try {
-          const doc = await req.payload.findGlobal({ slug: globalSlug, depth: 1, overrideAccess: true })
-          const fullText = extractDocText(doc)
-          allDocs.push({
-            id: globalSlug,
-            title: (doc as Record<string, unknown>).title as string || globalSlug,
-            slug: '',
-            collection: `global:${globalSlug}`,
-            focusKeyword: (doc as Record<string, unknown>).focusKeyword as string || '',
-            fullText,
-            wordCount: countWords(fullText),
-          })
-        } catch { /* skip */ }
+      for (const { doc, sourceType, sourceSlug } of allFetched) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const d = doc as any
+        const fullText = extractDocText(d)
+        allDocs.push({
+          id: sourceType === 'global' ? sourceSlug : d.id,
+          title: d.title || '(sans titre)',
+          slug: d.slug || '',
+          collection: sourceType === 'global' ? `global:${sourceSlug}` : sourceSlug,
+          focusKeyword: d.focusKeyword || '',
+          fullText,
+          wordCount: countWords(fullText),
+        })
       }
 
       if (allDocs.length === 0) {

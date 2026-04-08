@@ -9,6 +9,7 @@
  */
 
 import type { PayloadHandler } from 'payload'
+import { fetchAllDocs } from '../helpers/fetchAllDocs.js'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -109,61 +110,53 @@ export function createSitemapConfigHandler(targetCollections: string[]): Payload
       let totalPages = 0
       let excludedCount = 0
 
-      for (const collectionSlug of targetCollections) {
-        try {
-          const result = await req.payload.find({
-            collection: collectionSlug,
-            limit: 500,
-            depth: 0,
-            overrideAccess: true,
-          })
+      const allFetched = await fetchAllDocs(req.payload, {
+        collections: targetCollections,
+        depth: 0,
+      })
 
-          for (const doc of result.docs) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const d = doc as any
-            const slug = (d.slug as string) || ''
-            const title = (d.title as string) || ''
+      for (const { doc, sourceSlug: collectionSlug } of allFetched) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const d = doc as any
+        const slug = (d.slug as string) || ''
+        const title = (d.title as string) || ''
 
-            totalPages++
+        totalPages++
 
-            // Check exclusion
-            if (excludedSet.has(slug)) {
-              excludedCount++
-              continue
-            }
-
-            // Compute priority and changefreq for this page
-            let pageChangefreq = defaultChangefreq
-            let pagePriority = defaultPriority
-
-            // Apply overrides (last match wins)
-            for (const override of priorityOverrides) {
-              if (matchPattern(slug, override.slugPattern)) {
-                pagePriority = override.priority
-                if (override.changefreq) {
-                  pageChangefreq = override.changefreq
-                }
-              }
-            }
-
-            // Homepage gets highest priority if no override set
-            if ((slug === 'home' || slug === '') && !priorityOverrides.some((o) => matchPattern(slug, o.slugPattern))) {
-              pagePriority = 1.0
-              pageChangefreq = 'daily'
-            }
-
-            preview.push({
-              url: slug ? `/${slug}` : '/',
-              collection: collectionSlug,
-              title,
-              changefreq: pageChangefreq,
-              priority: pagePriority,
-              lastmod: d.updatedAt || '',
-            })
-          }
-        } catch {
-          // Collection might not exist — skip silently
+        // Check exclusion
+        if (excludedSet.has(slug)) {
+          excludedCount++
+          continue
         }
+
+        // Compute priority and changefreq for this page
+        let pageChangefreq = defaultChangefreq
+        let pagePriority = defaultPriority
+
+        // Apply overrides (last match wins)
+        for (const override of priorityOverrides) {
+          if (matchPattern(slug, override.slugPattern)) {
+            pagePriority = override.priority
+            if (override.changefreq) {
+              pageChangefreq = override.changefreq
+            }
+          }
+        }
+
+        // Homepage gets highest priority if no override set
+        if ((slug === 'home' || slug === '') && !priorityOverrides.some((o) => matchPattern(slug, o.slugPattern))) {
+          pagePriority = 1.0
+          pageChangefreq = 'daily'
+        }
+
+        preview.push({
+          url: slug ? `/${slug}` : '/',
+          collection: collectionSlug,
+          title,
+          changefreq: pageChangefreq,
+          priority: pagePriority,
+          lastmod: d.updatedAt || '',
+        })
       }
 
       // Sort by priority descending, then alphabetically

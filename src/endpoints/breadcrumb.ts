@@ -60,6 +60,11 @@ export function createBreadcrumbHandler(targetCollections: string[]): PayloadHan
       const slug = url.searchParams.get('slug')
       const collection = url.searchParams.get('collection') || 'pages'
 
+      // Validate collection against allowed target collections
+      if (!targetCollections.includes(collection)) {
+        return Response.json({ error: 'Collection not allowed' }, { status: 403 })
+      }
+
       if (!slug) {
         return Response.json({ error: 'Missing ?slug parameter' }, { status: 400 })
       }

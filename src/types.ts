@@ -138,6 +138,46 @@ export interface SeoConfig {
   locale?: 'fr' | 'en'
 }
 
+/**
+ * Granular feature flags for the SEO plugin.
+ * All features default to `true`. Set a feature to `false` to disable it
+ * and avoid loading its collections, endpoints, and admin views.
+ *
+ * The core analyzer sidebar, validate endpoint, and meta fields are always active.
+ */
+export interface SeoFeatures {
+  /** Core SEO analyzer sidebar — always enabled, cannot be disabled */
+  analyzer?: boolean
+  /** Dashboard view with overview of all pages (/admin/seo) */
+  dashboard?: boolean
+  /** Redirect manager (collection + CRUD endpoints + view) */
+  redirects?: boolean
+  /** Performance / GSC import (collection + endpoints + view) */
+  performance?: boolean
+  /** Link graph visualization (endpoint + view) */
+  linkGraph?: boolean
+  /** Keyword research (endpoint + view) */
+  keywords?: boolean
+  /** Cannibalization detection (endpoint + view) */
+  cannibalization?: boolean
+  /** Schema.org / JSON-LD builder (endpoint + view) */
+  schemaBuilder?: boolean
+  /** Sitemap audit (endpoint + view) */
+  sitemapAudit?: boolean
+  /** SEO Logs — 404 tracking (collection + endpoints) */
+  seoLogs?: boolean
+  /** Score history tracking (collection + hook + endpoint) */
+  scoreHistory?: boolean
+  /** External links checker (endpoint) */
+  externalLinks?: boolean
+  /** AI content generation/rewrite (endpoints) */
+  aiFeatures?: boolean
+  /** Duplicate content detection (endpoint) */
+  duplicateContent?: boolean
+  /** Settings view (/admin/seo-config) */
+  settings?: boolean
+}
+
 /** Pre-computed context shared across all rule modules to avoid redundant work */
 export interface AnalysisContext {
   /** All plain text extracted from the page */

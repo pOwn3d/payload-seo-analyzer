@@ -9,7 +9,7 @@
 
 import type { PayloadHandler } from 'payload'
 import { seoCache } from '../cache.js'
-import { extractTextFromLexical } from '../helpers.js'
+import { extractDocContent } from '../helpers/extractDocContent.js'
 
 interface PageInfo {
   id: string | number
@@ -59,57 +59,11 @@ function jaccardSimilarity(setA: Set<string>, setB: Set<string>): number {
 }
 
 // ---------------------------------------------------------------------------
-// Text extraction from a Payload document
+// Text extraction from a Payload document (delegates to shared helper)
 // ---------------------------------------------------------------------------
 
 function extractDocText(doc: Record<string, unknown>): string {
-  const parts: string[] = []
-
-  // Title
-  if (typeof doc.title === 'string') parts.push(doc.title)
-
-  // Meta description
-  const meta = doc.meta as Record<string, unknown> | undefined
-  if (meta && typeof meta.description === 'string') parts.push(meta.description)
-
-  // Hero richText
-  const hero = doc.hero as Record<string, unknown> | undefined
-  if (hero?.richText) {
-    parts.push(extractTextFromLexical(hero.richText, 10))
-  }
-
-  // Layout blocks
-  const layout = doc.layout as unknown[] | undefined
-  if (layout && Array.isArray(layout)) {
-    for (const block of layout) {
-      if (!block || typeof block !== 'object') continue
-      const b = block as Record<string, unknown>
-
-      // richText blocks
-      if (b.richText) {
-        parts.push(extractTextFromLexical(b.richText, 10))
-      }
-
-      // Content blocks with columns
-      if (b.columns && Array.isArray(b.columns)) {
-        for (const col of b.columns) {
-          if (col && typeof col === 'object') {
-            const colObj = col as Record<string, unknown>
-            if (colObj.richText) {
-              parts.push(extractTextFromLexical(colObj.richText, 10))
-            }
-          }
-        }
-      }
-    }
-  }
-
-  // Post content
-  if (doc.content) {
-    parts.push(extractTextFromLexical(doc.content, 10))
-  }
-
-  return parts.join(' ').trim()
+  return extractDocContent(doc).text
 }
 
 // ---------------------------------------------------------------------------

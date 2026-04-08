@@ -10,6 +10,7 @@
 
 import type { PayloadHandler } from 'payload'
 import { seoCache } from '../cache.js'
+import { fetchAllDocs } from '../helpers/fetchAllDocs.js'
 
 interface PageEntry {
   id: number | string
@@ -42,77 +43,52 @@ export function createCannibalizationHandler(collections: string[], globals: str
       // Map: normalized keyword -> list of pages using it
       const keywordMap = new Map<string, PageEntry[]>()
 
-      for (const collectionSlug of collections) {
-        try {
-          const result = await req.payload.find({
-            collection: collectionSlug,
-            limit: 500,
-            depth: 0,
-            overrideAccess: true,
-          })
+      const allFetched = await fetchAllDocs(req.payload, {
+        collections,
+        globals,
+        depth: 0,
+      })
 
-          for (const doc of result.docs) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const d = doc as any
-            const pageEntry: PageEntry = {
-              id: d.id,
-              title: d.title || '(sans titre)',
-              slug: d.slug || '',
-              collection: collectionSlug,
-              score: 0,
-            }
+      for (const { doc, sourceType, sourceSlug } of allFetched) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const d = doc as any
+        const collectionLabel = sourceType === 'global' ? `global:${sourceSlug}` : sourceSlug
+        const pageEntry: PageEntry = {
+          id: sourceType === 'global' ? sourceSlug : d.id,
+          title: d.title || '(sans titre)',
+          slug: d.slug || '',
+          collection: collectionLabel,
+          score: 0,
+        }
 
-            // Collect all keywords for this document
-            const keywords: string[] = []
+        // Collect all keywords for this document
+        const keywords: string[] = []
 
-            if (d.focusKeyword && typeof d.focusKeyword === 'string' && d.focusKeyword.trim()) {
-              keywords.push(d.focusKeyword.trim().toLowerCase())
-            }
+        if (d.focusKeyword && typeof d.focusKeyword === 'string' && d.focusKeyword.trim()) {
+          keywords.push(d.focusKeyword.trim().toLowerCase())
+        }
 
-            if (Array.isArray(d.focusKeywords)) {
-              for (const kw of d.focusKeywords) {
-                const keyword =
-                  typeof kw === 'string' ? kw : kw?.keyword
-                if (keyword && typeof keyword === 'string' && keyword.trim()) {
-                  const normalized = keyword.trim().toLowerCase()
-                  if (!keywords.includes(normalized)) {
-                    keywords.push(normalized)
-                  }
-                }
+        if (Array.isArray(d.focusKeywords)) {
+          for (const kw of d.focusKeywords) {
+            const keyword =
+              typeof kw === 'string' ? kw : kw?.keyword
+            if (keyword && typeof keyword === 'string' && keyword.trim()) {
+              const normalized = keyword.trim().toLowerCase()
+              if (!keywords.includes(normalized)) {
+                keywords.push(normalized)
               }
-            }
-
-            // Add this page to each keyword's entry list
-            for (const kw of keywords) {
-              if (!keywordMap.has(kw)) {
-                keywordMap.set(kw, [])
-              }
-              keywordMap.get(kw)!.push(pageEntry)
             }
           }
-        } catch {
-          // Collection might not exist — skip silently
+        }
+
+        // Add this page to each keyword's entry list
+        for (const kw of keywords) {
+          if (!keywordMap.has(kw)) {
+            keywordMap.set(kw, [])
+          }
+          keywordMap.get(kw)!.push(pageEntry)
         }
       }
-
-      // Include globals
-        for (const globalSlug of globals) {
-          try {
-            const doc = await req.payload.findGlobal({ slug: globalSlug, depth: 0, overrideAccess: true }) as Record<string, unknown>
-            const entry: PageEntry = {
-              id: globalSlug,
-              title: (doc.title as string) || globalSlug,
-              slug: '',
-              collection: `global:${globalSlug}`,
-              score: 0,
-            }
-            const kw = typeof doc.focusKeyword === 'string' ? doc.focusKeyword.trim().toLowerCase() : ''
-            if (kw) {
-              if (!keywordMap.has(kw)) keywordMap.set(kw, [])
-              keywordMap.get(kw)!.push(entry)
-            }
-          } catch { /* skip */ }
-        }
 
       // Try to fetch scores from seo-score-history for enrichment
       const scoreMap = new Map<string, number>()

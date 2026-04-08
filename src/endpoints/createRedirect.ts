@@ -11,6 +11,16 @@
 
 import type { PayloadHandler } from 'payload'
 import { seoCache } from '../cache.js'
+import { parseJsonBody } from '../helpers/parseBody.js'
+
+/** Check if the user has admin role */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function isAdmin(user: any): boolean {
+  if (!user) return false
+  if (user.role === 'admin') return true
+  if (Array.isArray(user.roles) && user.roles.includes('admin')) return true
+  return false
+}
 
 export function createRedirectHandler(redirectsCollection: string): PayloadHandler {
   return async (req) => {
@@ -18,13 +28,12 @@ export function createRedirectHandler(redirectsCollection: string): PayloadHandl
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    if (!isAdmin(req.user)) {
+      return Response.json({ error: 'Admin access required' }, { status: 403 })
+    }
+
     try {
-      let body: Record<string, unknown> = {}
-      try {
-        body = (await req.json?.()) ?? {}
-      } catch {
-        return Response.json({ error: 'Invalid JSON body' }, { status: 400 })
-      }
+      const body = await parseJsonBody(req)
 
       const from = typeof body.from === 'string' ? body.from.trim() : undefined
       const to = typeof body.to === 'string' ? body.to.trim() : undefined

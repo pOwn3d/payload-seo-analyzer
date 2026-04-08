@@ -15,7 +15,7 @@ export function createSeoScoreHistoryCollection(): CollectionConfig {
   return {
     slug: 'seo-score-history',
     admin: {
-      hidden: true,
+      custom: { navHidden: true },
     },
     access: {
       read: ({ req }) => !!req.user,

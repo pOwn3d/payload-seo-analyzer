@@ -9,7 +9,8 @@
 
 import type { PayloadHandler } from 'payload'
 import { analyzeSeo } from '../index.js'
-import { resolveAnalysisLocale } from '../helpers/resolveLocale.js'
+import { loadMergedConfig } from '../helpers/loadMergedConfig.js'
+import { parseJsonBody } from '../helpers/parseBody.js'
 import type { SeoInput, SeoConfig } from '../types.js'
 
 /**
@@ -52,62 +53,6 @@ export function buildSeoInputFromDoc(
   }
 }
 
-/** Load SeoSettings from DB and merge with plugin config (for validate endpoint) */
-async function loadMergedConfig(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  payload: any,
-  pluginConfig?: SeoConfig,
-  reqLocale?: string,
-  localeMapping?: Record<string, 'fr' | 'en'>,
-): Promise<SeoConfig> {
-  let mergedConfig: SeoConfig = { ...pluginConfig }
-
-  try {
-    const settingsResult = await payload.find({
-      collection: 'seo-settings',
-      limit: 1,
-      overrideAccess: true,
-    })
-    const settings = settingsResult.docs?.[0]
-    if (settings) {
-      if (Array.isArray(settings.disabledRules) && settings.disabledRules.length > 0) {
-        const existing = mergedConfig.disabledRules || []
-        const combined = [...new Set([...existing, ...settings.disabledRules])]
-        mergedConfig = { ...mergedConfig, disabledRules: combined as SeoConfig['disabledRules'] }
-      }
-      if (settings.siteName) {
-        mergedConfig = { ...mergedConfig, siteName: settings.siteName }
-      }
-      if (settings.thresholds && typeof settings.thresholds === 'object') {
-        const thresholds: Record<string, number> = {}
-        for (const [key, val] of Object.entries(settings.thresholds)) {
-          if (val != null && typeof val === 'number') {
-            thresholds[key] = val
-          }
-        }
-        if (Object.keys(thresholds).length > 0) {
-          mergedConfig = {
-            ...mergedConfig,
-            thresholds: { ...(mergedConfig.thresholds || {}), ...thresholds },
-          }
-        }
-      }
-    }
-  } catch {
-    // SeoSettings collection might not exist yet
-  }
-
-  // Resolve locale from Payload's i18n
-  const effectiveLocale = resolveAnalysisLocale({
-    reqLocale,
-    pluginLocale: mergedConfig.locale,
-    customMapping: localeMapping,
-  })
-  mergedConfig = { ...mergedConfig, locale: effectiveLocale }
-
-  return mergedConfig
-}
-
 export function createValidateHandler(
   _collections: string[],
   seoConfig?: SeoConfig,
@@ -120,7 +65,10 @@ export function createValidateHandler(
       }
 
       // Load merged config from DB settings + plugin config
-      const mergedConfig = await loadMergedConfig(req.payload, seoConfig, req.locale as string | undefined, localeMapping)
+      const { config: mergedConfig } = await loadMergedConfig(req.payload, seoConfig, {
+        reqLocale: req.locale as string | undefined,
+        localeMapping,
+      })
 
       // GET — quick score check by ID
       if (req.method === 'GET') {
@@ -130,6 +78,11 @@ export function createValidateHandler(
 
         if (!id) {
           return Response.json({ error: 'Missing id parameter' }, { status: 400 })
+        }
+
+        // Validate collection against allowed target collections
+        if (!_collections.includes(collection)) {
+          return Response.json({ error: 'Collection not allowed' }, { status: 403 })
         }
 
         const globalSlug = url.searchParams.get('global')
@@ -181,13 +134,7 @@ export function createValidateHandler(
       }
 
       // POST — full analysis with multiple modes
-      let body: Record<string, unknown>
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        body = await (req as any).json()
-      } catch {
-        return Response.json({ error: 'Invalid JSON body' }, { status: 400 })
-      }
+      const body = await parseJsonBody(req)
       const { id, collection, data, overrides, global: globalSlug } = body as {
         id?: number | string
         collection?: string
@@ -209,6 +156,10 @@ export function createValidateHandler(
         seoInput = buildSeoInputFromDoc(doc, `global:${globalSlug}`, { isGlobal: true })
         if (overrides) seoInput = { ...seoInput, ...overrides }
       } else if (id && collection) {
+        // Validate collection against allowed target collections
+        if (!_collections.includes(collection)) {
+          return Response.json({ error: 'Collection not allowed' }, { status: 403 })
+        }
         const doc = await req.payload.findByID({
           collection,
           id,

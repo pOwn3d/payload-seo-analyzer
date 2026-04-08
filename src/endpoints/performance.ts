@@ -9,6 +9,7 @@
  */
 
 import type { PayloadHandler } from 'payload'
+import { parseJsonBody } from '../helpers/parseBody.js'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -110,6 +111,15 @@ function getDateThreshold(period: string): Date {
 // ---------------------------------------------------------------------------
 // Handler
 // ---------------------------------------------------------------------------
+
+/** Check if the user has admin role */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function isAdmin(user: any): boolean {
+  if (!user) return false
+  if (user.role === 'admin') return true
+  if (Array.isArray(user.roles) && user.roles.includes('admin')) return true
+  return false
+}
 
 export function createPerformanceHandler(): PayloadHandler {
   return async (req) => {
@@ -251,15 +261,13 @@ export function createPerformanceHandler(): PayloadHandler {
       }
 
       // =======================================================================
-      // POST — Import performance data
+      // POST — Import performance data (admin only)
       // =======================================================================
       if (method === 'POST') {
-        let body: Record<string, unknown> = {}
-        try {
-          body = (await req.json?.()) ?? {}
-        } catch {
-          return Response.json({ error: 'Invalid JSON body' }, { status: 400 })
+        if (!isAdmin(req.user)) {
+          return Response.json({ error: 'Admin access required' }, { status: 403 })
         }
+        const body = await parseJsonBody(req)
 
         let entries: PerformanceEntry[] = []
 
@@ -334,40 +342,75 @@ export function createPerformanceHandler(): PayloadHandler {
         let updated = 0
         let errors = 0
 
-        // Upsert: deduplicate by url+query+date
+        // Pre-process: normalize dates and filter invalid entries
+        interface NormalizedEntry extends PerformanceEntry {
+          dateISO: string
+          key: string // url+query+date composite key
+        }
+        const normalizedEntries: NormalizedEntry[] = []
         for (const entry of entries) {
           try {
-            // Normalize date to ISO date string (strip time component)
-            let dateISO: string
-            try {
-              const d = new Date(entry.date)
-              if (isNaN(d.getTime())) throw new Error('Invalid date')
-              dateISO = d.toISOString().split('T')[0] + 'T00:00:00.000Z'
-            } catch {
-              errors++
-              continue
-            }
+            const d = new Date(entry.date)
+            if (isNaN(d.getTime())) { errors++; continue }
+            const dateISO = d.toISOString().split('T')[0] + 'T00:00:00.000Z'
+            const key = `${entry.url}::${entry.query || ''}::${dateISO}`
+            normalizedEntries.push({ ...entry, dateISO, key })
+          } catch {
+            errors++
+          }
+        }
 
-            // Check for existing entry with same url+query+date
-            const existing = await req.payload.find({
+        // Process in batches of 50
+        const BATCH_SIZE = 50
+        for (let i = 0; i < normalizedEntries.length; i += BATCH_SIZE) {
+          const batch = normalizedEntries.slice(i, i + BATCH_SIZE)
+          const batchUrls = [...new Set(batch.map((e) => e.url))]
+
+          // Single query to find all existing entries for this batch's URLs
+          let existingDocs: Array<Record<string, unknown>> = []
+          try {
+            const result = await req.payload.find({
               collection: 'seo-performance',
-              limit: 1,
+              limit: batch.length * 2,
               depth: 0,
               overrideAccess: true,
-              where: {
-                and: [
-                  { url: { equals: entry.url } },
-                  { date: { equals: dateISO } },
-                  ...(entry.query ? [{ query: { equals: entry.query } }] : [{ query: { equals: '' } }]),
-                ],
-              },
+              where: { url: { in: batchUrls } },
             })
+            existingDocs = result.docs as Array<Record<string, unknown>>
+          } catch {
+            // If bulk find fails, count all as errors
+            errors += batch.length
+            continue
+          }
 
-            if (existing.docs.length > 0) {
-              // Update existing entry
+          // Build a lookup map: "url::query::date" -> existing doc
+          const existingMap = new Map<string, Record<string, unknown>>()
+          for (const doc of existingDocs) {
+            const docUrl = (doc.url as string) || ''
+            const docQuery = (doc.query as string) || ''
+            const docDate = (doc.date as string) || ''
+            const key = `${docUrl}::${docQuery}::${docDate}`
+            existingMap.set(key, doc)
+          }
+
+          // Separate into creates and updates
+          const toCreate: NormalizedEntry[] = []
+          const toUpdate: Array<{ id: string | number; entry: NormalizedEntry }> = []
+          for (const entry of batch) {
+            const existing = existingMap.get(entry.key)
+            if (existing) {
+              toUpdate.push({ id: existing.id as string | number, entry })
+            } else {
+              toCreate.push(entry)
+            }
+          }
+
+          // Process updates in parallel (batched)
+          const updatePromises = toUpdate.map(async ({ id, entry }) => {
+            try {
               await req.payload.update({
                 collection: 'seo-performance',
-                id: existing.docs[0].id,
+                id,
                 data: {
                   clicks: entry.clicks,
                   impressions: entry.impressions,
@@ -377,9 +420,15 @@ export function createPerformanceHandler(): PayloadHandler {
                 },
                 overrideAccess: true,
               })
-              updated++
-            } else {
-              // Create new entry
+              return 'updated' as const
+            } catch {
+              return 'error' as const
+            }
+          })
+
+          // Process creates in parallel (batched)
+          const createPromises = toCreate.map(async (entry) => {
+            try {
               await req.payload.create({
                 collection: 'seo-performance',
                 data: {
@@ -389,15 +438,22 @@ export function createPerformanceHandler(): PayloadHandler {
                   impressions: entry.impressions,
                   ctr: entry.ctr,
                   position: entry.position,
-                  date: dateISO,
+                  date: entry.dateISO,
                   source: 'csv',
                 },
                 overrideAccess: true,
               })
-              imported++
+              return 'created' as const
+            } catch {
+              return 'error' as const
             }
-          } catch {
-            errors++
+          })
+
+          const results = await Promise.all([...updatePromises, ...createPromises])
+          for (const r of results) {
+            if (r === 'updated') updated++
+            else if (r === 'created') imported++
+            else errors++
           }
         }
 

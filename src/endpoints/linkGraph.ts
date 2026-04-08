@@ -11,6 +11,7 @@
 import type { PayloadHandler } from 'payload'
 import { seoCache } from '../cache.js'
 import { extractAllInternalLinks, normalizeToSlug } from '../helpers/linkExtractor.js'
+import { fetchAllDocs } from '../helpers/fetchAllDocs.js'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -69,7 +70,7 @@ export function createLinkGraphHandler(targetCollections: string[], globals: str
         return Response.json({ ...cached, cached: true }, { headers: { 'Cache-Control': 'no-store' } })
       }
 
-      // 1. Fetch all documents from target collections
+      // 1. Fetch all documents from target collections and globals
       const slugMap = new Map<
         string,
         { id: number | string; title: string; slug: string; collection: string }
@@ -78,76 +79,39 @@ export function createLinkGraphHandler(targetCollections: string[], globals: str
       // Map of slug -> outgoing internal links
       const outgoingMap = new Map<string, Array<{ slug: string; text: string }>>()
 
-      for (const collectionSlug of targetCollections) {
-        try {
-          const result = await req.payload.find({
-            collection: collectionSlug,
-            limit: 500,
-            depth: 1,
-            overrideAccess: true,
-          })
+      const allFetched = await fetchAllDocs(req.payload, {
+        collections: targetCollections,
+        globals,
+        depth: 1,
+      })
 
-          for (const doc of result.docs) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const d = doc as any
-            const slug = (d.slug as string) || ''
-            const title = (d.title as string) || ''
+      for (const { doc, sourceType, sourceSlug } of allFetched) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const d = doc as any
 
-            slugMap.set(slug, {
-              id: d.id,
-              title,
-              slug,
-              collection: collectionSlug,
-            })
+        const isGlobal = sourceType === 'global'
+        const nodeId = isGlobal ? `global:${sourceSlug}` : ((d.slug as string) || '')
+        const title = (d.title as string) || (isGlobal ? sourceSlug : '')
+        const collectionLabel = isGlobal ? `global:${sourceSlug}` : sourceSlug
 
-            // Extract internal links
-            const internalLinks = extractAllInternalLinks(d)
+        slugMap.set(nodeId, {
+          id: isGlobal ? sourceSlug : d.id,
+          title,
+          slug: nodeId,
+          collection: collectionLabel,
+        })
 
-            // Deduplicate by target slug (keep first anchor text per target)
-            const seen = new Set<string>()
-            const dedupedLinks: Array<{ slug: string; text: string }> = []
-            for (const link of internalLinks) {
-              if (!seen.has(link.slug)) {
-                seen.add(link.slug)
-                dedupedLinks.push({ slug: link.slug, text: link.text })
-              }
-            }
-
-            outgoingMap.set(slug, dedupedLinks)
+        // Extract internal links and deduplicate by target slug
+        const internalLinks = extractAllInternalLinks(d)
+        const seen = new Set<string>()
+        const dedupedLinks: Array<{ slug: string; text: string }> = []
+        for (const link of internalLinks) {
+          if (!seen.has(link.slug)) {
+            seen.add(link.slug)
+            dedupedLinks.push({ slug: link.slug, text: link.text })
           }
-        } catch {
-          // Collection might not exist — skip silently
         }
-      }
-
-      // Include globals as graph nodes
-      for (const globalSlug of globals) {
-        try {
-          const doc = await req.payload.findGlobal({ slug: globalSlug, depth: 1, overrideAccess: true })
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const d = doc as any
-          const nodeId = `global:${globalSlug}`
-          const title = (d.title as string) || globalSlug
-
-          slugMap.set(nodeId, {
-            id: globalSlug,
-            title,
-            slug: nodeId,
-            collection: `global:${globalSlug}`,
-          })
-
-          // Extract internal links from the global document
-          const internalLinks = extractAllInternalLinks(d)
-          const seen = new Set<string>()
-          const dedupedLinks: Array<{ slug: string; text: string }> = []
-          for (const link of internalLinks) {
-            if (!seen.has(link.slug)) {
-              seen.add(link.slug)
-              dedupedLinks.push({ slug: link.slug, text: link.text })
-            }
-          }
-          outgoingMap.set(nodeId, dedupedLinks)
-        } catch { /* skip */ }
+        outgoingMap.set(nodeId, dedupedLinks)
       }
 
       // 2. Build incoming links map
