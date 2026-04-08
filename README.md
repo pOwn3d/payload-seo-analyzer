@@ -1149,6 +1149,21 @@ db.getCollection('seo-logs').drop()
 
 <img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
 
+## Roadmap
+
+- Google Search Console API integration (OAuth2 + automatic import)
+- Core Web Vitals monitoring (LCP, FID, CLS)
+- Hreflang / multi-locale validation
+- SERP position tracking & competitor analysis
+- Content freshness alerts & auto-notifications
+- Structured data validation against schema.org
+- Per-block SEO scoring (feedback per Payload block)
+- Multi-language analysis rules (beyond FR/EN)
+- Bulk auto-fix for common SEO issues
+- AI-powered content optimization suggestions
+
+<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" alt="line">
+
 ## ☕ Support
 
 If this plugin saves you time, consider buying me a coffee!
