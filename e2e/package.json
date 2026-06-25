@@ -1,0 +1,7 @@
+{
+  "name": "seo-analyzer-e2e",
+  "private": true,
+  "type": "module",
+  "description": "Manual end-to-end harness: mounts the plugin in a real Payload v3 + SQLite instance and exercises config transform, collections, fields, analyzeSeo and meta writes. Not part of `pnpm test` (keeps the unit suite dep-light).",
+  "scripts": { "e2e": "node e2e.mjs" }
+}
