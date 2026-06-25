@@ -1,0 +1,36 @@
+{
+  "name": "seo-analyzer-e2e-ui",
+  "private": true,
+  "type": "module",
+  "description": "Browser-driven e2e harness: boots a real Next.js 15 + Payload v3 admin with the SEO plugin mounted, logs in, and smoke-tests every plugin admin view (renders without uncaught errors or 5xx). Self-contained sub-project — installed and run independently of the plugin's unit suite.",
+  "scripts": {
+    "dev": "next dev -p 3456",
+    "build": "next build",
+    "start": "next start -p 3456",
+    "generate:importmap": "payload generate:importmap",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:report": "playwright show-report",
+    "playwright:install": "playwright install chromium"
+  },
+  "dependencies": {
+    "@consilioweb/payload-seo-analyzer": "file:../../consilioweb-payload-seo-analyzer-1.20.0.tgz",
+    "@payloadcms/db-sqlite": "3.77.0",
+    "@payloadcms/next": "3.77.0",
+    "@payloadcms/richtext-lexical": "3.77.0",
+    "@payloadcms/ui": "3.77.0",
+    "graphql": "^16.8.1",
+    "next": "15.4.11",
+    "payload": "3.77.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "sharp": "^0.34.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.51.1",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "typescript": "^5.5.0"
+  }
+}

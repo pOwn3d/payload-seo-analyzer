@@ -1,0 +1,15 @@
+node_modules
+package-lock.json
+pnpm-lock.yaml
+.next
+*.db
+*.db-shup
+*.db-shm
+*.db-wal
+*.tsbuildinfo
+
+# Playwright artifacts + persisted auth state
+playwright/.auth
+test-results
+playwright-report
+blob-report

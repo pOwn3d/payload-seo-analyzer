@@ -1,0 +1,187 @@
+/**
+ * Cannibalization detection endpoint.
+ * Detects keyword cannibalization across all SEO-enabled collections.
+ * Groups pages by shared focusKeyword/focusKeywords and flags conflicts.
+ *
+ * NOTE: Rate limiting is not handled by this plugin. The consuming application
+ * should implement rate limiting via its own middleware (e.g., express-rate-limit,
+ * Next.js middleware, or a reverse proxy like Nginx/Caddy).
+ */
+
+import type { PayloadHandler } from 'payload'
+import { seoCache } from '../cache.js'
+import { fetchAllDocs } from '../helpers/fetchAllDocs.js'
+
+/**
+ * Canonical "intent" key for a keyword: accent-stripped, lowercased, punctuation
+ * removed, tokens sorted. Groups reordered / accented variants together
+ * ("Agence Web Ussel" ≈ "ussel agence web") without merging genuinely different
+ * keywords (no stopword removal, to stay conservative).
+ */
+function canonicalIntent(keyword: string): string {
+  return keyword
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
+    .sort()
+    .join(' ')
+}
+
+interface PageEntry {
+  id: number | string
+  title: string
+  slug: string
+  collection: string
+  score: number
+}
+
+interface Conflict {
+  keyword: string
+  pages: PageEntry[]
+}
+
+export function createCannibalizationHandler(collections: string[], globals: string[] = []): PayloadHandler {
+  return async (req) => {
+    try {
+      if (!req.user) {
+        return Response.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+
+      const url = new URL(req.url as string)
+      const noCache = url.searchParams.get('nocache') === '1'
+      // Locale-scoped: content differs per locale, so cache must not collide across locales.
+      const reqLocale = typeof req.locale === 'string' && req.locale ? req.locale : undefined
+      const CACHE_KEY = reqLocale ? `cannibalization:${reqLocale}` : 'cannibalization'
+      const cached = noCache ? null : seoCache.get<any>(CACHE_KEY)
+      if (cached) {
+        return Response.json({ ...cached, cached: true })
+      }
+
+      // Map: canonical intent key -> { display keyword, pages using it }
+      const keywordMap = new Map<string, { display: string; pages: PageEntry[] }>()
+
+      const allFetched = await fetchAllDocs(req.payload, {
+        collections,
+        globals,
+        depth: 0,
+      })
+
+      for (const { doc, sourceType, sourceSlug } of allFetched) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const d = doc as any
+        const collectionLabel = sourceType === 'global' ? `global:${sourceSlug}` : sourceSlug
+        const pageEntry: PageEntry = {
+          id: sourceType === 'global' ? sourceSlug : d.id,
+          title: d.title || '(sans titre)',
+          slug: d.slug || '',
+          collection: collectionLabel,
+          score: 0,
+        }
+
+        // Collect this document's keywords, deduplicated by canonical intent so a page
+        // is never counted twice for the same intent (e.g. focusKeyword == a focusKeywords entry).
+        const seenCanon = new Set<string>()
+        const docKeywords: Array<{ display: string; key: string }> = []
+        const addKeyword = (raw: unknown): void => {
+          if (typeof raw !== 'string') return
+          const display = raw.trim()
+          if (!display) return
+          const key = canonicalIntent(display)
+          if (!key || seenCanon.has(key)) return
+          seenCanon.add(key)
+          docKeywords.push({ display, key })
+        }
+
+        addKeyword(d.focusKeyword)
+        if (Array.isArray(d.focusKeywords)) {
+          for (const kw of d.focusKeywords) {
+            addKeyword(typeof kw === 'string' ? kw : kw?.keyword)
+          }
+        }
+
+        // Add this page to each canonical intent's entry list
+        for (const { display, key } of docKeywords) {
+          if (!keywordMap.has(key)) {
+            keywordMap.set(key, { display, pages: [] })
+          }
+          keywordMap.get(key)!.pages.push(pageEntry)
+        }
+      }
+
+      // Try to fetch scores from seo-score-history for enrichment
+      const scoreMap = new Map<string, number>()
+      try {
+        const historyResults = await req.payload.find({
+          collection: 'seo-score-history',
+          limit: 1000,
+          sort: '-snapshotDate',
+          depth: 0,
+          overrideAccess: true,
+        })
+
+        // Keep the most recent score per document
+        const seen = new Set<string>()
+        for (const h of historyResults.docs) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const entry = h as any
+          const key = `${entry.collection}::${entry.documentId}`
+          if (!seen.has(key)) {
+            seen.add(key)
+            scoreMap.set(key, entry.score || 0)
+          }
+        }
+      } catch {
+        // seo-score-history might not exist
+      }
+
+      // Filter: only keywords used by 2+ pages are conflicts
+      const conflicts: Conflict[] = []
+      let totalAffectedPages = 0
+      const affectedPageIds = new Set<string>()
+
+      for (const { display, pages } of keywordMap.values()) {
+        if (pages.length < 2) continue
+
+        // Enrich pages with scores
+        const enrichedPages = pages.map((p) => ({
+          ...p,
+          score: scoreMap.get(`${p.collection}::${p.id}`) || 0,
+        }))
+
+        conflicts.push({ keyword: display, pages: enrichedPages })
+
+        for (const p of enrichedPages) {
+          const pageKey = `${p.collection}::${p.id}`
+          if (!affectedPageIds.has(pageKey)) {
+            affectedPageIds.add(pageKey)
+            totalAffectedPages++
+          }
+        }
+      }
+
+      // Sort conflicts by severity (most pages first, then alphabetically)
+      conflicts.sort((a, b) => {
+        const diff = b.pages.length - a.pages.length
+        if (diff !== 0) return diff
+        return a.keyword.localeCompare(b.keyword)
+      })
+
+      const responseData = {
+        conflicts,
+        stats: {
+          totalConflicts: conflicts.length,
+          totalAffectedPages,
+        },
+      }
+      seoCache.set(CACHE_KEY, responseData)
+      return Response.json({ ...responseData, cached: false })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Internal server error'
+      req.payload.logger.error(`[seo] cannibalization error: ${message}`)
+      return Response.json({ error: message }, { status: 500 })
+    }
+  }
+}

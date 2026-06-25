@@ -1,0 +1,83 @@
+/**
+ * SEO Settings endpoint handler.
+ * GET — returns current settings from the seo-settings collection.
+ * PATCH — updates (or creates) the singleton settings document.
+ *
+ * NOTE: Rate limiting is not handled by this plugin. The consuming application
+ * should implement rate limiting via its own middleware (e.g., express-rate-limit,
+ * Next.js middleware, or a reverse proxy like Nginx/Caddy).
+ */
+
+import type { PayloadHandler } from 'payload'
+import { parseJsonBody } from '../helpers/parseBody.js'
+
+import { isSeoAdmin as isAdmin } from '../helpers/isAdmin.js'
+
+export function createSettingsHandler(): PayloadHandler {
+  return async (req) => {
+    try {
+      if (!req.user) {
+        return Response.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+
+      // GET — return current settings (any authenticated user)
+      if (req.method === 'GET') {
+        const result = await req.payload.find({
+          collection: 'seo-settings',
+          limit: 1,
+          overrideAccess: true,
+        })
+        const settings = result.docs[0] || {}
+        return Response.json({ settings })
+      }
+
+      // PATCH — update settings (admin only)
+      if (req.method === 'PATCH') {
+        if (!isAdmin(req.user)) {
+          return Response.json({ error: 'Admin access required' }, { status: 403 })
+        }
+        const rawBody = await parseJsonBody(req)
+
+        // Whitelist allowed fields — strip everything else
+        const ALLOWED_FIELDS = ['siteName', 'ignoredSlugs', 'disabledRules', 'thresholds', 'sitemap', 'breadcrumb', 'robotsCustomRules']
+        const body: Record<string, unknown> = {}
+        for (const key of ALLOWED_FIELDS) {
+          if (rawBody[key] !== undefined) {
+            body[key] = rawBody[key]
+          }
+        }
+
+        // Find existing or create
+        const result = await req.payload.find({
+          collection: 'seo-settings',
+          limit: 1,
+          overrideAccess: true,
+        })
+
+        let settings
+        if (result.docs.length > 0) {
+          settings = await req.payload.update({
+            collection: 'seo-settings',
+            id: result.docs[0].id,
+            data: body,
+            overrideAccess: true,
+          })
+        } else {
+          settings = await req.payload.create({
+            collection: 'seo-settings',
+            data: body,
+            overrideAccess: true,
+          })
+        }
+
+        return Response.json({ settings, success: true })
+      }
+
+      return Response.json({ error: 'Method not allowed' }, { status: 405 })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Internal server error'
+      req.payload.logger.error(`[seo] settings error: ${message}`)
+      return Response.json({ error: message }, { status: 500 })
+    }
+  }
+}

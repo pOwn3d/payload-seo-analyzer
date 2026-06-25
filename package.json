@@ -1,0 +1,128 @@
+{
+  "name": "@consilioweb/payload-seo-analyzer",
+  "version": "1.20.0",
+  "description": "Payload CMS SEO plugin — 50+ checks, dashboard, Lexical JSON support, Flesch FR/EN readability, i18n",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./client": {
+      "import": {
+        "types": "./dist/client.d.ts",
+        "default": "./dist/client.js"
+      },
+      "require": {
+        "types": "./dist/client.d.cts",
+        "default": "./dist/client.cjs"
+      }
+    },
+    "./views": {
+      "import": {
+        "types": "./dist/views.d.ts",
+        "default": "./dist/views.js"
+      },
+      "require": {
+        "types": "./dist/views.d.cts",
+        "default": "./dist/views.cjs"
+      }
+    }
+  },
+  "bin": {
+    "seo-analyzer-uninstall": "./scripts/uninstall.mjs"
+  },
+  "files": [
+    "dist",
+    "scripts",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e:ui:setup": "cd e2e/ui && npm install && npx playwright install chromium",
+    "test:e2e:ui": "cd e2e/ui && npm run test:e2e",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm build"
+  },
+  "keywords": [
+    "seo",
+    "seo-analyzer",
+    "seo-plugin",
+    "seo-audit",
+    "on-page-seo",
+    "payload",
+    "payload-cms",
+    "payload-cms-plugin",
+    "payload-plugin",
+    "cms-seo",
+    "meta-tags",
+    "content-analysis",
+    "readability",
+    "readability-score",
+    "flesch",
+    "lexical",
+    "next.js",
+    "nextjs",
+    "i18n",
+    "french",
+    "english",
+    "structured-data",
+    "json-ld",
+    "sitemap",
+    "seo-dashboard",
+    "redirects",
+    "typescript"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pOwn3d/payload-seo-analyzer.git"
+  },
+  "homepage": "https://github.com/pOwn3d/payload-seo-analyzer#readme",
+  "bugs": {
+    "url": "https://github.com/pOwn3d/payload-seo-analyzer/issues"
+  },
+  "author": "ConsilioWEB <contact@consilioweb.fr> (https://consilioweb.fr)",
+  "license": "MIT",
+  "peerDependencies": {
+    "@payloadcms/next": "^3.0.0",
+    "@payloadcms/ui": "^3.0.0",
+    "payload": "^3.0.0",
+    "react": "^18.0.0 || ^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@payloadcms/ui": {
+      "optional": true
+    },
+    "@payloadcms/next": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^19.0.0",
+    "jsdom": "^29.1.1",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "tsup": "^8.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}
