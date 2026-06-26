@@ -8,6 +8,7 @@
  * Next.js middleware, or a reverse proxy like Nginx/Caddy).
  */
 
+import { readFile, writeFile } from 'node:fs/promises'
 import type { Payload, PayloadHandler } from 'payload'
 import { analyzeSeo } from '../index.js'
 import type { SeoConfig } from '../types.js'
@@ -344,7 +345,75 @@ function ensureAuditBuild(
     })
 }
 
-export function createAuditHandler(collections: string[], seoConfig?: SeoConfig, globals: string[] = []): PayloadHandler {
+/** Shape of the build-time audit cache file (one CachedAudit per locale-scoped key). */
+interface AuditCacheFile {
+  version: number
+  generatedAt: number
+  byKey: Record<string, CachedAudit>
+}
+
+/**
+ * Build the site-wide audit for each locale and write it to a JSON file. Meant to run at
+ * BUILD/CI time (where memory is plentiful) so a memory-constrained production host can
+ * hydrate the cache from the file instead of recomputing the heavy audit. Uses the exact
+ * same engine as the live dashboard build → identical scores.
+ *
+ * Pass `locales: [undefined]` (default) for a single-locale site, or the list of locale
+ * codes to pre-build one audit per locale.
+ */
+export async function buildAuditToFile(
+  payload: Payload,
+  opts: {
+    collections: string[]
+    globals?: string[]
+    seoConfig?: SeoConfig
+    locales?: (string | undefined)[]
+    outFile: string
+  },
+): Promise<{ file: string; entries: number; docs: number }> {
+  const locales = opts.locales && opts.locales.length ? opts.locales : [undefined]
+  const byKey: Record<string, CachedAudit> = {}
+  let docs = 0
+  for (const loc of locales) {
+    const key = loc ? `${CACHE_KEY}:${loc}` : CACHE_KEY
+    const built = await buildAuditCache(payload, opts.collections, opts.globals ?? [], opts.seoConfig, loc)
+    byKey[key] = built
+    docs += built.enrichedResults.length
+  }
+  const fileData: AuditCacheFile = { version: 1, generatedAt: Date.now(), byKey }
+  await writeFile(opts.outFile, JSON.stringify(fileData))
+  return { file: opts.outFile, entries: Object.keys(byKey).length, docs }
+}
+
+/**
+ * Hydrate the in-memory cache from a build-time JSON file. Cheap (a file read) compared to
+ * the live site-wide build. Returns false (→ caller falls back to a live build) when the
+ * file is missing, invalid, or STALE — i.e. generated before the last cache invalidation,
+ * which means content changed since the build and the pre-computed scores can't be trusted.
+ */
+async function tryHydrateAuditFromFile(filePath: string): Promise<boolean> {
+  try {
+    const parsed = JSON.parse(await readFile(filePath, 'utf8')) as AuditCacheFile
+    const generatedAt = typeof parsed.generatedAt === 'number' ? parsed.generatedAt : 0
+    if (!parsed.byKey || !generatedAt) return false
+    if (generatedAt < seoCache.lastInvalidatedAt) return false // stale: content changed since build
+    let hydrated = false
+    for (const [key, val] of Object.entries(parsed.byKey)) {
+      seoCache.set(key, val)
+      hydrated = true
+    }
+    return hydrated
+  } catch {
+    return false // no file / invalid JSON → fall back to a live build
+  }
+}
+
+export function createAuditHandler(
+  collections: string[],
+  seoConfig?: SeoConfig,
+  globals: string[] = [],
+  auditCacheFile?: string,
+): PayloadHandler {
   return async (req) => {
     try {
       if (!req.user) {
@@ -367,11 +436,22 @@ export function createAuditHandler(collections: string[], seoConfig?: SeoConfig,
         seoCache.invalidateKey(cacheKey)
       }
 
-      const cached = seoCache.get<CachedAudit>(cacheKey)
+      let cached = seoCache.get<CachedAudit>(cacheKey)
       // Peek mode: opening the dashboard must NOT auto-trigger the (heavy) build on a big/rich
       // site. With `noBuild=1` we return cached results if present, or "not built" otherwise —
       // the build starts only when the user explicitly requests it (a poll WITHOUT noBuild).
       const noBuild = url.searchParams.get('noBuild') === '1'
+
+      // Build-time file cache: on a miss, hydrating from the pre-computed JSON is cheap (a file
+      // read) vs the heavy live build. Done BEFORE the build decision so even a peek (noBuild)
+      // serves pre-computed scores with zero rebuild on memory-constrained hosts. The freshness
+      // guard inside tryHydrateAuditFromFile() falls back to a live build once content changes.
+      // Runtime kill-switch: SEO_AUDIT_FILE_CACHE=0/false ignores the file (forces a live build).
+      const fileCacheOff =
+        process.env.SEO_AUDIT_FILE_CACHE === '0' || process.env.SEO_AUDIT_FILE_CACHE === 'false'
+      if (!cached && auditCacheFile && !fileCacheOff && (await tryHydrateAuditFromFile(auditCacheFile))) {
+        cached = seoCache.get<CachedAudit>(cacheKey)
+      }
 
       if (!cached) {
         if (noBuild && !auditBuildsInFlight.has(cacheKey)) {

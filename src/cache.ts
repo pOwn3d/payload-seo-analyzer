@@ -18,10 +18,22 @@ class SeoCache {
   private store = new Map<string, CacheEntry<unknown>>()
   private ttl: number
   private maxEntries: number
+  /**
+   * Epoch ms of the last invalidation (document save, manual refresh…). Used by the
+   * build-time file cache: a pre-computed `seo-audit-cache.json` may only be hydrated
+   * if it was generated AFTER the last invalidation, otherwise it would serve stale
+   * scores once content has changed.
+   */
+  private _lastInvalidatedAt = 0
 
   constructor(ttl = DEFAULT_TTL, maxEntries = DEFAULT_MAX_ENTRIES) {
     this.ttl = ttl
     this.maxEntries = maxEntries
+  }
+
+  /** Epoch ms of the last invalidation (0 if never invalidated since boot). */
+  get lastInvalidatedAt(): number {
+    return this._lastInvalidatedAt
   }
 
   get<T>(key: string): T | null {
@@ -52,11 +64,13 @@ class SeoCache {
   /** Invalidate all cached entries (called after document save) */
   invalidate(): void {
     this.store.clear()
+    this._lastInvalidatedAt = Date.now()
   }
 
   /** Invalidate a specific key */
   invalidateKey(key: string): void {
     this.store.delete(key)
+    this._lastInvalidatedAt = Date.now()
   }
 
   /**
@@ -71,6 +85,7 @@ class SeoCache {
         this.store.delete(key)
       }
     }
+    this._lastInvalidatedAt = Date.now()
   }
 
   /** Get cache stats for debugging */

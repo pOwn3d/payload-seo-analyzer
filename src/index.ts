@@ -86,6 +86,8 @@ export {
 export type { SchemaType, BuildJsonLdOptions } from './helpers/buildSchema.js'
 export { createHistoryHandler } from './endpoints/history.js'
 export { createSitemapAuditHandler } from './endpoints/sitemap-audit.js'
+// Build-time audit cache: generate the site-wide audit JSON at CI time, hydrate it in prod.
+export { buildAuditToFile } from './endpoints/audit.js'
 
 // Re-export collection + hook for advanced consumers
 export { createSeoScoreHistoryCollection } from './collections/SeoScoreHistory.js'

@@ -381,6 +381,10 @@ pnpm typecheck && pnpm test && pnpm build
 
 See [CHANGELOG.md](CHANGELOG.md) for the full history.
 
+### [1.21.0]
+
+- 🗃️ **Build-time audit cache**: pre-compute the site-wide audit at CI via `buildAuditToFile()` and serve it in prod through the new `auditCacheFile` option — no heavy live rebuild on memory-constrained hosts. Stale-guarded (ignored once content changes); runtime kill-switch `SEO_AUDIT_FILE_CACHE=0`.
+
 ### [1.19.0]
 
 - ✨ SEO 2026: entities & topical authority, AI/GEO extractability, GSC-driven content grade, indexation hygiene, crawl-budget analysis, opt-in `llms.txt`.

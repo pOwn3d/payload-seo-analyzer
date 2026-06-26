@@ -5,6 +5,18 @@ All notable changes to `@consilioweb/payload-seo-analyzer` will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.0] - 2026-06-26 — Build-time audit cache (offload the heavy site-wide audit to CI)
+
+### Added
+- **Build-time audit cache**: `buildAuditToFile(payload, { collections, outFile, … })` runs the
+  full site-wide audit and writes it to a JSON file. Point the plugin at it with the new
+  `auditCacheFile` option: on a dashboard cache miss the audit is **hydrated from the file**
+  (a cheap file read) instead of being recomputed live — offloading the heavy build to CI on
+  memory-constrained hosts (e.g. Infomaniak). Stale-guarded: the file is ignored once content
+  changes since it was generated (a live rebuild takes over), so scores never go stale.
+- **Runtime kill-switch** `SEO_AUDIT_FILE_CACHE=0` (or `false`) to ignore the file cache and
+  force a live build, tunable via the server `.env` without a rebuild.
+
 ## [1.20.0] - 2026-06-25 — Opt-in audit, gentler build, strict access control, Schema Builder entities, e2e harness
 
 ### Added

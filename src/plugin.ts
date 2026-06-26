@@ -143,6 +143,14 @@ export interface SeoPluginConfig {
   uploadsCollection?: string
   /** Auto-create meta fields (title, description, image) on target collections. Default: true */
   autoCreateMetaFields?: boolean
+  /**
+   * Path to a build-time audit cache file (JSON, produced by `buildAuditToFile()`).
+   * When set, the heavy site-wide dashboard audit is hydrated from this file on a cache
+   * miss instead of being recomputed live — offloading the cost to CI on memory-constrained
+   * hosts (e.g. Infomaniak). Stale-guarded: ignored once content changes (a live rebuild
+   * takes over). Runtime kill-switch: set env `SEO_AUDIT_FILE_CACHE=0` to ignore the file.
+   */
+  auditCacheFile?: string
   /** Granular feature flags — all default to true. Disable features you don't need
    *  to reduce collections, endpoints, and admin views loaded by the plugin.
    *  The core analyzer sidebar, validate endpoint, and meta fields are always active. */
@@ -508,7 +516,7 @@ export const seoAnalyzerPlugin =
         path: `${basePath}/audit`,
         method: 'get',
         // Poll-friendly limiter: the dashboard polls this every 3s while the background build runs.
-        handler: withRateLimit(createAuditHandler(targetCollections, seoConfig, targetGlobals), auditPollLimiter),
+        handler: withRateLimit(createAuditHandler(targetCollections, seoConfig, targetGlobals, pluginConfig.auditCacheFile), auditPollLimiter),
       })
       // Indexation hygiene audit — cross-page noindex / canonical problems in one place
       pluginEndpoints.push({
