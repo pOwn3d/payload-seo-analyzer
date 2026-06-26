@@ -8,7 +8,6 @@
  * Next.js middleware, or a reverse proxy like Nginx/Caddy).
  */
 
-import { readFile, writeFile } from 'node:fs/promises'
 import type { Payload, PayloadHandler } from 'payload'
 import { analyzeSeo } from '../index.js'
 import type { SeoConfig } from '../types.js'
@@ -381,6 +380,9 @@ export async function buildAuditToFile(
     docs += built.enrichedResults.length
   }
   const fileData: AuditCacheFile = { version: 1, generatedAt: Date.now(), byKey }
+  // Dynamic import keeps node:fs out of the (tree-shaken) client bundle — this function is
+  // server/CLI-only, so the import never reaches the admin UI.
+  const { writeFile } = await import('node:fs/promises')
   await writeFile(opts.outFile, JSON.stringify(fileData))
   return { file: opts.outFile, entries: Object.keys(byKey).length, docs }
 }
@@ -393,6 +395,8 @@ export async function buildAuditToFile(
  */
 async function tryHydrateAuditFromFile(filePath: string): Promise<boolean> {
   try {
+    // Dynamic import keeps node:fs out of the (tree-shaken) client bundle (server-only path).
+    const { readFile } = await import('node:fs/promises')
     const parsed = JSON.parse(await readFile(filePath, 'utf8')) as AuditCacheFile
     const generatedAt = typeof parsed.generatedAt === 'number' ? parsed.generatedAt : 0
     if (!parsed.byKey || !generatedAt) return false

@@ -5,6 +5,14 @@ All notable changes to `@consilioweb/payload-seo-analyzer` will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.1] - 2026-06-26 — Fix: keep node:fs out of the client bundle
+
+### Fixed
+- The build-time audit cache (1.21.0) added a top-level `node:fs/promises` import in the audit
+  module; tsup left it as a side-effect import in the **client** bundle, breaking consumer
+  builds (`Module not found: fs/promises` in the admin UI). The fs import is now dynamic and
+  server-only, so it is tree-shaken out of the client bundle. Upgrade straight to 1.21.1.
+
 ## [1.21.0] - 2026-06-26 — Build-time audit cache (offload the heavy site-wide audit to CI)
 
 ### Added
