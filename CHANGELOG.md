@@ -5,6 +5,30 @@ All notable changes to `@consilioweb/payload-seo-analyzer` will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.22.0] - 2026-08-08 — Truthful audits: no more silent partial results
+
+### Added
+- **`SEO_AUDIT_TRUST_FILE=1`** — serve the prebuilt audit cache file *without* the staleness
+  check. The check compares against `seoCache.lastInvalidatedAt`, an **in-memory** clock: it
+  resets on every boot and any content edit pushes it to `Date.now()`. On a memory-constrained
+  host the consequence is perverse — a single edit marks the file stale, the handler falls back
+  to the very site-wide rebuild the option exists to avoid, and the container OOMs. The option
+  was therefore unusable on the host it targets, to the point that a consumer had to neutralise
+  the line with `patch-package`. Freshness is then guaranteed differently: the CI prewarm
+  regenerates the file on every deploy. **Default behaviour is unchanged** — the check stays on.
+
+### Fixed
+- **`fetchAllDocs` no longer presents a partial result as a complete one.** The whole pagination
+  loop sat inside a single `try/catch` commented *"Collection might not exist — skip"*, which
+  conflated two very different situations: an error on **page 1** (the collection is missing —
+  the tolerated case) and an error on **page 2 or beyond** (the collection exists, documents were
+  already read, and pagination breaks mid-way). In the second case the function silently returned
+  what it had, indistinguishable from a full read — so every analysis built on it (orphan pages,
+  broken links, cannibalisation) flagged documents that had simply never been loaded. A wrong
+  report is worse than a missing one: people act on it. Page 1 keeps the tolerant behaviour; any
+  later failure is now logged at `error` level with the collection, page number and count read so
+  far, and explicitly marked INCOMPLETE.
+
 ## [1.21.1] - 2026-06-26 — Fix: keep node:fs out of the client bundle
 
 ### Fixed
