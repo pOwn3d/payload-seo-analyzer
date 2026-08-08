@@ -393,14 +393,32 @@ export async function buildAuditToFile(
  * file is missing, invalid, or STALE — i.e. generated before the last cache invalidation,
  * which means content changed since the build and the pre-computed scores can't be trusted.
  */
-async function tryHydrateAuditFromFile(filePath: string): Promise<boolean> {
+async function tryHydrateAuditFromFile(
+  filePath: string,
+  /**
+   * `false` : sert le fichier même s'il est plus ancien que la dernière invalidation.
+   *
+   * Le contrôle de fraîcheur repose sur `seoCache.lastInvalidatedAt`, une horloge EN
+   * MÉMOIRE du process : elle repart à zéro à chaque démarrage, et toute modification de
+   * contenu la pousse à `Date.now()`. Sur un hébergement à mémoire contrainte, la
+   * conséquence est perverse — la moindre édition rend le fichier « périmé », le
+   * handler retombe sur une reconstruction site-wide, et le conteneur meurt d'OOM.
+   * L'option `auditCacheFile`, censée éviter exactement ce coût, devenait donc
+   * inutilisable sur la cible qu'elle visait, au point qu'un consommateur a dû
+   * neutraliser la ligne par un patch-package.
+   *
+   * La fraîcheur est alors assurée autrement : le fichier est régénéré à chaque
+   * déploiement par le prewarm de CI.
+   */
+  verifierFraicheur = true,
+): Promise<boolean> {
   try {
     // Dynamic import keeps node:fs out of the (tree-shaken) client bundle (server-only path).
     const { readFile } = await import('node:fs/promises')
     const parsed = JSON.parse(await readFile(filePath, 'utf8')) as AuditCacheFile
     const generatedAt = typeof parsed.generatedAt === 'number' ? parsed.generatedAt : 0
     if (!parsed.byKey || !generatedAt) return false
-    if (generatedAt < seoCache.lastInvalidatedAt) return false // stale: content changed since build
+    if (verifierFraicheur && generatedAt < seoCache.lastInvalidatedAt) return false // stale: content changed since build
     let hydrated = false
     for (const [key, val] of Object.entries(parsed.byKey)) {
       seoCache.set(key, val)
@@ -453,7 +471,18 @@ export function createAuditHandler(
       // Runtime kill-switch: SEO_AUDIT_FILE_CACHE=0/false ignores the file (forces a live build).
       const fileCacheOff =
         process.env.SEO_AUDIT_FILE_CACHE === '0' || process.env.SEO_AUDIT_FILE_CACHE === 'false'
-      if (!cached && auditCacheFile && !fileCacheOff && (await tryHydrateAuditFromFile(auditCacheFile))) {
+      // `SEO_AUDIT_TRUST_FILE=1` : sert le fichier sans contrôler sa fraîcheur.
+      //
+      // Destiné aux hôtes à mémoire contrainte, où la reconstruction site-wide déclenchée
+      // par le contrôle de fraîcheur fait mourir le conteneur. La fraîcheur est alors
+      // garantie par le prewarm de CI, qui régénère le fichier à chaque déploiement.
+      const fichierFaitFoi = process.env.SEO_AUDIT_TRUST_FILE === '1'
+      if (
+        !cached &&
+        auditCacheFile &&
+        !fileCacheOff &&
+        (await tryHydrateAuditFromFile(auditCacheFile, !fichierFaitFoi))
+      ) {
         cached = seoCache.get<CachedAudit>(cacheKey)
       }
 
