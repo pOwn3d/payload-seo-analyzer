@@ -56,13 +56,32 @@ export async function fetchAllDocs(
       let page = 1
       let hasNextPage = true
       while (hasNextPage && !reachedCap) {
-        const result = await payload.find({
-          collection: collectionSlug,
-          limit: PAGE_SIZE,
-          page,
-          depth,
-          overrideAccess: true,
-        })
+        let result
+        try {
+          result = await payload.find({
+            collection: collectionSlug,
+            limit: PAGE_SIZE,
+            page,
+            depth,
+            overrideAccess: true,
+          })
+        } catch (err) {
+          // Une erreur sur la page 1 signifie « collection absente » — c'est le cas
+          // toléré, géré par le catch extérieur. Une erreur sur la page 2 ou au-delà
+          // est autre chose : la collection existe, on a déjà lu des documents, et la
+          // pagination casse en cours de route.
+          //
+          // Le catch extérieur avalait les deux indistinctement. Le résultat partiel
+          // remontait alors comme s'il était complet — et les analyses bâties dessus
+          // (pages orphelines, liens morts, cannibalisation) désignaient comme
+          // problématiques des documents simplement jamais chargés. Un rapport faux est
+          // pire qu'un rapport absent : on agit dessus.
+          if (page === 1) throw err
+          payload.logger?.error(
+            `[seo] fetchAllDocs: pagination interrompue sur « ${collectionSlug} » à la page ${page} (${results.length} documents déjà lus). Résultat INCOMPLET — analyses non fiables pour cette collection. ${err instanceof Error ? err.message : err}`,
+          )
+          break
+        }
         for (const doc of result.docs) {
           results.push({ doc, sourceType: 'collection', sourceSlug: collectionSlug })
           if (results.length >= maxDocs) {
