@@ -3,8 +3,12 @@ name: CI
 on:
   push:
     branches: [main]
+    # Without this the publish job below, gated on refs/tags/v*, never fires:
+    # pushing v2.0.0 triggered nothing at all.
+    tags: ['v*']
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   build:
