@@ -1,26 +1,56 @@
 #!/usr/bin/env node
 
-// Cleanup script for @consilioweb/seo-analyzer
-// Removes all imports and plugin calls from source files before uninstalling the package.
+// Cleanup script for this package.
+// Removes all imports and plugin calls from source files before uninstalling it.
 // Usage: npx seo-analyzer-uninstall
 
 import fs from 'node:fs'
 import path from 'node:path'
 import { execSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 
-const PACKAGE_NAME = '@consilioweb/seo-analyzer'
-
-// Regex to match any import line from @consilioweb/seo-analyzer (value + type imports)
-const IMPORT_RE = /^\s*import\s+(?:type\s+)?(?:\{[^}]*\}|[\w]+)\s+from\s+['"]@consilioweb\/seo-analyzer(?:\/[^'"]*)?['"]\s*;?\s*$/gm
+const SELF_PATH = fileURLToPath(import.meta.url)
 
 /**
- * Extract imported names from a file that come from @consilioweb/seo-analyzer.
+ * The package name is read from our own package.json rather than hardcoded.
+ * It used to be hardcoded as `@consilioweb/seo-analyzer` while the package is
+ * actually published as `@consilioweb/payload-seo-analyzer`: no import matched,
+ * the removal command removed nothing, and the script still printed
+ * "Uninstall complete". A hardcoded name cannot drift here.
+ */
+function readPackageName() {
+  const pkgPath = path.join(path.dirname(SELF_PATH), '..', 'package.json')
+  const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'))
+  if (!pkg.name) throw new Error(`No "name" field in ${pkgPath}`)
+  return pkg.name
+}
+
+export const PACKAGE_NAME = readPackageName()
+
+/** Escape a string so it can be embedded literally in a RegExp. */
+function escapeRe(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+const PKG_RE_SOURCE = escapeRe(PACKAGE_NAME)
+
+// Regex to match any import line from this package (value + type imports)
+const IMPORT_RE = new RegExp(
+  `^\\s*import\\s+(?:type\\s+)?(?:\\{[^}]*\\}|[\\w]+)\\s+from\\s+['"]${PKG_RE_SOURCE}(?:\\/[^'"]*)?['"]\\s*;?\\s*$`,
+  'gm',
+)
+
+/**
+ * Extract imported names from a file that come from this package.
  * Returns the list of identifiers (after "as" renaming if any).
  * e.g. `import { seoPlugin as myPlugin, seoFields } from '...'` → ['myPlugin', 'seoFields']
  */
-function extractImportedNames(content) {
+export function extractImportedNames(content) {
   const names = []
-  const re = /^\s*import\s+(?:type\s+)?\{([^}]*)\}\s+from\s+['"]@consilioweb\/seo-analyzer(?:\/[^'"]*)?['"]\s*;?\s*$/gm
+  const re = new RegExp(
+    `^\\s*import\\s+(?:type\\s+)?\\{([^}]*)\\}\\s+from\\s+['"]${PKG_RE_SOURCE}(?:\\/[^'"]*)?['"]\\s*;?\\s*$`,
+    'gm',
+  )
   let match
   while ((match = re.exec(content)) !== null) {
     const specifiers = match[1]
@@ -153,7 +183,7 @@ function cleanOrphanCommas(content) {
 /**
  * Process a single file: remove imports and plugin calls
  */
-function processFile(filePath) {
+export function processFile(filePath) {
   const original = fs.readFileSync(filePath, 'utf-8')
 
   // Check if this file references the package at all
@@ -198,14 +228,18 @@ function detectPackageManager(projectDir) {
 }
 
 /**
- * Run a shell command, print output, swallow errors
+ * Run a shell command and print its output. Returns false on failure instead of
+ * throwing, so the caller can report it — the failure must never be silent:
+ * announcing "Uninstall complete" over a package that is still installed is
+ * worse than no script at all.
  */
 function run(cmd, cwd) {
   console.log(`  \x1b[90m$ ${cmd}\x1b[0m`)
   try {
     execSync(cmd, { cwd, stdio: 'inherit' })
     return true
-  } catch {
+  } catch (err) {
+    console.log(`  \x1b[31m✗\x1b[0m  Command failed: ${err?.message ?? err}`)
     return false
   }
 }
@@ -256,18 +290,31 @@ function main() {
   // ── Step 2: Remove the package ──
   console.log('  \x1b[36m[2/3]\x1b[0m Removing package...')
   const removeCmd = pm === 'npm' ? 'npm uninstall' : `${pm} remove`
-  run(`${removeCmd} ${PACKAGE_NAME}`, projectDir)
+  const failures = []
+  if (!run(`${removeCmd} ${PACKAGE_NAME}`, projectDir)) {
+    failures.push(`${removeCmd} ${PACKAGE_NAME}`)
+  }
 
   console.log('')
 
   // ── Step 3: Regenerate importmap ──
   console.log('  \x1b[36m[3/3]\x1b[0m Regenerating importmap...')
   const importmapCmd = pm === 'npm' ? 'npx' : pm === 'yarn' ? 'yarn' : pm
-  run(`${importmapCmd} generate:importmap`, projectDir)
+  if (!run(`${importmapCmd} generate:importmap`, projectDir)) {
+    failures.push(`${importmapCmd} generate:importmap`)
+  }
 
   console.log('')
 
   // ── Done ──
+  if (failures.length > 0) {
+    console.log('  \x1b[31m✗ Uninstall incomplete.\x1b[0m')
+    console.log('  The following command(s) failed — finish them by hand:')
+    for (const cmd of failures) console.log(`  \x1b[90m  - ${cmd}\x1b[0m`)
+    console.log('')
+    return 1
+  }
+
   console.log('  \x1b[32m✓ Uninstall complete!\x1b[0m')
   console.log('')
   console.log('  \x1b[36mOptional:\x1b[0m Drop plugin collections from your database:')
@@ -275,8 +322,27 @@ function main() {
   console.log('    - seo-settings')
   console.log('    - seo-redirects')
   console.log('    - seo-performance')
-  console.log('    - seo-logs\x1b[0m')
+  console.log('    - seo-logs')
+  console.log('    - seo-gsc-auth')
+  console.log('    - seo-rank-history\x1b[0m')
   console.log('')
+  return 0
 }
 
-main()
+/**
+ * Only run when invoked as the CLI, so the pure helpers above stay importable
+ * from tests. `realpathSync` is required because package managers expose the
+ * bin through a symlink in node_modules/.bin.
+ */
+function isDirectRun() {
+  if (!process.argv[1]) return false
+  try {
+    return fs.realpathSync(process.argv[1]) === SELF_PATH
+  } catch {
+    return false
+  }
+}
+
+if (isDirectRun()) {
+  process.exitCode = main()
+}

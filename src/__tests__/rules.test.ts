@@ -509,6 +509,57 @@ describe('checkQuality', () => {
     const dupCheck = checks.find((c) => c.id === 'quality-no-duplicate')
     expect(dupCheck?.status).toBe('fail')
   })
+
+  // Regression guard for the tandem-repeat detector that replaced the
+  // catastrophically backtracking `/(.{30,})\1/i` pattern. It must keep the
+  // exact same semantics: a block of >= 30 characters immediately repeated.
+  it('detects a tandem repeat of at least 30 characters', () => {
+    const block = 'la meme phrase repetee deux fois de suite exactement '
+    const checks = checkQuality(makeInput(), makeCtx({ fullText: block + block }))
+    const dupCheck = checks.find((c) => c.id === 'quality-no-duplicate')
+    expect(dupCheck?.status).toBe('fail')
+  })
+
+  it('does not flag a repeated block shorter than 30 characters', () => {
+    // 12 chars repeated: below the threshold the old regex used too.
+    const checks = checkQuality(makeInput(), makeCtx({ fullText: 'court bloc court bloc ' }))
+    const dupCheck = checks.find((c) => c.id === 'quality-no-duplicate')
+    expect(dupCheck?.status).toBe('pass')
+  })
+
+  it('does not flag a repeat that is not adjacent to itself', () => {
+    const block = 'un bloc de plus de trente caracteres bien identifiable'
+    const checks = checkQuality(
+      makeInput(),
+      makeCtx({ fullText: `${block} du texte intercale ici pour casser l adjacence ${block}` }),
+    )
+    const dupCheck = checks.find((c) => c.id === 'quality-no-duplicate')
+    expect(dupCheck?.status).toBe('pass')
+  })
+
+  // Guards against the backreference regex coming back: on this non-matching
+  // input it took ~11 600 ms, and it ran on every keystroke in the editor.
+  //
+  // On the bound: the linear detector needs ~8 ms here, but a single timed run
+  // is not a stable measurement — over 12 runs on an idle machine the same call
+  // ranged from 1.9 ms to 261 ms, because a GC pause lands wherever it lands. A
+  // 100 ms assertion duly flaked. 1 s keeps a 100x margin over the real cost
+  // while staying far below anything backtracking could produce, so the test
+  // still fails loudly on a regression without failing on noise.
+  it('analyses 20 000 characters of non-duplicate text without backtracking', () => {
+    const words: string[] = []
+    for (let i = 0; i < 4000; i++) words.push(`mot${i}`)
+    const fullText = words.join(' ').slice(0, 20_000)
+
+    checkQuality(makeInput(), makeCtx({ fullText })) // warm-up, JIT
+
+    const start = performance.now()
+    const checks = checkQuality(makeInput(), makeCtx({ fullText }))
+    const elapsed = performance.now() - start
+
+    expect(checks.find((c) => c.id === 'quality-no-duplicate')?.status).toBe('pass')
+    expect(elapsed).toBeLessThan(1_000)
+  })
 })
 
 // ---------------------------------------------------------------------------

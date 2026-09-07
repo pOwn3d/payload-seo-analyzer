@@ -12,6 +12,7 @@
  */
 
 import type { PayloadHandler } from 'payload'
+import { buildDocPath } from '../helpers/docUrl.js'
 import type { SeoConfig } from '../types.js'
 import { fetchAllDocs } from '../helpers/fetchAllDocs.js'
 
@@ -125,7 +126,7 @@ export function createLlmsTxtHandler(
         if (d.noindex === true || d?.meta?.noindex === true) continue
         const slug: string = (d.slug as string) || ''
         if (!slug) continue
-        const path = sourceSlug === 'posts' ? `/posts/${slug}` : `/${slug}`
+        const path = buildDocPath(slug, sourceSlug, seoConfig?.collectionRoutes)
         const title: string = (d.title as string) || (d?.meta?.title as string) || slug
         const description: string | undefined =
           (typeof d?.meta?.description === 'string' && d.meta.description) || undefined

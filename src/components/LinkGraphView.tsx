@@ -381,18 +381,6 @@ export function LinkGraphView() {
     return map
   }, [simNodes])
 
-  // Connected edges for hover highlight
-  const connectedEdges = useMemo(() => {
-    if (!hoveredNode || !data) return new Set<number>()
-    const set = new Set<number>()
-    data.edges.forEach((e, i) => {
-      if (e.source === hoveredNode || e.target === hoveredNode) {
-        set.add(i)
-      }
-    })
-    return set
-  }, [hoveredNode, data])
-
   const connectedNodes = useMemo(() => {
     if (!hoveredNode || !data) return new Set<string>()
     const set = new Set<string>()
@@ -781,8 +769,13 @@ export function LinkGraphView() {
               const targetNode = nodeMap.get(edge.target)
               if (!sourceNode || !targetNode) return null
 
+              // Test the edge directly instead of looking its index up in
+              // `data.edges`: the indexOf ran per edge on every hover render,
+              // i.e. O(edges²) — about 9 million comparisons at 3 000 edges,
+              // which froze the tab on the slightest pan.
               const isHighlighted =
-                hoveredNode !== null && connectedEdges.has(data!.edges.indexOf(edge))
+                hoveredNode !== null &&
+                (edge.source === hoveredNode || edge.target === hoveredNode)
               const isDimmed = hoveredNode !== null && !isHighlighted
 
               return (

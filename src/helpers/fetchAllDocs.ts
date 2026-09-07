@@ -27,6 +27,13 @@ export interface FetchAllDocsOptions {
   limit?: number
   /** Depth for population (default: 1) */
   depth?: number
+  /**
+   * Restrict the fields read from the database, e.g. `{ title: true, slug: true }`.
+   * Callers that only need a few scalar fields should pass this: without it every
+   * document is loaded whole, Lexical trees included.
+   * Applied best-effort — see the select-less retry below.
+   */
+  select?: Record<string, true>
 }
 
 /** Page size for the internal paginated reads. */
@@ -44,7 +51,7 @@ export async function fetchAllDocs(
   payload: Payload,
   options: FetchAllDocsOptions,
 ): Promise<FetchedDoc[]> {
-  const { collections, globals = [], depth = 1 } = options
+  const { collections, globals = [], depth = 1, select } = options
   const maxDocs = options.maxDocs ?? options.limit ?? (Number(process.env.SEO_FETCH_MAX_DOCS) || 5000)
   const results: FetchedDoc[] = []
   let reachedCap = false
@@ -58,13 +65,32 @@ export async function fetchAllDocs(
       while (hasNextPage && !reachedCap) {
         let result
         try {
-          result = await payload.find({
-            collection: collectionSlug,
-            limit: PAGE_SIZE,
-            page,
-            depth,
-            overrideAccess: true,
-          })
+          try {
+            result = await payload.find({
+              collection: collectionSlug,
+              limit: PAGE_SIZE,
+              page,
+              depth,
+              overrideAccess: true,
+              ...(select ? { select } : {}),
+            })
+          } catch (selectErr) {
+            // A `select` naming a field this collection does not have would make
+            // the whole collection look absent (the outer catch swallows page-1
+            // errors), silently dropping it from the analysis. Retry without the
+            // projection rather than lose the documents.
+            if (!select) throw selectErr
+            payload.logger?.warn(
+              `[seo] fetchAllDocs: select rejected on « ${collectionSlug} », retrying without projection.`,
+            )
+            result = await payload.find({
+              collection: collectionSlug,
+              limit: PAGE_SIZE,
+              page,
+              depth,
+              overrideAccess: true,
+            })
+          }
         } catch (err) {
           // Une erreur sur la page 1 signifie « collection absente » — c'est le cas
           // toléré, géré par le catch extérieur. Une erreur sur la page 2 ou au-delà

@@ -12,14 +12,23 @@
 import type { CollectionAfterChangeHook, PayloadHandler } from 'payload'
 import type { SeoConfig } from '../types.js'
 import { resolveGscSiteUrl } from '../helpers/gscClient.js'
+import { buildDocUrl, type CollectionRoutes } from '../helpers/docUrl.js'
 
 import { isSeoAdmin as isAdmin } from '../helpers/isAdmin.js'
 
-/** Build a public URL for a doc from its slug. */
-export function docToUrl(slug: string, siteUrl: string): string {
-  const base = siteUrl.replace(/\/$/, '')
-  if (!slug || slug === 'home') return base
-  return `${base}/${slug}`
+/**
+ * Build a public URL for a doc from its slug.
+ * `collection` + `routes` are optional for backward compatibility; without them
+ * the URL stays flat, as before. With them, the collection route prefix is
+ * applied (posts → /posts/<slug>) so IndexNow is not fed 404s.
+ */
+export function docToUrl(
+  slug: string,
+  siteUrl: string,
+  collection?: string,
+  routes?: CollectionRoutes,
+): string {
+  return buildDocUrl(siteUrl, slug, collection, routes)
 }
 
 /** Submit URLs to the IndexNow API. Returns ok/status; never throws. */
@@ -89,7 +98,7 @@ export function createIndexNowSubmitHandler(
           const res = await req.payload.find({ collection, limit: 1000, depth: 0, overrideAccess: true })
           for (const d of res.docs as Array<Record<string, unknown>>) {
             if (d._status === 'draft') continue
-            urls.push(docToUrl((d.slug as string) || '', siteUrl))
+            urls.push(docToUrl((d.slug as string) || '', siteUrl, collection, seoConfig?.collectionRoutes))
           }
         } catch {
           /* skip */
@@ -113,7 +122,7 @@ export function createIndexNowSubmitHandler(
 // afterChange hook — auto-submit a document's URL on publish
 // ---------------------------------------------------------------------------
 export function createIndexNowHook(basePath: string, seoConfig?: SeoConfig): CollectionAfterChangeHook {
-  return ({ doc, req }) => {
+  return ({ doc, req, collection }) => {
     try {
       const key = process.env.SEO_INDEXNOW_KEY
       const siteUrl = resolveGscSiteUrl(seoConfig)
@@ -122,7 +131,7 @@ export function createIndexNowHook(basePath: string, seoConfig?: SeoConfig): Col
       const status = (doc as { _status?: string })?._status
       if (status && status !== 'published') return doc
       const slug = ((doc as { slug?: string })?.slug as string) || ''
-      const url = docToUrl(slug, siteUrl)
+      const url = docToUrl(slug, siteUrl, collection?.slug, seoConfig?.collectionRoutes)
       // Fire-and-forget — never block the save on an external ping.
       void submitToIndexNow(siteUrl, key, keyLocationFor(siteUrl, basePath), [url]).then((r) => {
         if (!r.ok && r.reason !== 'no_key_or_urls') {
