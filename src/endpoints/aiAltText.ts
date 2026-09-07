@@ -170,7 +170,19 @@ export function createAiAltTextHandler(uploadsCollection: string, seoConfig?: Se
       if (!isAdmin(req.user)) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
       const body = await parseJsonBody(req)
-      const collection = typeof body.collection === 'string' ? body.collection : uploadsCollection
+      // The target collection is NOT taken from the body: `findByID` and
+      // `update` below run with `overrideAccess: true`, so an arbitrary
+      // `collection` turned this endpoint into a read-anything / write-`alt`-
+      // anywhere primitive. Only the configured uploads collection is allowed;
+      // the admin panel already round-trips exactly that value, so a mismatch
+      // means the call did not come from the plugin UI.
+      const collection = uploadsCollection
+      if (typeof body.collection === 'string' && body.collection !== uploadsCollection) {
+        return Response.json(
+          { error: `Forbidden: collection must be "${uploadsCollection}"` },
+          { status: 403 },
+        )
+      }
       const id = body.id != null ? String(body.id) : undefined
       const apply = body.apply === true
       const providedAlt = typeof body.altText === 'string' ? body.altText.trim() : undefined

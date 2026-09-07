@@ -9,6 +9,8 @@
  */
 
 import type { PayloadHandler } from 'payload'
+import type { SeoConfig } from '../types.js'
+import { buildDocPath } from '../helpers/docUrl.js'
 import { fetchAllDocs } from '../helpers/fetchAllDocs.js'
 
 // ---------------------------------------------------------------------------
@@ -51,7 +53,10 @@ function matchPattern(slug: string, pattern: string): boolean {
 // Endpoint handler
 // ---------------------------------------------------------------------------
 
-export function createSitemapConfigHandler(targetCollections: string[]): PayloadHandler {
+export function createSitemapConfigHandler(
+  targetCollections: string[],
+  seoConfig?: SeoConfig,
+): PayloadHandler {
   return async (req) => {
     try {
       if (!req.user) {
@@ -150,7 +155,11 @@ export function createSitemapConfigHandler(targetCollections: string[]): Payload
         }
 
         preview.push({
-          url: slug ? `/${slug}` : '/',
+          // Same path builder as sitemap.xml (sitemap.ts): the preview must show
+          // exactly what the generated sitemap will publish, collection route
+          // prefix included. `|| '/'` keeps the home page displayable, where the
+          // XML emits the bare site URL.
+          url: buildDocPath(slug, collectionSlug, seoConfig?.collectionRoutes) || '/',
           collection: collectionSlug,
           title,
           changefreq: pageChangefreq,

@@ -1,0 +1,70 @@
+name: Bug Report
+description: Report a bug with @consilioweb/seo-analyzer
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug! Please fill out the sections below.
+  - type: input
+    id: version
+    attributes:
+      label: Plugin version
+      placeholder: "1.4.2"
+    validations:
+      required: true
+  - type: input
+    id: payload-version
+    attributes:
+      label: Payload CMS version
+      placeholder: "3.x.x"
+    validations:
+      required: true
+  - type: input
+    id: node-version
+    attributes:
+      label: Node.js version
+      placeholder: "22.x"
+    validations:
+      required: true
+  - type: dropdown
+    id: database
+    attributes:
+      label: Database adapter
+      options:
+        - SQLite
+        - PostgreSQL
+        - MongoDB
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug description
+      description: A clear description of what the bug is.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: How can we reproduce this issue?
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error logs
+      description: Paste any relevant error messages or console output.
+      render: shell

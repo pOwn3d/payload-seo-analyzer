@@ -5,6 +5,166 @@ All notable changes to `@consilioweb/payload-seo-analyzer` will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-09-07 — Correct public URLs, admin-only writes, verifiable releases
+
+### Breaking
+
+- **Every URL the plugin generates now carries the collection's route prefix.** A `posts`
+  document is served at `/posts/<slug>` by default instead of `/<slug>`, which changes
+  `sitemap.xml`, the news/image/video sitemaps, the `/sitemap-config` preview, the canonical
+  and the Open Graph URL produced by `buildSeoMetadata`, the `@id` / `url` of the Article,
+  LocalBusiness, Product, Person and Event JSON-LD, and the URLs submitted to IndexNow.
+  Each of them built the public URL from the bare slug whatever the collection, so a post's
+  sitemap entry pointed at a 404 and its canonical did too — a canonical to a 404 can
+  deindex the real page. `llms.txt` is the exception: it hardcoded `/posts/<slug>`, so its
+  default output is unchanged, but it goes through the same builder now and follows
+  `collectionRoutes` like everything else.
+  **If your posts are served flat**, restore the previous URLs with one option:
+
+  ```ts
+  seoAnalyzerPlugin({ collectionRoutes: { posts: '' } })
+  ```
+
+  and pass the same map to the frontend helpers you call yourself:
+  `buildSeoMetadata(doc, { collection, collectionRoutes: { posts: '' } })` and
+  `buildJsonLd(doc, { collection, collectionRoutes: { posts: '' } })`.
+  Any other prefix is declared the same way, e.g. `{ projects: 'work' }`.
+  Prefixing is idempotent and slug slashes are trimmed, which also moves the output for two
+  storage habits: a slug already stored as `posts/my-article` yields `/posts/my-article`
+  rather than being doubled, and a slug stored as `/my-article` yields `/posts/my-article`
+  instead of the previous `//my-article`.
+
+- **A document slugged `home` now resolves to the site root, and no option restores `/home`.**
+  `buildDocPath` maps the slug `home` — the convention of Payload's website template — to the
+  empty path, before any `collectionRoutes` lookup. So `buildSeoMetadata` emits a canonical
+  and an `og:url` of `https://site` where it emitted `https://site/home`, `buildJsonLd` does
+  the same for the Article `@id` and the LocalBusiness / Product / Person / Event `url`, the
+  `llms.txt` entry follows, and the `/sitemap-config` preview shows `/` instead of `/home`.
+  `sitemap.xml`, the news/image/video sitemaps and IndexNow already special-cased `home` and
+  do not move. **On a site that really serves its home page at `/home`**, the canonical and
+  the Open Graph URL can still be pinned with an explicit `canonicalUrl` on the document, and
+  the Person / LocalBusiness nodes with an explicit `url` field, but the Article `@id` and the
+  Product / Event `url` cannot be overridden. In the same change, a document with an empty
+  slug loses the trailing slash of its JSON-LD `@id` / `url`: `https://site`, not
+  `https://site/`.
+
+- **`seo-settings`, `seo-redirects` and `seo-gsc-auth` are writable by SEO admins only.**
+  `create`, `update` and `delete` move from `!!req.user` to `isSeoAdmin(req.user)`; `read` is
+  unchanged. On a role-less Payload install nothing changes — `isSeoAdmin` still fails open
+  for any authenticated panel user unless `SEO_REQUIRE_ADMIN_ROLE=1`. On an install **with**
+  roles, a non-admin editor loses the ability to write these three collections through the
+  REST API and the admin UI. See Security for what that door opened onto.
+
+- **`POST /api/seo-plugin/ai-alt-text` no longer accepts a `collection` in the body.**
+  A request naming anything other than the configured `uploadsCollection` now gets a `403`;
+  the target is always `uploadsCollection`. The admin panel is unaffected — it echoes back the
+  value the server gave it. A third-party caller that passed another collection must drop the
+  field.
+
+- **Node 18 is no longer supported.** `engines.node` becomes `^20.19.0 || >=22.12.0`, in line
+  with the Payload/React 19 peers and with the new CI matrix (Node 20 and 22).
+
+### Security
+
+- **Stored XSS through `renderJsonLdScript`, on the public site.** `JSON.stringify` escapes
+  neither `<` nor `>`, so an editorial value carrying a closing `</script>` sequence — a title
+  or a meta description, writable by anyone with edit rights on a document — closed the JSON-LD
+  block and let the browser parse the remainder as HTML, for every anonymous visitor of the
+  page. Serialization now goes through the new `serializeJsonLd`, which escapes `<`, `>`, `&`,
+  U+2028 and U+2029 as JSON escape sequences: the output bytes change, the parsed object does
+  not, so rich results are unaffected. **If you inline JSON-LD yourself**, replace
+  `JSON.stringify(...)` with `serializeJsonLd(...)` inside your `dangerouslySetInnerHTML` — the
+  README and the JSDoc recommended the unsafe form and have been corrected.
+
+- **Reflected XSS on `GET /api/seo-plugin/gsc/callback`.** The `error` value reflected from
+  Google's redirect was interpolated raw into the plugin's only `text/html` response, a page
+  reached with an authenticated admin session. Both interpolations are escaped now, and the
+  response carries `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline';
+  base-uri 'none'; form-action 'none'`, `X-Content-Type-Options: nosniff` and
+  `Referrer-Policy: no-referrer`.
+
+- **HTML injection in the alert digest email.** 404 paths logged from anonymous visitors and
+  Search Console queries were interpolated raw into the digest mailed to administrators,
+  letting anyone who hits a crafted 404 place arbitrary markup — a phishing link, typically —
+  inside a message legitimately sent by the CMS. Every non-numeric value is escaped.
+
+- **Privilege escalation through the plugin collections** (the change is described under
+  Breaking). With `create`/`update`/`delete` open to any authenticated user, an editor could
+  write `robotsCustomRules` — `Disallow: /` is allow-listed by `robotsSafety`, i.e. site-wide
+  deindexation — create a redirect to an external domain, clear `disabledRules`, or overwrite
+  the OAuth CSRF `pendingState` of `seo-gsc-auth`. The same operations were admin-only on the
+  endpoint path, and `SEO_REQUIRE_ADMIN_ROLE` had no effect on the collection path.
+
+- **ReDoS in the duplicate-content rule.** `quality-no-duplicate` matched `/(.{30,})\1/i`,
+  whose backtracking on *non-matching* text — the normal case — cost hundreds of milliseconds
+  on a 1 000-word document and several seconds past 2 500 words. That ran on every keystroke
+  in the editor and on every document of every site-wide audit, reachable by any user with
+  write access. It is replaced by a linear tandem-repeat detector looking for the same thing
+  (a block of at least 30 characters immediately repeated), with two differences at the edges:
+  slice comparisons are capped at 2 000, so a repeat that only appears past that cap is now
+  missed, and the detector compares raw slices, so a repeated block straddling a line break is
+  now reported where `.` never matched one. Neither is expected to change the verdict on
+  editorial content.
+
+### Added
+
+- **`collectionRoutes` option** — `Record<string, string>`, default `{ posts: 'posts' }` —
+  available on the plugin config, `SeoConfig`, `BuildJsonLdOptions` and `SeoMetadataOptions`.
+- New public exports: `serializeJsonLd`, `buildDocPath`, `buildDocUrl`,
+  `DEFAULT_COLLECTION_ROUTES` and the `CollectionRoutes` type, so a host can build exactly the
+  URLs the sitemap, the canonical and the JSON-LD use.
+- `fetchAllDocs` accepts a `select` projection (`{ title: true, slug: true }`) to stop loading
+  whole documents when only a few scalar fields are needed; it retries without the projection,
+  logging a `warn`, when a collection rejects the requested fields.
+- `POST /api/seo-plugin/redirects` (bulk import) now returns `failed` — up to 100
+  `{ from, to, reason }` entries — and `failedTruncated`, next to the existing `created`,
+  `skipped` and `errors` counters. Each failure is also logged through `req.payload.logger.warn`.
+- GitHub Actions CI (typecheck, build and tests on Node 20 and 22) plus a tag-triggered
+  `npm publish --provenance`, so releases from 2.0.0 on are attested. `.github/` and `docs/`
+  were gitignored until now, so neither the workflows nor `docs/THREAT-MODEL.md` were in the
+  repository at all; `prepublishOnly` now runs `typecheck && test && build`.
+- Tests covering URL building, HTML escaping, collection access, the redirects import, the
+  suggest-links index and the uninstall script — `vitest.config.ts` also runs
+  `scripts/**/__tests__` now.
+
+### Changed
+
+- **`POST /api/seo-plugin/suggest-links` is rate limited and cached.** 120 requests per minute
+  per IP (the poll-friendly limiter already used by `/audit`, sized for the editor's 2 s
+  debounce). Its corpus is built once into `suggest-links-index:<locale>` and reads only
+  `title`, `slug` and `focusKeyword` instead of the full Lexical tree of up to 5 000 documents
+  on every poll. The index is invalidated on every tracked document save and otherwise expires
+  after 15 minutes, so a change made outside the tracked collections can take that long to
+  appear in suggestions.
+- `next` is now a declared peer dependency (`^15.2.0 || ^16.0.0`). It is marked optional, so no
+  install fails, but package managers will warn on an out-of-range Next — ten source files
+  import `next/navigation` and nothing declared it before.
+- `package.json` declares `sideEffects`, limited to `./dist/client.js` and `./dist/client.cjs`.
+  Bundlers will tree-shake the `.` and `./views` entries more aggressively than before; worth a
+  check on your host build.
+- `seo-analyzer-uninstall` exits with code `1` and prints "Uninstall incomplete", listing the
+  commands that failed, instead of always announcing success. Automation that ignored the exit
+  code will now see the failure.
+
+### Fixed
+
+- **`seo-analyzer-uninstall` used to remove nothing.** The script hardcoded
+  `@consilioweb/seo-analyzer` while the package is published as
+  `@consilioweb/payload-seo-analyzer`: no import matched, the removal command removed nothing,
+  the error was swallowed, and it still printed "Uninstall complete" over a project where the
+  plugin was still registered and freshly present in the importmap. The name is read from
+  `package.json` now, and the list of droppable collections it prints includes `seo-gsc-auth`
+  and `seo-rank-history`.
+- **Bulk redirect import no longer trips `SQLITE_BUSY`.** The 50 creations of a batch ran in a
+  `Promise.all` while SQLite is single-writer, and the Redirect Manager posts the whole CSV in
+  a single call. Creations are sequential now, as in the CSV import of `performance.ts`. The
+  deduplication query also used `limit: batch.length * 2`, which could truncate the existing
+  set and let the import create duplicates; it uses `pagination: false`.
+- **The link graph froze on hover.** Every edge looked its own index up with
+  `data.edges.indexOf(edge)` on each hover render — O(edges²), around 9 million comparisons at
+  3 000 edges. The edge is tested directly against the hovered node now; the rendering is
+  unchanged.
+
 ## [1.22.0] - 2026-08-08 — Truthful audits: no more silent partial results
 
 ### Added

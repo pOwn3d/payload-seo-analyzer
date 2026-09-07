@@ -75,10 +75,15 @@ export { buildSeoInputFromDoc } from './endpoints/validate.js'
 // Frontend SEO render helpers (SEO 2026) — produce the actual <head> metadata + JSON-LD,
 // not just analyze it. Pure functions, safe to call in Next.js generateMetadata / Server Components.
 export { buildSeoMetadata } from './helpers/buildMetadata.js'
+// Public URL construction — exported so a host can build the same URLs the
+// sitemap, the canonical and the JSON-LD use.
+export { buildDocPath, buildDocUrl, DEFAULT_COLLECTION_ROUTES } from './helpers/docUrl.js'
+export type { CollectionRoutes } from './helpers/docUrl.js'
 export type { SeoMetadata, SeoMetadataOptions } from './helpers/buildMetadata.js'
 export {
   buildJsonLd,
   renderJsonLdScript,
+  serializeJsonLd,
   detectSchemaType,
   getSchemaImageUrl,
   SCHEMA_TYPES,

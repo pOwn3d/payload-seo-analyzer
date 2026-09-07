@@ -6,6 +6,7 @@
 
 import type { CollectionConfig } from 'payload'
 import { validateRedirectTarget, normalizeFromPath } from '../helpers/redirectSafety.js'
+import { isSeoAdmin } from '../helpers/isAdmin.js'
 
 export function createSeoRedirectsCollection(slug: string = 'seo-redirects'): CollectionConfig {
   return {
@@ -13,11 +14,18 @@ export function createSeoRedirectsCollection(slug: string = 'seo-redirects'): Co
     admin: {
       custom: { navHidden: true },
     },
+    // `read` stays open to any authenticated user: the admin views and the
+    // plugin endpoints both surface this data to editors. Writes are restricted
+    // to SEO admins, mirroring the gate the endpoints already enforce
+    // (`isSeoAdmin` in settings.ts / redirects.ts). Without this, an editor
+    // could bypass those endpoints through the REST collection API — writing
+    // `robotsCustomRules`, neutralising `disabledRules`, creating a redirect or
+    // overwriting the OAuth CSRF state.
     access: {
       read: ({ req }) => !!req.user,
-      create: ({ req }) => !!req.user,
-      update: ({ req }) => !!req.user,
-      delete: ({ req }) => !!req.user,
+      create: ({ req }) => isSeoAdmin(req.user),
+      update: ({ req }) => isSeoAdmin(req.user),
+      delete: ({ req }) => isSeoAdmin(req.user),
     },
     fields: [
       {

@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { buildJsonLd, detectSchemaType, renderJsonLdScript } from '../helpers/buildSchema.js'
+import {
+  buildJsonLd,
+  detectSchemaType,
+  renderJsonLdScript,
+  serializeJsonLd,
+} from '../helpers/buildSchema.js'
 import { buildSeoMetadata } from '../helpers/buildMetadata.js'
 
 const SITE = 'https://example.com'
@@ -39,6 +44,30 @@ describe('buildJsonLd', () => {
     const html = renderJsonLdScript({ title: 'T' }, { collection: 'pages', type: 'Article', siteUrl: SITE })
     expect(html.startsWith('<script type="application/ld+json">')).toBe(true)
     expect(html).toContain('"@type":"Article"')
+  })
+
+  // Stored XSS regression: an editorial title carrying a closing script tag must
+  // not be able to break out of the JSON-LD block on the public site.
+  it('renderJsonLdScript escapes a closing script tag in editorial content', () => {
+    const html = renderJsonLdScript(
+      { title: '</script><img src=x onerror=alert(1)>' },
+      { collection: 'pages', type: 'Article', siteUrl: SITE },
+    )
+    // Exactly one opening and one closing tag: the payload did not break out.
+    expect(html.match(/<script/g)).toHaveLength(1)
+    expect(html.match(/<\/script>/g)).toHaveLength(1)
+    // The payload survives as inert text inside the JSON string.
+    expect(html).toContain('\\u003c/script\\u003e')
+  })
+
+  it('serializeJsonLd escapes < > & while staying JSON-parseable', () => {
+    const payload = { a: '</script>', b: 'x & y', c: '<b>' }
+    const out = serializeJsonLd(payload)
+    expect(out).not.toContain('<')
+    expect(out).not.toContain('>')
+    expect(out).not.toContain('&')
+    // Round-trip: escaping is transparent to any JSON parser, Google's included.
+    expect(JSON.parse(out)).toEqual(payload)
   })
 })
 

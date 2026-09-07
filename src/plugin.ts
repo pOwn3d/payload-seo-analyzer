@@ -60,6 +60,7 @@ import { createRedirectChainsHandler } from './endpoints/redirectChains.js'
 import { createDuplicateContentHandler } from './endpoints/duplicateContent.js'
 import { createAiRewriteHandler } from './endpoints/aiRewrite.js'
 import { createRobotsHandler, createRobotsUpdateHandler } from './endpoints/robots.js'
+import type { CollectionRoutes } from './helpers/docUrl.js'
 import { createSitemapHandler } from './endpoints/sitemap.js'
 import { createLlmsTxtHandler } from './endpoints/llmsTxt.js'
 import {
@@ -135,6 +136,14 @@ export interface SeoPluginConfig {
   redirectsCollection?: string
   /** Known dynamic routes that are not stored as document slugs (e.g. ['blog', 'réalisations', 'posts']). These won't be flagged as broken links or orphan pages. */
   knownRoutes?: string[]
+  /**
+   * Public route prefix per collection, used by every URL the plugin generates
+   * (sitemap.xml, canonical, JSON-LD, llms.txt, IndexNow).
+   * Default: `{ posts: 'posts' }` — the convention llms.txt already shipped.
+   * Set `{ posts: '' }` if your posts are served flat at `/<slug>`, or add your
+   * own entries (e.g. `{ projects: 'work' }`).
+   */
+  collectionRoutes?: CollectionRoutes
   /** Secret header value for seo-logs POST endpoint. If set, POST requests must include X-SEO-Secret header with this value. If not set, POST requires authenticated admin user. */
   seoLogsSecret?: string
   /** Locale for language-specific analysis (default: 'fr') */
@@ -199,6 +208,7 @@ function buildSeoConfig(pluginConfig: SeoPluginConfig): SeoConfig {
     ...(pluginConfig.overrideWeights && { overrideWeights: pluginConfig.overrideWeights }),
     ...(pluginConfig.thresholds && { thresholds: pluginConfig.thresholds }),
     ...(pluginConfig.locale && { locale: pluginConfig.locale }),
+    ...(pluginConfig.collectionRoutes && { collectionRoutes: pluginConfig.collectionRoutes }),
   }
 }
 
@@ -546,7 +556,7 @@ export const seoAnalyzerPlugin =
         {
           path: `${basePath}/sitemap-config`,
           method: 'get',
-          handler: createSitemapConfigHandler(targetCollections),
+          handler: createSitemapConfigHandler(targetCollections, seoConfig),
         },
       )
     }
@@ -564,7 +574,11 @@ export const seoAnalyzerPlugin =
       {
         path: `${basePath}/suggest-links`,
         method: 'post',
-        handler: createSuggestLinksHandler(targetCollections, targetGlobals),
+        // Rate limited, but with the POLL-friendly limiter: the editor debounces
+        // this call to one every 2 s while typing, so the 10/min expensive
+        // limiter would 429 a legitimate writer (the mistake already made once on
+        // the audit endpoint). 120/min fits sustained editing and still caps abuse.
+        handler: withRateLimit(createSuggestLinksHandler(targetCollections, targetGlobals), auditPollLimiter),
       },
       {
         path: `${basePath}/breadcrumb`,
@@ -726,7 +740,7 @@ export const seoAnalyzerPlugin =
       {
         path: `${basePath}/sitemap.xml`,
         method: 'get' as const,
-        handler: createSitemapHandler(targetCollections),
+        handler: createSitemapHandler(targetCollections, seoConfig),
       },
       {
         // AI discoverability (opt-in via SEO_LLMS_TXT=1; returns 404 when disabled). Not scored.

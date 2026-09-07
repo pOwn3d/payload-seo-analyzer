@@ -5,6 +5,8 @@
  */
 
 import type { PayloadHandler } from 'payload'
+import type { SeoConfig } from '../types.js'
+import { buildDocPath } from '../helpers/docUrl.js'
 import { fetchAllDocs } from '../helpers/fetchAllDocs.js'
 
 /** Escape special XML characters */
@@ -37,7 +39,10 @@ interface SitemapUrl {
  * GET handler — generates sitemap.xml dynamically.
  * Public endpoint, no authentication required.
  */
-export function createSitemapHandler(targetCollections: string[]): PayloadHandler {
+export function createSitemapHandler(
+  targetCollections: string[],
+  seoConfig?: SeoConfig,
+): PayloadHandler {
   return async (req) => {
     try {
       const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || ''
@@ -82,7 +87,10 @@ export function createSitemapHandler(targetCollections: string[]): PayloadHandle
         if (excludedSlugs.some((excluded) => matchesPattern(slug, excluded))) continue
 
         const isHome = slug === 'home' || slug === ''
-        const path = isHome ? '' : `/${slug}`
+        // Prefix by the collection route (posts → /posts/<slug> by default):
+        // emitting the bare slug for a `posts` document declares a 404 to
+        // Googlebot and wastes crawl budget.
+        const path = buildDocPath(slug, collectionSlug, seoConfig?.collectionRoutes)
 
         // Determine priority and changefreq
         let priority = defaultPriority

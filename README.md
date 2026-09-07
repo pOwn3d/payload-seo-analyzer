@@ -1,98 +1,80 @@
-<div align="center" style="background: linear-gradient(135deg, #1f8a5b 0%, #16a34a 50%, #0d9488 100%); padding: 50px 40px; border-radius: 12px; color: white; margin-bottom: 40px;">
-  <h1 style="margin: 0 0 15px 0; font-size: 42px; font-weight: 700; letter-spacing: -0.5px;">payload-seo-analyzer</h1>
-  <p style="margin: 0 auto; font-size: 18px; opacity: 0.95; max-width: 640px; line-height: 1.6;">The complete, offline-first SEO toolkit for Payload CMS 3 + Next.js — 50+ on-page checks, a 9-view admin dashboard, Google Search Console, opt-in AI assists, and 2026 SEO capabilities. No third-party SEO API required.</p>
-</div>
+# @consilioweb/payload-seo-analyzer
 
-<div align="center">
+> An offline-first SEO toolkit for Payload CMS 3 + Next.js: on-page analysis in the editor sidebar, a nine-view admin dashboard, generated sitemaps and JSON-LD, plus opt-in Google Search Console and AI assists.
 
-[![MIT License](https://img.shields.io/badge/license-MIT-1f8a5b)](LICENSE)
-[![npm](https://img.shields.io/npm/v/@consilioweb/payload-seo-analyzer?color=1f8a5b&label=npm)](https://www.npmjs.com/package/@consilioweb/payload-seo-analyzer)
-[![Node.js](https://img.shields.io/badge/node-18+-1f8a5b)](https://nodejs.org)
-[![Payload](https://img.shields.io/badge/payload-3.x-1f8a5b)](https://payloadcms.com)
-[![Tests](https://img.shields.io/badge/tests-391%20passing-1f8a5b)](src/__tests__)
-[![TypeScript](https://img.shields.io/badge/typescript-strict-1f8a5b)](https://www.typescriptlang.org)
+[![npm](https://img.shields.io/npm/v/@consilioweb/payload-seo-analyzer.svg)](https://www.npmjs.com/package/@consilioweb/payload-seo-analyzer)
+[![license](https://img.shields.io/npm/l/@consilioweb/payload-seo-analyzer.svg)](LICENSE)
+[![payload](https://img.shields.io/badge/payload-3.x-000000.svg)](https://payloadcms.com)
 
-</div>
+## About
 
-<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" width="100%" alt="" />
+Most SEO plugins either stop at meta fields or send your content to a paid third-party API. This one runs
+the whole analysis locally: 100+ deterministic checks across 20 rule groups, scored in the editor sidebar
+as you type, with no external call and no API key.
 
-## 📑 Table of Contents
+It is aimed at Payload 3 sites that ship their own front end in Next.js. Beyond the analyzer it generates
+what the front end actually needs — `robots.txt`, four sitemap flavours, canonical URLs, Open Graph
+metadata and JSON-LD — and adds an admin dashboard for site-wide work: link graph, redirect manager,
+cannibalization, schema builder, keyword research. Google Search Console, AI assists, monitoring alerts
+and IndexNow are opt-in and use your own credentials.
 
-- [Features](#-features)
-- [Quick Start](#-quick-start)
-- [Installation](#-installation)
-- [Usage](#-usage)
-- [API Reference](#-api-reference)
-- [Configuration](#-configuration)
-- [Performance](#-performance)
-- [Examples](#-examples)
-- [FAQ](#-faq)
-- [Troubleshooting](#-troubleshooting)
-- [Security](#-security)
-- [Contributing](#-contributing)
-- [Changelog](#-changelog)
-- [Roadmap](#-roadmap)
-- [Support](#-support)
-- [License](#-license)
+## Table of Contents
 
-<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" width="100%" alt="" />
+- [Features](#features)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
+- [API Endpoints](#api-endpoints)
+- [Admin Views](#admin-views)
+- [Collections](#collections)
+- [Package Exports](#package-exports)
+- [Requirements](#requirements)
+- [Uninstall](#uninstall)
+- [Migration to 2.0](#migration-to-20)
+- [Performance](#performance)
+- [Troubleshooting](#troubleshooting)
+- [Security](#security)
+- [Contributing](#contributing)
+- [Changelog](#changelog)
+- [Support](#support)
+- [License](#license)
 
-## ✨ Features
+## Features
 
-<table>
-<tr>
-<td width="50%">
+- **100+ on-page checks, offline.** 110 static rule ids across 20 groups — title, meta description, URL,
+  headings, content, images, linking, social, schema, readability, quality, secondary keywords,
+  cornerstone, freshness, technical, accessibility, e-commerce, E-E-A-T, GEO and hreflang.
+- **Live score in the editor.** A sidebar field analyses the document (including Lexical rich text and
+  layout blocks) and returns a 0–100 score plus a separate AI-readiness indicator built from the GEO,
+  E-E-A-T and schema-coverage checks.
+- **Nine admin views.** Site-wide audit, sitemap audit, settings, redirect manager, cannibalization,
+  performance, keyword research, schema builder and link graph.
+- **Generated output, not just advice.** `robots.txt`, `sitemap.xml`, news/image/video sitemaps, an
+  opt-in `llms.txt`, plus `buildSeoMetadata` / `buildJsonLd` helpers for your Next.js front end.
+- **Bilingual analysis.** Locale-adapted readability (Kandel-Moles for French, Flesch for English),
+  FR/EN dashboard translations extensible to any locale, and the 39 `plugin-seo` meta-field languages
+  from Payload.
+- **Opt-in integrations.** Google Search Console via OAuth, Anthropic-powered assists (meta rewriting,
+  alt text, content briefs), a monitoring digest over webhook/email, and IndexNow.
+- **Built for small hosts.** Single-flight background audit with tunable throttling, paginated document
+  loading with a memory cap, LRU-bounded cache and a build-time audit cache you can generate in CI.
 
-**🔍 50+ On-Page Checks**
+## Installation
 
-A deterministic, offline engine across ~21 rule groups: title, meta, content, headings, images, linking, readability, schema, E-E-A-T and more.
+```bash
+npm install @consilioweb/payload-seo-analyzer
+# or
+pnpm add @consilioweb/payload-seo-analyzer
+# or
+yarn add @consilioweb/payload-seo-analyzer
+```
 
-</td>
-<td width="50%">
+`payload@^3` is the only required peer. `next`, `react`, `@payloadcms/next` and `@payloadcms/ui` are
+declared optional peers — a Payload 3 admin panel already has all four, so a normal install pulls
+nothing extra, but package managers will warn if your versions fall out of the supported ranges (see
+[Requirements](#requirements)).
 
-**🤖 SEO 2026 Ready**
-
-Entities & topical authority (`sameAs`/`knowsAbout`), AI/GEO extractability, real per-type JSON-LD validation, and GSC-driven content grading.
-
-</td>
-</tr>
-<tr>
-<td width="50%">
-
-**📊 9-View Admin Dashboard**
-
-Site-wide audit, link graph (with crawl budget), redirect manager, schema builder, cannibalization, keyword research, performance and config.
-
-</td>
-<td width="50%">
-
-**🌍 Bilingual & i18n**
-
-FR/EN readability scoring (Flesch + Kandel–Moles), 39-language meta labels, FR/EN dashboard auto-locale, and per-locale audit/caching.
-
-</td>
-</tr>
-<tr>
-<td width="50%">
-
-**🔐 Hardened & Typed**
-
-RBAC gate, SSRF protections, open-redirect/robots sanitization, bounded cache and rate limiting — fully typed, with 391 tests.
-
-</td>
-<td width="50%">
-
-**⚡ Built for Real Hosts**
-
-Single-flight, throttled background audit; paginated loading; bounded LRU cache; LLM timeouts — stays responsive on constrained shared hosting.
-
-</td>
-</tr>
-</table>
-
-<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" width="100%" alt="" />
-
-## 🚀 Quick Start
+## Quick Start
 
 ```ts
 // payload.config.ts
@@ -100,6 +82,7 @@ import { buildConfig } from 'payload'
 import { seoAnalyzerPlugin } from '@consilioweb/payload-seo-analyzer'
 
 export default buildConfig({
+  // ...your db, collections, admin config
   plugins: [
     seoAnalyzerPlugin({
       collections: ['pages', 'posts'],
@@ -109,347 +92,408 @@ export default buildConfig({
 })
 ```
 
+The plugin injects React components into the admin panel, so regenerate the import map, then start:
+
 ```bash
 pnpm payload generate:importmap
 pnpm dev
 ```
 
-Open `/admin/seo` for the dashboard, or edit any page/post to see the live SEO score in the sidebar.
+Open `/admin/seo` for the dashboard, or edit any page or post to see the score in the sidebar.
 
-<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" width="100%" alt="" />
+### Frontend metadata and JSON-LD
 
-## 📦 Installation
-
-### npm
-```bash
-npm install @consilioweb/payload-seo-analyzer
-```
-
-### yarn
-```bash
-yarn add @consilioweb/payload-seo-analyzer
-```
-
-### pnpm
-```bash
-pnpm add @consilioweb/payload-seo-analyzer
-```
-
-**Peer dependencies:** `payload@^3`, `@payloadcms/next@^3` (and optionally `@payloadcms/ui@^3`, `react@^18 || ^19`). After adding admin components, run `pnpm payload generate:importmap`.
-
-<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" width="100%" alt="" />
-
-## 💻 Usage
-
-### Basic
-
-```ts
-seoAnalyzerPlugin({ collections: ['pages', 'posts'] })
-```
-
-### Advanced
-
-```ts
-seoAnalyzerPlugin({
-  collections: ['pages', 'posts', 'products'],
-  globals: ['home'],
-  siteUrl: 'https://example.com',
-  locale: 'fr',
-  features: {
-    gscApi: true,      // Google Search Console (OAuth)
-    aiFeatures: true,  // AI assists (needs ANTHROPIC_API_KEY)
-    alerts: true,      // monitoring digest (webhook/email)
-  },
-})
-```
-
-### Frontend metadata (Next.js)
+The same URL rules the sitemap uses are exported as pure functions, safe to call from a Server Component
+or `generateMetadata`:
 
 ```ts
 import { buildSeoMetadata } from '@consilioweb/payload-seo-analyzer'
 
-export const generateMetadata = ({ doc }) =>
-  buildSeoMetadata(doc, { siteUrl: 'https://example.com' })
-```
-
-<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" width="100%" alt="" />
-
-## 🔌 API Reference
-
-### `seoAnalyzerPlugin(config)`
-
-The Payload plugin. Adds SEO fields, admin views, editor components and API endpoints.
-
-```typescript
-seoAnalyzerPlugin(config: SeoPluginConfig): Plugin
-```
-
-### `analyzeSeo(input, config)`
-
-Runs the full engine programmatically and returns the score, level and checks.
-
-```typescript
-analyzeSeo(input: SeoInput, config?: SeoConfig): SeoAnalysis
-```
-
-### Frontend helpers
-
-```typescript
-buildSeoMetadata(doc, opts): Metadata            // Next.js <head> metadata
-buildJsonLd(type, values): Record<string, unknown> // schema.org JSON-LD
-renderJsonLdScript(jsonLd): string                 // <script type="application/ld+json">
-```
-
-### Key HTTP endpoints (under `/api/seo-plugin`, auth required)
-
-| Method | Path | Purpose |
-|---|---|---|
-| `GET/POST` | `/validate` | Full per-document analysis. |
-| `GET` | `/audit` | Site-wide audit (background, throttled). |
-| `GET` | `/indexation-audit` | Cross-page indexation hygiene. |
-| `GET` | `/link-graph` | Internal link graph + crawl budget. |
-| `GET` | `/content-grade` | GSC-driven coverage grade (opt-in). |
-| `POST` | `/ai-optimize`, `/ai-alt-text`, `/ai-content-brief` | AI assists (opt-in). |
-| `GET` | `/robots.txt`, `/sitemap.xml`, `/llms.txt` | Public, generated. |
-
-<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" width="100%" alt="" />
-
-## ⚙️ Configuration
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `collections` | `string[]` | `['pages','posts']` | Collections to analyze. |
-| `globals` | `string[]` | `[]` | Globals to analyze. |
-| `siteUrl` | `string` | env | Base URL (canonical, GSC, sitemaps). |
-| `locale` | `'fr' \| 'en'` | `'fr'` | Analysis language. |
-| `features` | `SeoFeatures` | all `true` | Granular feature flags. |
-| `disabledRules` | `RuleGroup[]` | `[]` | Disable rule groups. |
-| `thresholds` | `SeoThresholds` | defaults | Override numeric thresholds. |
-
-### Environment variables
-
-| Env var | Default | Description |
-|---------|---------|-------------|
-| `ANTHROPIC_API_KEY` | — | Enables AI assists (server-side). Heuristic fallback without it. |
-| `SEO_AI_MODEL` | `claude-sonnet-4-6` | Model override (`claude-opus-4-8` = max quality, `claude-haiku-4-5` = cheapest). |
-| `SEO_REQUIRE_ADMIN_ROLE` | — | `1` disables the RBAC fail-open. |
-| `SEO_FETCH_MAX_DOCS` | `5000` | Memory cap for site-wide analysis. |
-| `SEO_STRICT_READ_ACCESS` | — | `1` makes single-document reads respect the caller's collection/field-level ACL (`overrideAccess: false`). |
-| `SEO_LLMS_TXT` | — | `1` enables the opt-in `/llms.txt` generator. |
-| `SEO_GSC_ENCRYPTION_KEY` | — | 32-byte key to encrypt GSC tokens at rest (recommended). |
-| `SEO_AUDIT_DOC_DELAY_MS` | `10` | Per-document pause during the audit build — gentler on the CPU so the site stays responsive (raise on rich-content sites; `0` = fastest build). |
-| `SEO_AUDIT_*` / `SEO_ALERT_*` | see docs | Audit throttling (batch size/delay/depth/max-docs) & monitoring digest. |
-
-<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" width="100%" alt="" />
-
-## ⚡ Performance
-
-Engineered to stay responsive on constrained shared hosting (no fabricated benchmarks — characteristics depend on your content volume and host):
-
-| Concern | Approach |
-|---------|----------|
-| Site-wide audit | Single-flight, background-built, throttled (env-tunable); never blocks or OOM-kills the process. |
-| Heavy endpoints | Periodic event-loop yielding + rate limiting (keyed by user id). |
-| Document loading | Paginated with a memory cap (`SEO_FETCH_MAX_DOCS`). |
-| Caching | LRU-bounded, locale-aware invalidation; Core Web Vitals cached to protect the PSI quota. |
-| External APIs | LLM calls have timeouts and retry/backoff. |
-
-> Tune via the `SEO_AUDIT_*` env vars on the tiniest hosts.
-
-<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" width="100%" alt="" />
-
-## 📚 Examples
-
-### Disable a rule group and re-weight another
-
-```ts
-seoAnalyzerPlugin({
-  collections: ['pages'],
-  disabledRules: ['ecommerce'],
-  overrideWeights: { social: 1 },
+// `doc` is a Payload document you already fetched
+const metadata = buildSeoMetadata(doc, {
+  collection: 'posts',
+  siteUrl: 'https://example.com',
 })
 ```
 
-### Custom thresholds
+```tsx
+import { buildJsonLd, serializeJsonLd } from '@consilioweb/payload-seo-analyzer'
+
+const { jsonLd } = buildJsonLd(doc, { collection: 'posts', siteUrl: 'https://example.com' })
+
+<script
+  type="application/ld+json"
+  dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
+/>
+```
+
+Use `serializeJsonLd` rather than `JSON.stringify` — it escapes `<`, `>`, `&`, U+2028 and U+2029, which
+`JSON.stringify` does not (see [Security](#security)).
+
+## Configuration
+
+### Plugin options
+
+Every field of `SeoPluginConfig`. All are optional.
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `collections` | `string[]` | `['pages', 'posts']` | Collections that get SEO fields and are analyzed. |
+| `globals` | `string[]` | `[]` | Globals that get SEO fields and are analyzed. |
+| `siteUrl` | `string` | `NEXT_PUBLIC_SERVER_URL` / `PAYLOAD_PUBLIC_SERVER_URL` | Base URL for canonicals, sitemaps, JSON-LD and GSC. |
+| `siteName` | `string` | — | Used by the "brand duplicated in title" check. |
+| `locale` | `'fr' \| 'en'` | `'fr'` | Language of the analysis (readability, stop words, messages). |
+| `localeMapping` | `Record<string, 'fr' \| 'en'>` | — | Maps your Payload locale codes onto the analysis locale. |
+| `collectionRoutes` | `Record<string, string>` | `{ posts: 'posts' }` | Public route prefix per collection, used by every URL the plugin generates. Set `{ posts: '' }` if posts are served flat at `/<slug>`. |
+| `knownRoutes` | `string[]` | `[]` | Dynamic routes with no matching document slug, so they are not reported as broken links or orphans. |
+| `features` | `SeoFeatures` | see below | Per-feature on/off switches. |
+| `disabledRules` | `RuleGroup[]` | `[]` | Rule groups to skip entirely. |
+| `overrideWeights` | `Partial<Record<RuleGroup, number>>` | — | Force the weight of every check in a group. |
+| `thresholds` | `SeoThresholds` | constants | Numeric overrides (see below). |
+| `localSeoSlugs` | `string[]` | — | Extra slugs to treat as local-SEO pages. |
+| `endpointBasePath` | `string` | `'/seo-plugin'` | Path prefix for the REST endpoints, under `/api`. |
+| `addDashboardView` | `boolean` | `true` | Set `false` to register no admin view at all. |
+| `addSitemapAuditView` | `boolean` | `true` | Set `false` to drop only `/admin/sitemap-audit`. |
+| `trackScoreHistory` | `boolean` | `true` | Adds `seo-score-history` plus the `afterChange` hook that feeds it. |
+| `redirectsCollection` | `string` | `'seo-redirects'` | Slug of the redirects collection; an existing collection with that slug is reused. |
+| `uploadsCollection` | `string` | `'media'` | Upload collection used by `meta.image` and the AI alt-text endpoints. |
+| `autoCreateMetaFields` | `boolean` | `true` | Adds the `meta` group (title, description, image, preview) to target collections. |
+| `seoLogsSecret` | `string` | — | Shared secret for `POST /seo-logs`; when set, the caller sends `X-SEO-Secret` instead of a session. |
+| `auditCacheFile` | `string` | — | Path to a JSON audit produced by `buildAuditToFile()`, hydrated on a dashboard cache miss instead of rebuilding live. |
+| `generateTitle` | `(args) => string \| Promise<string>` | — | Backs the "auto-generate" button on the meta title. |
+| `generateDescription` | `(args) => string \| Promise<string>` | — | Same, for the meta description. |
+| `generateImage` | `(args) => string \| number \| Promise<…>` | — | Same, for the meta image (media id or URL). |
+| `generateURL` | `(args) => string \| Promise<string>` | — | Builds the document's public URL for previews. |
+| `fields` | `({ defaultFields }) => Field[]` | — | Rewrites the contents of the `meta` group. |
+| `tabbedUI` | `boolean` | `false` | Wraps collection fields in "Content" / "SEO" tabs. |
+| `interfaceName` | `string` | — | TypeScript interface name generated for the `meta` group. |
+| `customTranslations` | `Record<string, Partial<DashboardTranslations>>` | — | Dashboard strings for locales beyond FR/EN; missing keys fall back to English. |
+
+`thresholds` accepts `titleLengthMin`, `titleLengthMax`, `metaDescLengthMin`, `metaDescLengthMax`,
+`minWordsGeneric`, `minWordsPost`, `keywordDensityMin`, `keywordDensityMax`, `fleschScorePass` and
+`slugMaxLength`.
 
 ```ts
 seoAnalyzerPlugin({
   collections: ['posts'],
-  thresholds: { TITLE_LENGTH_MAX: 65, META_DESC_LENGTH_MAX: 165 },
+  disabledRules: ['ecommerce'],
+  overrideWeights: { social: 1 },
+  thresholds: { titleLengthMax: 65, metaDescLengthMax: 165 },
 })
 ```
 
-<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" width="100%" alt="" />
+### Feature flags
 
-## ❓ FAQ
+`features` gates collections, endpoints and admin views together — turning one off loads less. The core
+analyzer sidebar, the `validate` endpoint and the meta fields are always active.
 
-<details>
-<summary><b>Do I need a paid SEO API?</b></summary>
+| Flag | Default | What it controls |
+|---|---|---|
+| `dashboard` | `true` | `/admin/seo`, `/audit`, `/indexation-audit` |
+| `sitemapAudit` | `true` | `/admin/sitemap-audit`, `/sitemap-audit`, `/sitemap-config` |
+| `settings` | `true` | `/admin/seo-config`, `/settings`, the `seo-settings` collection |
+| `redirects` | `true` | `/admin/redirects`, redirect CRUD, the `seo-redirects` collection |
+| `performance` | `true` | `/admin/performance`, `/performance`, `/core-web-vitals`, the `seo-performance` collection |
+| `linkGraph` | `true` | `/admin/link-graph`, `/link-graph` |
+| `keywords` | `true` | `/admin/keyword-research`, `/keyword-research` |
+| `cannibalization` | `true` | `/admin/cannibalization`, `/cannibalization` |
+| `schemaBuilder` | `true` | `/admin/schema-builder`, `/schema-generator` |
+| `scoreHistory` | `true` | `seo-score-history` collection, tracking hook, `/history` |
+| `seoLogs` | `true` | `seo-logs` collection and endpoints (404 tracking) |
+| `externalLinks` | `true` | `/external-links` |
+| `duplicateContent` | `true` | `/duplicate-content` |
+| `aiFeatures` | `true` | the seven `ai-*` / `alt-text-audit` endpoints |
+| `warmCache` | `true` | background cache warm-up on init and hourly — turn off on low-memory hosts |
+| `gscApi` | **`false`** | Google Search Console OAuth, rank tracking, CTR opportunities, content grade, `seo-gsc-auth` + `seo-rank-history` |
+| `alerts` | **`false`** | monitoring digest endpoints and scheduler |
+| `indexNow` | **`false`** | IndexNow key file and submit endpoint |
+| `analyzer` | `true` | always on; cannot be disabled |
 
-No. The core analysis is offline and deterministic. Google Search Console and AI assists are opt-in and use your own credentials.
+### Environment variables
 
-</details>
+| Variable | Default | Description |
+|---|---|---|
+| `NEXT_PUBLIC_SERVER_URL` | — | Fallback base URL when `siteUrl` is not set (`PAYLOAD_PUBLIC_SERVER_URL` is tried next). |
+| `ANTHROPIC_API_KEY` | — | Enables the AI assists; without it they fall back to heuristics or return an error. |
+| `SEO_AI_MODEL` | `claude-sonnet-4-6` | Model used by `/ai-optimize`, `/ai-optimize-bulk`, `/ai-content-brief` and `/ai-alt-text`. `/ai-rewrite` is pinned to Haiku and `/ai-generate` is purely heuristic, so neither reads it. |
+| `SEO_MEDIA_ORIGIN` | — | Extra origin the AI alt-text endpoint may fetch images from, alongside `siteUrl`. |
+| `SEO_REQUIRE_ADMIN_ROLE` | — | `1` disables the fail-open in `isSeoAdmin`, requiring an explicit `admin` role. |
+| `SEO_STRICT_READ_ACCESS` | — | `1` makes single-document reads honour the caller's collection and field-level ACL. |
+| `SEO_FETCH_MAX_DOCS` | `5000` | Cap on documents loaded by site-wide helpers. |
+| `SEO_AUDIT_MAX_DOCS` | `1500` | Cap on documents included in one site-wide audit. |
+| `SEO_AUDIT_BATCH_SIZE` | `10` | Documents analysed per audit batch (capped at 100). |
+| `SEO_AUDIT_BATCH_DELAY_MS` | `100` | Pause between audit batches (capped at 5000). |
+| `SEO_AUDIT_DOC_DELAY_MS` | `10` | Pause after each document; `0` is fastest, raise it on rich content. |
+| `SEO_AUDIT_THROTTLE_RATIO` | `2` | Idle-to-work ratio applied while the audit builds. |
+| `SEO_AUDIT_DEPTH` | `0` | Payload `depth` used when loading documents for the audit. |
+| `SEO_AUDIT_FILE_CACHE` | — | `0` or `false` ignores `auditCacheFile` and forces a live build. |
+| `SEO_AUDIT_TRUST_FILE` | — | `1` serves `auditCacheFile` without the staleness check (for CI-prewarmed deployments). |
+| `SEO_SITEMAP_BATCH_SIZE` | `50` | Batch size for the news/image/video sitemaps (capped at 100). |
+| `SEO_SITEMAP_MAX_DOCS` | `5000` | Document cap for the news/image/video sitemaps. |
+| `SEO_LLMS_TXT` | — | `1` enables `/llms.txt`; it returns 404 otherwise. |
+| `SEO_INDEXNOW_KEY` | — | IndexNow key, served at `/indexnow-key.txt`. Required by the `indexNow` feature. |
+| `GSC_OAUTH_CLIENT_ID` / `GSC_OAUTH_CLIENT_SECRET` | — | Google Cloud OAuth client for the `gscApi` feature. |
+| `SEO_GSC_ENCRYPTION_KEY` | — | 32-byte key encrypting the stored GSC tokens (AES-256-GCM). Strongly recommended. |
+| `GOOGLE_PAGESPEED_API_KEY` / `PAGESPEED_API_KEY` | — | PageSpeed Insights key for Core Web Vitals; raises the quota. |
+| `SEO_ALERT_WEBHOOK_URL` / `SEO_ALERT_EMAIL` | — | Digest delivery for the `alerts` feature. |
+| `SEO_ALERT_SCORE_DROP` | `10` | Score drop, in points, that triggers an alert. |
+| `SEO_ALERT_POSITION_DROP` | `5` | SERP position drop that triggers an alert. |
+| `SEO_ALERT_WINDOW_HOURS` | `24` | Look-back window for the digest. |
+| `SEO_ALERT_INTERVAL_HOURS` | `24` | How often the scheduler runs (minimum 1). |
 
-<details>
-<summary><b>What Node / Payload versions are supported?</b></summary>
+## API Endpoints
 
-Node.js 18+, Payload 3.x, and React 18 or 19.
+All paths are relative to `/api/seo-plugin` (change the prefix with `endpointBasePath`). "Authenticated"
+means any logged-in panel user; "SEO admin" means `isSeoAdmin` — a user with `role: 'admin'` or an
+`admin` entry in `roles`, falling back to any authenticated user when the users collection has no role
+field at all, unless `SEO_REQUIRE_ADMIN_ROLE=1`.
 
-</details>
+### Always registered
 
-<details>
-<summary><b>Is there TypeScript support?</b></summary>
+| Method | Path | Access | Purpose |
+|---|---|---|---|
+| `GET` `POST` | `/validate` | Authenticated | Full analysis of one document or global. |
+| `GET` | `/check-keyword` | Authenticated | Whether a focus keyword is already used elsewhere. |
+| `POST` | `/generate` | Authenticated | Runs your `generateTitle` / `generateDescription` / `generateImage` / `generateURL`. |
+| `POST` | `/suggest-links` | Authenticated | Internal-link suggestions; rate limited to 120/min, index cached 15 min. |
+| `GET` | `/breadcrumb` | Authenticated | Breadcrumb trail for a document. |
+| `GET` | `/health` | SEO admin | Module health and observability. |
+| `GET` | `/robots.txt` | Public | Generated `robots.txt`. |
+| `POST` | `/robots.txt` | SEO admin | Saves custom robots rules into `seo-settings`. |
+| `GET` | `/sitemap.xml` | Public | Main sitemap. |
+| `GET` | `/sitemap-news.xml` `/sitemap-images.xml` `/sitemap-video.xml` | Public | Specialised sitemaps. |
+| `GET` | `/llms.txt` | Public | AI-discoverability file; 404 unless `SEO_LLMS_TXT=1`. |
 
-Yes — the package is fully typed and ships its own type definitions; IntelliSense works out of the box.
+### Feature-gated
 
-</details>
+| Method | Path | Access | Feature |
+|---|---|---|---|
+| `GET` | `/audit` | Authenticated | `dashboard` |
+| `GET` | `/indexation-audit` | Authenticated | `dashboard` |
+| `GET` | `/history` | Authenticated | `scoreHistory` |
+| `GET` | `/sitemap-audit`, `/sitemap-config` | Authenticated | `sitemapAudit` |
+| `GET` `PATCH` | `/settings` | Authenticated (GET) / SEO admin (PATCH) | `settings` |
+| `GET` | `/redirects` | Authenticated | `redirects` |
+| `POST` `PATCH` `DELETE` | `/redirects` | SEO admin | `redirects` |
+| `POST` | `/create-redirect` | SEO admin | `redirects` |
+| `GET` | `/redirect-chains` | Authenticated | `redirects` |
+| `GET` | `/cannibalization` | Authenticated | `cannibalization` |
+| `POST` | `/external-links` | Authenticated | `externalLinks` |
+| `GET` | `/duplicate-content` | Authenticated | `duplicateContent` |
+| `GET` | `/link-graph` | Authenticated | `linkGraph` |
+| `GET` | `/keyword-research` | Authenticated | `keywords` |
+| `GET` | `/schema-generator` | Authenticated | `schemaBuilder` |
+| `GET` | `/performance` | Authenticated | `performance` |
+| `POST` | `/performance` | SEO admin | `performance` |
+| `GET` | `/core-web-vitals` | Authenticated | `performance` |
+| `POST` | `/ai-generate`, `/ai-rewrite`, `/ai-optimize`, `/ai-content-brief` | Authenticated | `aiFeatures` |
+| `GET` | `/alt-text-audit` | SEO admin | `aiFeatures` |
+| `POST` | `/ai-alt-text`, `/ai-optimize-bulk` | SEO admin | `aiFeatures` |
+| `GET` | `/seo-logs` | Authenticated | `seoLogs` |
+| `POST` | `/seo-logs` | `X-SEO-Secret` header, or authenticated when no `seoLogsSecret` is set | `seoLogs` |
+| `DELETE` | `/seo-logs` | SEO admin | `seoLogs` |
+| `GET` | `/gsc/status` | Authenticated | `gscApi` |
+| `GET` | `/gsc/auth`, `/gsc/callback`, `/gsc/data` | SEO admin | `gscApi` |
+| `POST` | `/gsc/disconnect` | SEO admin | `gscApi` |
+| `POST` | `/rank-snapshot` | SEO admin | `gscApi` |
+| `GET` | `/rank-history`, `/ctr-opportunities`, `/content-grade` | SEO admin | `gscApi` |
+| `GET` | `/alerts-digest` | SEO admin | `alerts` |
+| `POST` | `/alerts-run` | SEO admin | `alerts` |
+| `GET` | `/indexnow-key.txt` | Public (search engines verify it) | `indexNow` |
+| `POST` | `/indexnow-submit` | SEO admin | `indexNow` |
 
-<details>
-<summary><b>Does it cost anything to run?</b></summary>
+Expensive endpoints are rate limited to 10 requests per minute, keyed by user id and falling back to the
+client IP; the polled ones (`/audit`, `/suggest-links`) get 120 per minute instead.
 
-The base plugin is free and offline. Only AI assists (Anthropic) and PageSpeed/GSC quotas involve your own external usage.
+## Admin Views
 
-</details>
+| Path | View | Feature |
+|---|---|---|
+| `/admin/seo` | Site-wide dashboard and audit | `dashboard` |
+| `/admin/sitemap-audit` | Sitemap coverage, broken links, orphans | `sitemapAudit` |
+| `/admin/seo-config` | Settings, thresholds, robots, sitemap options | `settings` |
+| `/admin/redirects` | Redirect manager (CRUD, CSV import, chain detection) | `redirects` |
+| `/admin/cannibalization` | Pages competing on the same query | `cannibalization` |
+| `/admin/performance` | Search Console data and Core Web Vitals | `performance` |
+| `/admin/keyword-research` | Keyword research and coverage | `keywords` |
+| `/admin/schema-builder` | JSON-LD builder per document type | `schemaBuilder` |
+| `/admin/link-graph` | Internal link graph and crawl budget | `linkGraph` |
 
-<details>
-<summary><b>How do I contribute?</b></summary>
+A nav link to the dashboard is appended to `afterNavLinks`.
 
-See the [Contributing](#-contributing) section. Bug reports, ideas and pull requests are all welcome.
+## Collections
 
-</details>
+Created by the plugin, only when the matching feature is on.
 
-<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" width="100%" alt="" />
+| Slug | Role | Read | Write | Feature |
+|---|---|---|---|---|
+| `seo-settings` | Thresholds, sitemap and robots configuration | Authenticated | SEO admin | `settings` |
+| `seo-redirects` | Redirect rules (slug configurable) | Authenticated | SEO admin | `redirects` |
+| `seo-score-history` | Score snapshots per document | Authenticated | Create: authenticated; update/delete: `role: 'admin'` | `scoreHistory` |
+| `seo-performance` | Imported Search Console rows | Authenticated | Authenticated | `performance` |
+| `seo-logs` | 404 tracking | Authenticated | Authenticated | `seoLogs` |
+| `seo-gsc-auth` | OAuth tokens, encrypted at rest and never readable through the API | Authenticated | SEO admin | `gscApi` |
+| `seo-rank-history` | Daily rank snapshots from GSC | Authenticated | `role: 'admin'` | `gscApi` |
 
-## 🔧 Troubleshooting
+If a collection with the `redirectsCollection` slug already exists in your config, the plugin uses yours
+instead of creating its own.
 
-### Admin components not updating
+## Package Exports
 
-**Solution:** regenerate the import map.
+| Entry | Contents | Environment |
+|---|---|---|
+| `@consilioweb/payload-seo-analyzer` | `seoAnalyzerPlugin` (alias `seoPlugin`), `analyzeSeo`, the frontend helpers, field builders (`seoFields`, `metaFields`), endpoint handler factories, `buildAuditToFile`, the extraction helpers, the scoring constants and every type | Server / isomorphic |
+| `@consilioweb/payload-seo-analyzer/client` | The admin React components (`SeoAnalyzerField`, the nine views, meta field components, `SerpPreview`, `SeoNavLink`) | Client (`'use client'`) |
+| `@consilioweb/payload-seo-analyzer/views` | Server view wrappers that render each dashboard view inside Payload's `DefaultTemplate` | Server (RSC) |
+
+Both ESM and CJS builds ship, with their own type declarations. `sideEffects` is limited to the client
+bundle, so the root and `views` entries tree-shake.
+
+### Frontend helpers
+
+| Function | Signature | Purpose |
+|---|---|---|
+| `buildSeoMetadata` | `(doc, options?) => SeoMetadata` | Title, description, canonical, robots, Open Graph and Twitter tags. Shape-compatible with Next.js `Metadata`. |
+| `buildJsonLd` | `(doc, options?) => { type, jsonLd }` | Schema.org object for the document, type auto-detected from the collection unless forced. |
+| `renderJsonLdScript` | `(doc, options?) => string` | The complete `<script type="application/ld+json">` tag, already escaped. |
+| `serializeJsonLd` | `(jsonLd) => string` | XSS-safe JSON for `dangerouslySetInnerHTML`. |
+| `buildDocPath` / `buildDocUrl` | `(…, collection?, collectionRoutes?)` | The exact public path or URL the sitemap, canonical and JSON-LD use. |
+| `analyzeSeo` | `(input, config?) => SeoAnalysis` | Runs the whole engine outside Payload. |
+
+`buildSeoMetadata` and `buildJsonLd` both take `collection` and `collectionRoutes`; pass the same
+`collectionRoutes` you gave the plugin, or the URLs they produce will not match the sitemap.
+
+The second argument of `analyzeSeo` is a `SeoConfig`, the analyzer's own config type. `siteUrl`,
+`siteName`, `locale`, `disabledRules`, `overrideWeights`, `thresholds`, `localSeoSlugs` and
+`collectionRoutes` behave exactly as in [Plugin options](#plugin-options) — the plugin forwards them
+for you. Two fields exist only here, so they are reachable only by calling `analyzeSeo` directly:
+
+| Field | Type | Default | Purpose |
+|---|---|---|---|
+| `stopWordCompounds` | `Array<readonly [string, string]>` | built-in FR/EN list | Extra compound expressions whose stop words are tolerated in a slug; appended to the defaults. |
+| `maxRecursionDepth` | `number` | `50` | Depth limit when walking a Lexical tree to extract text. |
+
+## Requirements
+
+| Dependency | Range | Required |
+|---|---|---|
+| `payload` | `^3.0.0` | Yes |
+| `next` | `^15.2.0 \|\| ^16.0.0` | Optional peer (needed by the admin components) |
+| `react` | `^18.0.0 \|\| ^19.0.0` | Optional peer |
+| `@payloadcms/next` | `^3.0.0` | Optional peer |
+| `@payloadcms/ui` | `^3.0.0` | Optional peer |
+| Node.js | `^20.19.0 \|\| >=22.12.0` | Yes (`engines`) |
+
+Node 18 is not supported from 2.0.0 on. CI runs the suite on Node 20 and 22.
+
+## Uninstall
+
 ```bash
-pnpm payload generate:importmap
+npx seo-analyzer-uninstall
 ```
 
-### `SQLITE_BUSY` during imports
+The script runs three steps: it removes the package's imports and `seoAnalyzerPlugin(...)` calls from
+your source files, runs the removal command for your package manager, then regenerates the import map.
+It exits with code `1` and lists the failing commands if either of the last two did not complete. It
+also prints the collections you may want to drop from your database
+(`seo-score-history`, `seo-settings`, `seo-redirects`, `seo-performance`, `seo-logs`, `seo-gsc-auth`,
+`seo-rank-history`) — that part is deliberately left to you.
 
-**Solution:** the plugin serializes its own writes; ensure your seed/import scripts also write **sequentially** on SQLite.
+## Migration to 2.0
 
-### Audit feels heavy on a small host
+Three breaking changes; the full account is in [CHANGELOG.md](CHANGELOG.md).
 
-**Solution:**
-- Raise `SEO_AUDIT_BATCH_DELAY_MS`
-- Set `SEO_AUDIT_DEPTH=0`
-- Disable `features.warmCache`
+1. **Generated URLs now carry the collection route prefix.** A `posts` document resolves to
+   `/posts/<slug>` instead of `/<slug>`, across `sitemap.xml`, the canonical, the Open Graph URL, the
+   JSON-LD `@id` / `url` and IndexNow. If your posts are served flat, restore the old URLs with
+   `seoAnalyzerPlugin({ collectionRoutes: { posts: '' } })`, and pass the same map to
+   `buildSeoMetadata` / `buildJsonLd` where you call them yourself. A document slugged `home` now
+   resolves to the site root rather than `/home`.
+2. **`seo-settings`, `seo-redirects` and `seo-gsc-auth` are writable by SEO admins only.** On a
+   role-less install nothing changes; on one with roles, a non-admin editor loses write access to those
+   three collections.
+3. **`POST /ai-alt-text` no longer accepts a `collection` in the body** — the target is always
+   `uploadsCollection`, and any other value gets a 403.
 
-<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" width="100%" alt="" />
+Also: Node 18 is dropped, and `next` became a declared (optional) peer dependency.
 
-## 🔐 Security
+## Performance
 
-Security is a first-class concern. The plugin reads secrets only from environment variables (never the DB), encrypts GSC tokens at rest, validates redirect targets, sanitizes `robots.txt` rules, and protects outbound fetches against SSRF (private-IP allowlist, DNS-rebinding guard, manual redirect re-validation).
+Characteristics, not benchmarks — the numbers depend on your content volume and host.
 
-### Reporting Security Issues
+| Concern | Approach |
+|---|---|
+| Site-wide audit | Built in the background, single-flight per locale, batched and throttled through the `SEO_AUDIT_*` variables. |
+| Very small hosts | Pre-compute the audit in CI with `buildAuditToFile()` and point `auditCacheFile` at the result. |
+| Document loading | Paginated, with a hard cap (`SEO_FETCH_MAX_DOCS`) and an optional field projection. |
+| Caching | LRU-bounded with locale-aware invalidation; Core Web Vitals are cached to protect the PageSpeed quota. |
+| Heavy endpoints | Rate limited by user id, with periodic event-loop yielding during long loops. |
+| External APIs | LLM and HTTP calls carry timeouts and retry with backoff. |
 
-Please email `contact@consilioweb.fr` instead of opening a public issue.
+## Troubleshooting
 
-### Best Practices
+**Admin components do not update.** Regenerate the import map: `pnpm payload generate:importmap`.
 
-- ✅ Keep the plugin up-to-date
-- ✅ Set `SEO_GSC_ENCRYPTION_KEY` and `SEO_REQUIRE_ADMIN_ROLE=1` in production
-- ✅ Read all secrets from environment variables
-- ✅ Enforce a rate limit at your reverse proxy
+**Generated URLs do not match my routes.** Declare the public prefix of each collection:
 
-<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" width="100%" alt="" />
+```ts
+seoAnalyzerPlugin({ collectionRoutes: { posts: '', projects: 'work' } })
+```
 
-## 🤝 Contributing
+Pass the same map to `buildSeoMetadata` and `buildJsonLd` in your front end.
 
-Contributions are very welcome!
+**`SQLITE_BUSY` during imports.** The plugin serializes its own writes, including the bulk redirect
+import. Make sure your own seed and import scripts write sequentially too.
 
-1. **Fork** the repository
-2. **Create** a feature branch (`git checkout -b feature/AmazingFeature`)
-3. **Commit** your changes (`git commit -m 'feat: add AmazingFeature'`)
-4. **Push** the branch (`git push origin feature/AmazingFeature`)
-5. **Open** a Pull Request
+**The audit is heavy on a small host.** Raise `SEO_AUDIT_BATCH_DELAY_MS` and `SEO_AUDIT_DOC_DELAY_MS`,
+lower `SEO_AUDIT_MAX_DOCS`, set `features: { warmCache: false }`, or move the build to CI with
+`buildAuditToFile()` and `auditCacheFile`.
 
-Run the checks before submitting:
+## Security
+
+Secrets are read from environment variables only, never from the database. GSC tokens are encrypted at
+rest with AES-256-GCM when `SEO_GSC_ENCRYPTION_KEY` is set, and the token fields carry
+`read: () => false` so they never leave through the API. The one GSC route open to any authenticated
+panel user is `GET /gsc/status`, which reports the connected account email, the property URL and the
+redirect URI — never a token. Redirect targets are validated against
+open-redirect patterns, `robots.txt` rules are sanitized on write, and outbound fetches are guarded
+against SSRF with a private-IP denylist, DNS-rebinding resolution checks and manual per-hop redirect
+re-validation. JSON-LD is serialized through `serializeJsonLd`, which escapes the characters
+`JSON.stringify` leaves alone.
+
+In production, set `SEO_GSC_ENCRYPTION_KEY`, set `SEO_REQUIRE_ADMIN_ROLE=1` if your users collection has
+a role field, and keep a rate limit at your reverse proxy.
+
+Report vulnerabilities to `contact@consilioweb.fr` rather than in a public issue.
+
+## Contributing
+
+1. Fork the repository and branch from `main`.
+2. Run the checks before opening a pull request:
 
 ```bash
 pnpm typecheck && pnpm test && pnpm build
 ```
 
-<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" width="100%" alt="" />
+The suite is 473 unit tests plus a Playwright harness for the admin views under `e2e/`
+(`pnpm test:e2e:ui:setup` once, then `pnpm test:e2e:ui`).
 
-## 📝 Changelog
+## Changelog
 
-See [CHANGELOG.md](CHANGELOG.md) for the full history.
+See [CHANGELOG.md](CHANGELOG.md). Releases from 2.0.0 on are published with npm provenance attestation.
 
-### [1.21.0]
+## Support
 
-- 🗃️ **Build-time audit cache**: pre-compute the site-wide audit at CI via `buildAuditToFile()` and serve it in prod through the new `auditCacheFile` option — no heavy live rebuild on memory-constrained hosts. Stale-guarded (ignored once content changes); runtime kill-switch `SEO_AUDIT_FILE_CACHE=0`.
-
-### [1.19.0]
-
-- ✨ SEO 2026: entities & topical authority, AI/GEO extractability, GSC-driven content grade, indexation hygiene, crawl-budget analysis, opt-in `llms.txt`.
-- ⚡ Performance: paginated loading, bounded LRU cache, event-loop yielding, LLM timeouts/retries.
-- 🔐 Security: IDOR allowlists, open-redirect & robots sanitization, residual-SSRF fix, `user.id` rate limiting, `SEO_REQUIRE_ADMIN_ROLE`.
-
-<details>
-<summary><b>Previous versions</b></summary>
-
-- **1.18.2** — Fix: false "broken links" & "orphan pages" for posts linked via `/posts/<slug>`
-- **1.18.1** — Fix: dashboard audit returned HTTP 429 mid-build (polling throttled itself)
-- **1.18.0** — Accurate readability on list-heavy content (sentence boundaries at block ends)
-- **1.17.3** — Audit build no longer freezes the site (per-document yield)
-- **1.17.2** — Fix: admin tools 403 for legit admins on role-less setups
-- **1.17.1** — Fix: GSC panels showed "Error 404" when the feature is off
-- **1.17.0** — Audit throttling (no more server saturation)
-- **1.16.0** — IndexNow (proactive indexing)
-- **1.15.0** — Module health / observability
-- **1.14.0** — One-click "Optimize site" + per-locale audit
-- **1.13.0** — CTR opportunities (GSC data → targeted meta rewrite)
-- **1.12.0** — Bulk meta correction (preview/export/apply) + audit hardening
-- **1.11.0** — AI content brief, News/Image/Video sitemaps, multi-location local SEO
-- **1.10.0** — Rank tracking, frontend render helpers, monitoring alerts, AI alt-text
-- **1.9.0** — AI SEO Optimize + dashboard OOM hardening
-- **1.8.0–1.8.1** — SEO 2026 "desintox" pass + low-memory audit
-- **1.3.0–1.7.0** — Early releases (core engine, i18n, dashboard)
-
-See [CHANGELOG.md](CHANGELOG.md) for full details of every release.
-
-</details>
-
-<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" width="100%" alt="" />
-
-## 🗺️ Roadmap
-
-- [x] SEO-2026 feature set (entities, GEO, content grade, indexation hygiene)
-- [x] Security & performance hardening
-- [x] **End-to-end UI test harness** — admin views (`e2e/`)
-- [x] **Optional strict field-level access control** — opt-in via `SEO_STRICT_READ_ACCESS=1`
-- [x] **Entity input fields in the Schema Builder** — author `sameAs`, Organization `knowsAbout`
-- [ ] **Lazy-loading of the heaviest admin views** — deferred: needs live-admin verification (the current RSC / single client-bundle architecture would require a build-time entry split)
-
-<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" width="100%" alt="" />
-
-## ☕ Support
-
-If this plugin saves you time, consider buying me a coffee!
+If this plugin saves you time, consider buying me a coffee.
 
 <a href="https://buymeacoffee.com/pown3d">
   <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" width="217" />
 </a>
 
-<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" width="100%" alt="" />
+- [Documentation](https://github.com/pOwn3d/payload-seo-analyzer#readme)
+- [Issues](https://github.com/pOwn3d/payload-seo-analyzer/issues)
+- [Discussions](https://github.com/pOwn3d/payload-seo-analyzer/discussions)
 
-## 📄 License
+## License
 
-Licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
-
-<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" width="100%" alt="" />
-
-<div align="center" style="padding: 40px 0; color: #666; border-top: 1px solid #e0e0e0; margin-top: 50px;">
-  <p style="margin: 10px 0;">Built and maintained by <a href="https://consilioweb.fr" style="color: #1f8a5b; text-decoration: none;">ConsilioWEB</a></p>
-  <p style="margin: 10px 0; font-size: 13px;">
-    <a href="https://github.com/pOwn3d/payload-seo-analyzer#readme" style="color: #1f8a5b; text-decoration: none; margin: 0 15px;">Documentation</a>
-    <a href="https://github.com/pOwn3d/payload-seo-analyzer/issues" style="color: #1f8a5b; text-decoration: none; margin: 0 15px;">Issues</a>
-    <a href="https://github.com/pOwn3d/payload-seo-analyzer/discussions" style="color: #1f8a5b; text-decoration: none; margin: 0 15px;">Discussions</a>
-  </p>
-</div>
+MIT — see [LICENSE](LICENSE). Built and maintained by [ConsilioWEB](https://consilioweb.fr).

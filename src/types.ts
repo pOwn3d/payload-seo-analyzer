@@ -2,6 +2,7 @@
  * SEO Analyzer — Type definitions.
  * Shared across all rule modules and the main orchestrator.
  */
+import type { CollectionRoutes } from './helpers/docUrl.js'
 
 export type CheckStatus = 'pass' | 'warning' | 'fail'
 export type CheckCategory = 'critical' | 'important' | 'bonus'
@@ -161,6 +162,13 @@ export interface SeoConfig {
   thresholds?: SeoThresholds
   /** Locale for language-specific analysis (default: 'fr') */
   locale?: 'fr' | 'en'
+  /**
+   * Public route prefix per collection, used when generating URLs
+   * (sitemap, canonical, JSON-LD, llms.txt, IndexNow).
+   * Defaults to `{ posts: 'posts' }`. Set `{ posts: '' }` if your posts are
+   * served flat at `/<slug>`.
+   */
+  collectionRoutes?: CollectionRoutes
 }
 
 /**

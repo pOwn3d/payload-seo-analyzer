@@ -15,6 +15,7 @@
  */
 
 import { getSchemaImageUrl } from './buildSchema.js'
+import { buildDocUrl, type CollectionRoutes } from './docUrl.js'
 
 export interface SeoMetadataOptions {
   /** Collection slug — used to pick the Open Graph type (posts → 'article') */
@@ -29,6 +30,13 @@ export interface SeoMetadataOptions {
   defaultImage?: string
   /** Open Graph locale, e.g. 'fr_FR' */
   locale?: string
+  /**
+   * Public route prefix per collection, e.g. `{ posts: 'posts' }` (the default).
+   * The canonical used to be `siteUrl + '/' + slug` for every collection, so a
+   * post's canonical pointed at a 404 — which can deindex the real page.
+   * Pass `{ posts: '' }` if your posts are served flat at `/<slug>`.
+   */
+  collectionRoutes?: CollectionRoutes
 }
 
 export interface SeoMetadata {
@@ -125,7 +133,9 @@ export function buildSeoMetadata(
     (typeof meta.canonicalUrl === 'string' && meta.canonicalUrl) ||
     (typeof doc.canonicalUrl === 'string' && doc.canonicalUrl) ||
     ''
-  const canonical = explicitCanonical || (siteUrl ? `${siteUrl}${slug ? `/${slug}` : ''}` : undefined)
+  const canonical =
+    explicitCanonical ||
+    (siteUrl ? buildDocUrl(siteUrl, slug, options.collection, options.collectionRoutes) : undefined)
 
   const languages = buildLanguages(doc)
   const isPost = options.collection === 'posts' || doc.isPost === true

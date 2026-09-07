@@ -7,6 +7,7 @@
  */
 
 import { extractTextFromLexical } from '../helpers.js'
+import { buildDocUrl, type CollectionRoutes } from './docUrl.js'
 
 export const SCHEMA_TYPES = [
   'Article',
@@ -140,7 +141,7 @@ function buildAuthors(authors: unknown[]): unknown[] {
     })
 }
 
-function buildArticleSchema(doc: Record<string, unknown>, siteUrl: string): Record<string, unknown> {
+function buildArticleSchema(doc: Record<string, unknown>, siteUrl: string, docUrl: string): Record<string, unknown> {
   const meta = (doc.meta || {}) as Record<string, unknown>
   const heroMedia = (doc.hero as Record<string, unknown>)?.media as Record<string, unknown> | undefined
   const imageUrl = getSchemaImageUrl(meta.image as Record<string, unknown> | undefined, heroMedia, siteUrl)
@@ -154,7 +155,7 @@ function buildArticleSchema(doc: Record<string, unknown>, siteUrl: string): Reco
     dateModified: doc.updatedAt || undefined,
     mainEntityOfPage: {
       '@type': 'WebPage',
-      '@id': `${siteUrl}/${doc.slug || ''}`,
+      '@id': docUrl,
     },
   }
 
@@ -185,13 +186,14 @@ function buildLocationNode(
   loc: Record<string, unknown>,
   doc: Record<string, unknown>,
   siteUrl: string,
+  docUrl: string,
 ): Record<string, unknown> {
   const meta = (doc.meta || {}) as Record<string, unknown>
   const node: Record<string, unknown> = {
     '@type': (typeof loc.type === 'string' && loc.type) || 'LocalBusiness',
     name: loc.name || doc.title || meta.title || '',
     description: loc.description || meta.description || '',
-    url: loc.url || `${siteUrl}/${doc.slug || ''}`,
+    url: loc.url || docUrl,
   }
 
   if (loc.telephone) node.telephone = loc.telephone
@@ -228,7 +230,7 @@ function buildLocationNode(
  * entry, emit a `@graph` of LocalBusiness nodes (multi-establishment local SEO). A single
  * location (or none) produces one node, preserving the original single-business behavior.
  */
-function buildLocalBusinessSchema(doc: Record<string, unknown>, siteUrl: string): Record<string, unknown> {
+function buildLocalBusinessSchema(doc: Record<string, unknown>, siteUrl: string, docUrl: string): Record<string, unknown> {
   const locations = Array.isArray(doc.locations)
     ? (doc.locations as unknown[]).filter((l): l is Record<string, unknown> => !!l && typeof l === 'object')
     : []
@@ -236,12 +238,12 @@ function buildLocalBusinessSchema(doc: Record<string, unknown>, siteUrl: string)
   if (locations.length > 1) {
     return {
       '@context': 'https://schema.org',
-      '@graph': locations.map((loc) => buildLocationNode(loc, doc, siteUrl)),
+      '@graph': locations.map((loc) => buildLocationNode(loc, doc, siteUrl, docUrl)),
     }
   }
 
   const base = locations.length === 1 ? locations[0]! : doc
-  return { '@context': 'https://schema.org', ...buildLocationNode(base, doc, siteUrl) }
+  return { '@context': 'https://schema.org', ...buildLocationNode(base, doc, siteUrl, docUrl) }
 }
 
 function buildBreadcrumbSchema(doc: Record<string, unknown>, siteUrl: string): Record<string, unknown> {
@@ -318,7 +320,7 @@ function buildFAQSchema(doc: Record<string, unknown>): Record<string, unknown> {
   }
 }
 
-function buildProductSchema(doc: Record<string, unknown>, siteUrl: string): Record<string, unknown> {
+function buildProductSchema(doc: Record<string, unknown>, siteUrl: string, docUrl: string): Record<string, unknown> {
   const meta = (doc.meta || {}) as Record<string, unknown>
   const heroMedia = (doc.hero as Record<string, unknown>)?.media as Record<string, unknown> | undefined
   const imageUrl = getSchemaImageUrl(meta.image as Record<string, unknown> | undefined, heroMedia, siteUrl)
@@ -338,7 +340,7 @@ function buildProductSchema(doc: Record<string, unknown>, siteUrl: string): Reco
       price: doc.price,
       priceCurrency: (doc.currency as string) || 'EUR',
       availability: 'https://schema.org/InStock',
-      url: `${siteUrl}/${doc.slug || ''}`,
+      url: docUrl,
     }
   }
 
@@ -370,7 +372,7 @@ function buildOrganizationSchema(doc: Record<string, unknown>, siteUrl: string):
   return schema
 }
 
-function buildPersonSchema(doc: Record<string, unknown>, siteUrl: string): Record<string, unknown> {
+function buildPersonSchema(doc: Record<string, unknown>, siteUrl: string, docUrl: string): Record<string, unknown> {
   const meta = (doc.meta || {}) as Record<string, unknown>
 
   const schema: Record<string, unknown> = {
@@ -381,7 +383,7 @@ function buildPersonSchema(doc: Record<string, unknown>, siteUrl: string): Recor
 
   if (doc.jobTitle) schema.jobTitle = doc.jobTitle
   if (doc.description || meta.description) schema.description = doc.description || meta.description
-  schema.url = (typeof doc.url === 'string' && doc.url) || `${siteUrl}/${doc.slug || ''}`
+  schema.url = (typeof doc.url === 'string' && doc.url) || docUrl
   // sameAs = verifiable profiles → entity disambiguation for the Person (author E-E-A-T).
   const personSameAs = toStringArray(doc.sameAs)
   if (personSameAs.length > 0) schema.sameAs = personSameAs
@@ -392,7 +394,7 @@ function buildPersonSchema(doc: Record<string, unknown>, siteUrl: string): Recor
   return schema
 }
 
-function buildEventSchema(doc: Record<string, unknown>, siteUrl: string): Record<string, unknown> {
+function buildEventSchema(doc: Record<string, unknown>, siteUrl: string, docUrl: string): Record<string, unknown> {
   const meta = (doc.meta || {}) as Record<string, unknown>
 
   const schema: Record<string, unknown> = {
@@ -402,7 +404,7 @@ function buildEventSchema(doc: Record<string, unknown>, siteUrl: string): Record
     description: meta.description || '',
     startDate: doc.startDate || doc.eventStart || undefined,
     endDate: doc.endDate || doc.eventEnd || undefined,
-    url: `${siteUrl}/${doc.slug || ''}`,
+    url: docUrl,
   }
 
   if (doc.location) {
@@ -463,6 +465,12 @@ export interface BuildJsonLdOptions {
   siteUrl?: string
   /** Force a specific schema type instead of auto-detecting */
   type?: SchemaType
+  /**
+   * Public route prefix per collection, e.g. `{ posts: 'posts' }` (the default).
+   * Without it a `posts` document advertised a `@id` / `url` of `/<slug>`, which
+   * 404s. Pass `{ posts: '' }` if your posts are served flat.
+   */
+  collectionRoutes?: CollectionRoutes
 }
 
 /**
@@ -475,14 +483,17 @@ export function buildJsonLd(
 ): { type: SchemaType; jsonLd: Record<string, unknown> } {
   const siteUrl = resolveSiteUrl(options.siteUrl)
   const schemaType = options.type || detectSchemaType(options.collection || '', doc)
+  // Resolved once and threaded down: every node that points at "this document"
+  // must use the same public URL, prefixed by the collection route.
+  const docUrl = buildDocUrl(siteUrl, (doc.slug as string) || '', options.collection, options.collectionRoutes)
 
   let jsonLd: Record<string, unknown>
   switch (schemaType) {
     case 'Article':
-      jsonLd = buildArticleSchema(doc, siteUrl)
+      jsonLd = buildArticleSchema(doc, siteUrl, docUrl)
       break
     case 'LocalBusiness':
-      jsonLd = buildLocalBusinessSchema(doc, siteUrl)
+      jsonLd = buildLocalBusinessSchema(doc, siteUrl, docUrl)
       break
     case 'BreadcrumbList':
       jsonLd = buildBreadcrumbSchema(doc, siteUrl)
@@ -491,16 +502,16 @@ export function buildJsonLd(
       jsonLd = buildFAQSchema(doc)
       break
     case 'Product':
-      jsonLd = buildProductSchema(doc, siteUrl)
+      jsonLd = buildProductSchema(doc, siteUrl, docUrl)
       break
     case 'Organization':
       jsonLd = buildOrganizationSchema(doc, siteUrl)
       break
     case 'Person':
-      jsonLd = buildPersonSchema(doc, siteUrl)
+      jsonLd = buildPersonSchema(doc, siteUrl, docUrl)
       break
     case 'Event':
-      jsonLd = buildEventSchema(doc, siteUrl)
+      jsonLd = buildEventSchema(doc, siteUrl, docUrl)
       break
     case 'Recipe':
       jsonLd = buildRecipeSchema(doc, siteUrl)
@@ -516,12 +527,35 @@ export function buildJsonLd(
 }
 
 /**
+ * Serialize a JSON-LD object for safe embedding inside a `<script>` element.
+ *
+ * `JSON.stringify` escapes neither `<`, `>` nor `&`, so an editorial string
+ * containing `</script>` would close the tag and let the browser parse the rest
+ * of the payload as HTML — a stored XSS on the public site, writable by anyone
+ * with edit rights on a document.
+ *
+ * `\u003c` / `\u003e` / `\u0026` are JSON escape sequences: a JSON parser reads
+ * them back as the exact same characters, so Google's rich-results parsing is
+ * unaffected. U+2028 / U+2029 are escaped too, since they are raw line
+ * terminators for a JS parser.
+ */
+export function serializeJsonLd(jsonLd: unknown): string {
+  return JSON.stringify(jsonLd)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029')
+}
+
+/**
  * Convenience: build the JSON-LD and return a ready-to-inject `<script>` string.
- * In React/Next you can instead render the object directly:
+ * In React/Next you can instead render the object directly — but always through
+ * `serializeJsonLd`, never through a bare `JSON.stringify`:
  *   <script type="application/ld+json"
- *     dangerouslySetInnerHTML={{ __html: JSON.stringify(buildJsonLd(doc, opts).jsonLd) }} />
+ *     dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildJsonLd(doc, opts).jsonLd) }} />
  */
 export function renderJsonLdScript(doc: Record<string, unknown>, options: BuildJsonLdOptions = {}): string {
   const { jsonLd } = buildJsonLd(doc, options)
-  return `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>`
+  return `<script type="application/ld+json">${serializeJsonLd(jsonLd)}</script>`
 }

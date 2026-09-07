@@ -20,6 +20,7 @@
 import type { Payload, PayloadHandler } from 'payload'
 
 import { isSeoAdmin as isAdmin } from '../helpers/isAdmin.js'
+import { escapeHtml } from '../helpers/escapeHtml.js'
 
 export interface AlertConfig {
   webhookUrl: string
@@ -165,6 +166,13 @@ export async function buildAlertDigest(payload: Payload, cfg: AlertConfig): Prom
   }
 }
 
+/**
+ * The digest is emailed to administrators, and several of its values come from
+ * untrusted sources: `newNotFound.url` is a 404 path logged from an anonymous
+ * visitor and `rankDrops.query` comes from Search Console. Interpolated raw,
+ * they let anyone inject markup — typically a phishing link — into a mail that
+ * legitimately originates from the CMS. Everything non-numeric is escaped.
+ */
 function digestToHtml(digest: AlertDigest, siteUrl?: string): string {
   const section = (title: string, rows: string[]) =>
     rows.length
@@ -173,16 +181,22 @@ function digestToHtml(digest: AlertDigest, siteUrl?: string): string {
 
   const reg = digest.scoreRegressions
     .slice(0, 20)
-    .map((r) => `<li>${r.collection}/${r.documentId} — score ${r.from} → <b>${r.to}</b> (−${r.drop})</li>`)
+    .map(
+      (r) =>
+        `<li>${escapeHtml(String(r.collection))}/${escapeHtml(String(r.documentId))} — score ${r.from} → <b>${r.to}</b> (−${r.drop})</li>`,
+    )
   const nf = digest.newNotFound
     .slice(0, 20)
-    .map((n) => `<li><code>${n.url}</code> — ${n.count}×</li>`)
+    .map((n) => `<li><code>${escapeHtml(String(n.url))}</code> — ${n.count}×</li>`)
   const rd = digest.rankDrops
     .slice(0, 20)
-    .map((d) => `<li>“${d.query}” — #${round1(d.from)} → <b>#${round1(d.to)}</b> (▼${d.drop})</li>`)
+    .map(
+      (d) =>
+        `<li>“${escapeHtml(String(d.query))}” — #${round1(d.from)} → <b>#${round1(d.to)}</b> (▼${d.drop})</li>`,
+    )
 
   return `<div style="font-family:system-ui;max-width:640px">
-  <h2>SEO alert digest${siteUrl ? ` — ${siteUrl}` : ''}</h2>
+  <h2>SEO alert digest${siteUrl ? ` — ${escapeHtml(siteUrl)}` : ''}</h2>
   <p style="color:#6b7280;font-size:13px">${digest.totalIssues} issue(s) since ${new Date(digest.since).toLocaleString()}</p>
   ${section('📉 Score regressions', reg)}
   ${section('🔗 New 404s', nf)}

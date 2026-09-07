@@ -32,6 +32,8 @@ const CACHE_BASES = [
   'link-graph',
   'sitemap-audit',
   'duplicate-content',
+  // Corpus index behind /suggest-links — see endpoints/suggestLinks.ts.
+  'suggest-links-index',
 ] as const
 
 export function createTrackSeoScoreHook(seoConfig?: SeoConfig): CollectionAfterChangeHook {

@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Matches package.json engines: ^20.19.0 || >=22.12.0 (Node 18 is EOL).
+        node-version: [20, 22]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # No `version:` here on purpose — action-setup reads `packageManager`
+      # from package.json, so CI runs the exact pnpm that produced
+      # pnpm-lock.yaml. Pinning 9 while the lockfile is written by 11 is how a
+      # `--frozen-lockfile` job drifts from the local tree.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm typecheck
+
+      - run: pnpm build
+
+      - run: pnpm test
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # No `version:` here on purpose — action-setup reads `packageManager`
+      # from package.json, so CI runs the exact pnpm that produced
+      # pnpm-lock.yaml. Pinning 9 while the lockfile is written by 11 is how a
+      # `--frozen-lockfile` job drifts from the local tree.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - run: pnpm install --frozen-lockfile
+
+      # The publish job re-runs the full chain rather than trusting `needs:
+      # build`. `needs` only guarantees the other job succeeded on the same
+      # commit, and this job is what actually pushes to the registry — an npm
+      # version can never be rewritten, so nothing here should be taken on faith.
+      - run: pnpm typecheck
+
+      - run: pnpm test
+
+      - run: pnpm build
+
+      - run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

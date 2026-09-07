@@ -11,6 +11,7 @@
  * a large site never spikes memory generating a sitemap.
  */
 import type { Payload, PayloadHandler } from 'payload'
+import { buildDocPath } from '../helpers/docUrl.js'
 import type { SeoConfig } from '../types.js'
 
 function escapeXml(str: string): string {
@@ -26,8 +27,13 @@ function resolveSiteUrl(seoConfig?: SeoConfig): string {
   return (seoConfig?.siteUrl || process.env.NEXT_PUBLIC_SERVER_URL || process.env.PAYLOAD_PUBLIC_SERVER_URL || '').replace(/\/$/, '')
 }
 
-function docPath(slug: string): string {
-  return slug === 'home' || slug === '' ? '' : `/${slug}`
+/**
+ * Site-relative path of a document. Delegates to the shared builder so these
+ * sitemaps carry the same collection route prefix as sitemap.xml, the canonical
+ * and the JSON-LD (posts → /posts/<slug> by default).
+ */
+function docPath(slug: string, collection?: string, seoConfig?: SeoConfig): string {
+  return buildDocPath(slug, collection, seoConfig?.collectionRoutes)
 }
 
 function xmlResponse(xml: string, status = 200): Response {
@@ -120,7 +126,7 @@ export function createNewsSitemapHandler(targetCollections: string[], seoConfig?
       const cutoff = Date.now() - 48 * 3_600_000
       const entries: string[] = []
 
-      await eachPublishedDoc(req.payload, targetCollections, 0, (doc) => {
+      await eachPublishedDoc(req.payload, targetCollections, 0, (doc, collection) => {
         const dateStr =
           (typeof doc.publishedAt === 'string' && doc.publishedAt) ||
           (typeof doc.date === 'string' && doc.date) ||
@@ -131,7 +137,7 @@ export function createNewsSitemapHandler(targetCollections: string[], seoConfig?
         if (isNaN(t) || t < cutoff) return
         const title = (doc.title as string) || (doc.meta as Record<string, unknown>)?.title as string || ''
         if (!title) return
-        const loc = `${siteUrl}${docPath((doc.slug as string) || '')}`
+        const loc = `${siteUrl}${docPath((doc.slug as string) || '', collection, seoConfig)}`
         entries.push(
           `  <url>\n    <loc>${escapeXml(loc)}</loc>\n    <news:news>\n      <news:publication>\n        <news:name>${escapeXml(publication)}</news:name>\n        <news:language>${language}</news:language>\n      </news:publication>\n      <news:publication_date>${new Date(dateStr).toISOString()}</news:publication_date>\n      <news:title>${escapeXml(title)}</news:title>\n    </news:news>\n  </url>`,
         )
@@ -155,11 +161,11 @@ export function createImageSitemapHandler(targetCollections: string[], seoConfig
       const siteUrl = resolveSiteUrl(seoConfig)
       const entries: string[] = []
 
-      await eachPublishedDoc(req.payload, targetCollections, 1, (doc) => {
+      await eachPublishedDoc(req.payload, targetCollections, 1, (doc, collection) => {
         const urls = new Set<string>()
         collectMediaUrls(doc, 'image/', siteUrl, urls)
         if (urls.size === 0) return
-        const loc = `${siteUrl}${docPath((doc.slug as string) || '')}`
+        const loc = `${siteUrl}${docPath((doc.slug as string) || '', collection, seoConfig)}`
         const imgs = Array.from(urls)
           .slice(0, 1000) // sitemap image cap per URL
           .map((u) => `    <image:image><image:loc>${escapeXml(u)}</image:loc></image:image>`)
@@ -185,7 +191,7 @@ export function createVideoSitemapHandler(targetCollections: string[], seoConfig
       const siteUrl = resolveSiteUrl(seoConfig)
       const entries: string[] = []
 
-      await eachPublishedDoc(req.payload, targetCollections, 1, (doc) => {
+      await eachPublishedDoc(req.payload, targetCollections, 1, (doc, collection) => {
         const meta = (doc.meta || {}) as Record<string, unknown>
         const videoUrls = new Set<string>()
         collectMediaUrls(doc, 'video/', siteUrl, videoUrls)
@@ -202,7 +208,7 @@ export function createVideoSitemapHandler(targetCollections: string[], seoConfig
         collectMediaUrls(meta.image, 'image/', siteUrl, thumbs)
         if (thumbs.size === 0) collectMediaUrls(doc, 'image/', siteUrl, thumbs)
         const thumbnail = Array.from(thumbs)[0] || ''
-        const loc = `${siteUrl}${docPath((doc.slug as string) || '')}`
+        const loc = `${siteUrl}${docPath((doc.slug as string) || '', collection, seoConfig)}`
 
         const videos = Array.from(videoUrls)
           .slice(0, 100)

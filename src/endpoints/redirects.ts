@@ -146,6 +146,14 @@ export function createRedirectsHandler(redirectsCollection: string): PayloadHand
         let created = 0
         let skipped = 0
         let errors = 0
+        // Bounded so a 5 000-row CSV cannot turn the response into a payload of
+        // its own; the counters above stay exact whatever the cap.
+        const MAX_REPORTED_FAILURES = 100
+        const failed: Array<{ from: string; to: string; reason: string }> = []
+        const reportFailure = (from: string, to: string, reason: string) => {
+          errors++
+          if (failed.length < MAX_REPORTED_FAILURES) failed.push({ from, to, reason })
+        }
 
         // Pre-process: normalize paths, filter self-referencing
         const validRedirects: Array<{ from: string; to: string; type: string }> = []
@@ -153,7 +161,7 @@ export function createRedirectsHandler(redirectsCollection: string): PayloadHand
           const fromPath = normalizeFromPath(r.from)
           const toResult = validateRedirectTarget(r.to)
           if (!fromPath || !toResult.valid || !toResult.normalized) {
-            errors++
+            reportFailure(String(r.from ?? ''), String(r.to ?? ''), 'invalid source or target')
             continue
           }
           const toPath = toResult.normalized
@@ -176,13 +184,18 @@ export function createRedirectsHandler(redirectsCollection: string): PayloadHand
             const result = await req.payload.find({
               collection: redirectsCollection,
               where: { from: { in: batchFromPaths } },
-              limit: batch.length * 2,
+              // A single `from` can already have several redirects, so
+              // `batch.length * 2` could silently truncate the dedup set and
+              // let this import create duplicates.
+              pagination: false,
               depth: 0,
               overrideAccess: true,
             })
             existingDocs = result.docs as Array<Record<string, unknown>>
-          } catch {
-            errors += batch.length
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err)
+            req.payload.logger.warn(`[seo] redirects import: dedup query failed — ${message}`)
+            for (const r of batch) reportFailure(r.from, r.to, 'dedup query failed')
             continue
           }
 
@@ -203,29 +216,36 @@ export function createRedirectsHandler(redirectsCollection: string): PayloadHand
             return true
           })
 
-          // Create in parallel (batched)
-          const createResults = await Promise.all(
-            toCreate.map(async (r) => {
-              try {
-                await req.payload.create({
-                  collection: redirectsCollection,
-                  data: { from: r.from, to: r.to, type: r.type },
-                  overrideAccess: true,
-                })
-                return true
-              } catch {
-                return false
-              }
-            }),
-          )
-
-          for (const success of createResults) {
-            if (success) created++
-            else errors++
+          // Create SEQUENTIALLY. SQLite is single-writer: a `Promise.all` of 50
+          // creates raises `SQLITE_BUSY` / "database is locked" on contended
+          // hosts, and the client posts the whole CSV in one call. Same rule as
+          // the CSV import in performance.ts.
+          for (const r of toCreate) {
+            try {
+              await req.payload.create({
+                collection: redirectsCollection,
+                data: { from: r.from, to: r.to, type: r.type },
+                overrideAccess: true,
+              })
+              created++
+            } catch (err) {
+              const message = err instanceof Error ? err.message : String(err)
+              req.payload.logger.warn(
+                `[seo] redirects import: create failed for ${r.from} → ${r.to} — ${message}`,
+              )
+              reportFailure(r.from, r.to, message)
+            }
           }
         }
 
-        return Response.json({ success: true, created, skipped, errors })
+        return Response.json({
+          success: true,
+          created,
+          skipped,
+          errors,
+          failed,
+          failedTruncated: errors > failed.length,
+        })
       }
 
       return Response.json({ error: 'Method not allowed' }, { status: 405 })

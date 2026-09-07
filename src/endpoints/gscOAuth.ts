@@ -23,6 +23,7 @@ import type { PayloadHandler } from 'payload'
 import { randomBytes } from 'crypto'
 import type { SeoConfig } from '../types.js'
 import { encryptToken, safeEqual } from '../helpers/tokenCrypto.js'
+import { escapeHtml } from '../helpers/escapeHtml.js'
 import {
   GSC_AUTH_COLLECTION as AUTH_COLLECTION,
   GSC_SCOPES as SCOPES,
@@ -109,10 +110,24 @@ export function createGscAuthStartHandler(basePath: string, seoConfig?: SeoConfi
 // ---------------------------------------------------------------------------
 export function createGscCallbackHandler(basePath: string, seoConfig?: SeoConfig): PayloadHandler {
   return async (req) => {
+    // Both arguments are escaped: `body` carries values reflected straight from
+    // Google's redirect (the `error` query param), which is attacker-controlled
+    // and would otherwise be a reflected XSS running with the admin's session.
+    // The CSP is a second line of defence — nothing may execute on this page;
+    // `style-src 'unsafe-inline'` only keeps the inline `style=` attributes.
     const htmlPage = (title: string, body: string) =>
       new Response(
-        `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title></head><body style="font-family:system-ui;padding:2rem;max-width:40rem;margin:auto"><h1>${title}</h1><p>${body}</p><p><a href="/admin/performance">← Back to the SEO dashboard</a></p></body></html>`,
-        { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } },
+        `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title></head><body style="font-family:system-ui;padding:2rem;max-width:40rem;margin:auto"><h1>${escapeHtml(title)}</h1><p>${escapeHtml(body)}</p><p><a href="/admin/performance">← Back to the SEO dashboard</a></p></body></html>`,
+        {
+          status: 200,
+          headers: {
+            'content-type': 'text/html; charset=utf-8',
+            'content-security-policy':
+              "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'",
+            'x-content-type-options': 'nosniff',
+            'referrer-policy': 'no-referrer',
+          },
+        },
       )
     try {
       // The callback is hit by a browser redirect; require an authenticated admin session.

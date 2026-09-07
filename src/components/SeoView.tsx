@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react'
 import { ContentDecaySection } from './ContentDecaySection.js'
 import { useSeoLocale } from '../hooks/useSeoLocale.js'
+import { escapeHtml } from '../helpers/escapeHtml.js'
 import { getDashboardT } from '../dashboard-i18n.js'
 import type { DashboardTranslations } from '../dashboard-i18n.js'
 
@@ -84,10 +85,6 @@ type QuickFilter = 'none' | 'noMeta' | 'noH1' | 'lowReadability'
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-function escapeHtml(str: string): string {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-}
-
 function getScoreColor(score: number): string {
   if (score >= 80) return V.green
   if (score >= 50) return V.yellow
