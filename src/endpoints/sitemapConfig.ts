@@ -12,6 +12,7 @@ import type { PayloadHandler } from 'payload'
 import type { SeoConfig } from '../types.js'
 import { buildDocPath } from '../helpers/docUrl.js'
 import { fetchAllDocs } from '../helpers/fetchAllDocs.js'
+import { isSeoPanelUser } from '../helpers/isAdmin.js'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -59,7 +60,7 @@ export function createSitemapConfigHandler(
 ): PayloadHandler {
   return async (req) => {
     try {
-      if (!req.user) {
+      if (!isSeoPanelUser(req)) {
         return Response.json({ error: 'Unauthorized' }, { status: 401 })
       }
 

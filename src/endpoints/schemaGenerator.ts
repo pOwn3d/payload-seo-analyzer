@@ -12,11 +12,12 @@
 import type { PayloadHandler } from 'payload'
 import { readAccessOpts } from '../helpers/readAccess.js'
 import { buildJsonLd, SCHEMA_TYPES, type SchemaType } from '../helpers/buildSchema.js'
+import { isSeoPanelUser } from '../helpers/isAdmin.js'
 
 export function createSchemaGeneratorHandler(targetCollections?: string[]): PayloadHandler {
   return async (req) => {
     try {
-      if (!req.user) {
+      if (!isSeoPanelUser(req)) {
         return Response.json({ error: 'Unauthorized' }, { status: 401 })
       }
 

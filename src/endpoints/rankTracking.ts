@@ -16,7 +16,7 @@ import {
   getOrCreateGscAuthDoc,
   getGscAccessToken,
   queryGscSearchAnalytics,
-  isGscAdmin,
+  isGscAdminRequest,
 } from '../helpers/gscClient.js'
 
 const RANK_COLLECTION = 'seo-rank-history'
@@ -124,7 +124,7 @@ export async function runRankSnapshot(
 export function createRankSnapshotHandler(basePath: string, seoConfig?: SeoConfig): PayloadHandler {
   return async (req) => {
     try {
-      if (!isGscAdmin(req.user)) return Response.json({ error: 'Forbidden' }, { status: 403 })
+      if (!isGscAdminRequest(req)) return Response.json({ error: 'Forbidden' }, { status: 403 })
       const result = await runRankSnapshot(req.payload, basePath, seoConfig)
       if (!result.ok) {
         const status = result.reason === 'not_connected' || result.reason === 'not_configured' ? 409 : 502
@@ -145,7 +145,7 @@ export function createRankSnapshotHandler(basePath: string, seoConfig?: SeoConfi
 export function createRankHistoryHandler(): PayloadHandler {
   return async (req) => {
     try {
-      if (!isGscAdmin(req.user)) return Response.json({ error: 'Forbidden' }, { status: 403 })
+      if (!isGscAdminRequest(req)) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
       const url = new URL(req.url as string)
       const days = Math.min(180, Math.max(7, parseInt(url.searchParams.get('days') || '35', 10)))

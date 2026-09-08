@@ -10,13 +10,37 @@
  */
 
 import type { PayloadHandler, Where } from 'payload'
-import { timingSafeEqual } from 'crypto'
+import { safeEqual } from '../helpers/tokenCrypto.js'
 import { createRateLimiter, getClientIp } from '../rateLimiter.js'
 import { parseJsonBody } from '../helpers/parseBody.js'
 
+import { isSeoAdminRequest as isAdmin, isSeoPanelUser } from '../helpers/isAdmin.js'
+
 const VALID_LOG_TYPES = ['404', 'redirect', 'error']
 
-import { isSeoAdmin as isAdmin } from '../helpers/isAdmin.js'
+/**
+ * Length cap for the free-text fields a 404 hit carries.
+ *
+ * `url` was already refused past 500 characters, but `referrer` and `userAgent`
+ * are just as visitor-controlled — they are the raw `Referer` / `User-Agent`
+ * headers relayed by the host middleware — and went to the database untouched.
+ * A visitor hitting a missing page with a multi-kilobyte Referer therefore grew
+ * the seo-logs table in BYTES, not in rows (the row is upserted, so the value is
+ * overwritten on every hit), and the admin 404 panel reads those fields back.
+ *
+ * Truncate rather than reject: the caller is a visitor's browser, not an
+ * integrator we can hand a useful 400 to, and refusing would drop the 404 report
+ * itself — the very data the panel exists for. 500 characters amputates no real
+ * user agent (the longest legitimate ones sit well under 256).
+ */
+export const MAX_LOG_TEXT_LENGTH = 500
+
+/** Trim, then cap — used for the two visitor-supplied text fields. */
+function cappedText(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  return trimmed ? trimmed.slice(0, MAX_LOG_TEXT_LENGTH) : undefined
+}
 
 export function createSeoLogsHandler(seoLogsSecret?: string): PayloadHandler {
   // Rate limiter for POST: 30 requests per 60 seconds per IP
@@ -43,16 +67,15 @@ export function createSeoLogsHandler(seoLogsSecret?: string): PayloadHandler {
           if (!headerSecret) {
             return Response.json({ error: 'Unauthorized' }, { status: 401 })
           }
-          // Timing-safe comparison to prevent timing attacks
-          const isValid =
-            headerSecret.length === seoLogsSecret.length &&
-            timingSafeEqual(Buffer.from(headerSecret), Buffer.from(seoLogsSecret))
-          if (!isValid) {
+          // Timing-safe comparison to prevent timing attacks. `safeEqual` compares
+          // BYTE lengths, not code-unit lengths: a non-ASCII secret made the previous
+          // check pass the length test and then throw inside timingSafeEqual.
+          if (!safeEqual(headerSecret, seoLogsSecret)) {
             return Response.json({ error: 'Unauthorized' }, { status: 401 })
           }
         } else {
           // No secret configured — require authenticated admin
-          if (!req.user) {
+          if (!isSeoPanelUser(req)) {
             return Response.json({ error: 'Unauthorized' }, { status: 401 })
           }
         }
@@ -61,15 +84,15 @@ export function createSeoLogsHandler(seoLogsSecret?: string): PayloadHandler {
 
         const url = typeof body.url === 'string' ? body.url.trim() : undefined
         const type = typeof body.type === 'string' ? body.type.trim() : '404'
-        const referrer = typeof body.referrer === 'string' ? body.referrer.trim() : undefined
-        const userAgent = typeof body.userAgent === 'string' ? body.userAgent.trim() : undefined
+        const referrer = cappedText(body.referrer)
+        const userAgent = cappedText(body.userAgent)
 
         if (!url) {
           return Response.json({ error: 'Missing url' }, { status: 400 })
         }
 
         // Validate url length
-        if (url.length > 500) {
+        if (url.length > MAX_LOG_TEXT_LENGTH) {
           return Response.json({ error: 'URL too long (max 500 chars)' }, { status: 400 })
         }
 
@@ -134,13 +157,13 @@ export function createSeoLogsHandler(seoLogsSecret?: string): PayloadHandler {
     }
 
     // GET & DELETE: Require auth
-    if (!req.user) {
+    if (!isSeoPanelUser(req)) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     // DELETE: Clear or ignore logs (admin only)
     if (method === 'DELETE') {
-      if (!isAdmin(req.user)) {
+      if (!isAdmin(req)) {
         return Response.json({ error: 'Admin access required' }, { status: 403 })
       }
       try {

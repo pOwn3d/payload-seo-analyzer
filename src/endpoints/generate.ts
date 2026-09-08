@@ -13,6 +13,7 @@
 
 import type { PayloadHandler } from 'payload'
 import { readAccessOpts } from '../helpers/readAccess.js'
+import { isSeoPanelUser } from '../helpers/isAdmin.js'
 
 // ---------------------------------------------------------------------------
 // Local interfaces (avoids circular dependency with ../plugin.js)
@@ -77,7 +78,7 @@ export function createGenerateHandler(
   return async (req) => {
     try {
       // Authentication check
-      if (!req.user) {
+      if (!isSeoPanelUser(req)) {
         return Response.json({ error: 'Unauthorized' }, { status: 401 })
       }
 

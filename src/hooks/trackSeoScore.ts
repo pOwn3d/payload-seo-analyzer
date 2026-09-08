@@ -34,6 +34,9 @@ const CACHE_BASES = [
   'duplicate-content',
   // Corpus index behind /suggest-links — see endpoints/suggestLinks.ts.
   'suggest-links-index',
+  // Rendered sitemap.xml — see endpoints/sitemap.ts. Public, anonymous and cached,
+  // so a publish/unpublish must drop it or the new URL waits for the TTL.
+  'sitemap-xml',
 ] as const
 
 export function createTrackSeoScoreHook(seoConfig?: SeoConfig): CollectionAfterChangeHook {

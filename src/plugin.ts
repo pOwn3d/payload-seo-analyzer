@@ -134,6 +134,14 @@ export interface SeoPluginConfig {
   addSitemapAuditView?: boolean
   /** Collection slug for redirects (default: 'seo-redirects'). The plugin auto-creates this collection. */
   redirectsCollection?: string
+  /**
+   * Allow redirect destinations pointing to another origin (absolute http(s) URLs).
+   * Default: `false` — an off-site 301 served from your own paths is a site-hijack
+   * primitive (phishing with your domain's authority, OAuth redirect_uri abuse), and
+   * nothing in the plugin used to forbid it. Turn it on only if you genuinely need
+   * cross-origin redirects.
+   */
+  allowExternalRedirects?: boolean
   /** Known dynamic routes that are not stored as document slugs (e.g. ['blog', 'réalisations', 'posts']). These won't be flagged as broken links or orphan pages. */
   knownRoutes?: string[]
   /**
@@ -440,11 +448,12 @@ export const seoAnalyzerPlugin =
 
     // 1b. Add plugin-managed collections (conditionally based on features)
     const redirectsSlug = pluginConfig.redirectsCollection ?? 'seo-redirects'
+    const allowExternalRedirects = pluginConfig.allowExternalRedirects === true
     const hasExistingRedirects = config.collections?.some((c) => c.slug === redirectsSlug)
     const pluginCollections = []
     if (trackHistory) pluginCollections.push(createSeoScoreHistoryCollection())
     if (features.settings) pluginCollections.push(createSeoSettingsCollection())
-    if (features.redirects && !hasExistingRedirects) pluginCollections.push(createSeoRedirectsCollection(redirectsSlug))
+    if (features.redirects && !hasExistingRedirects) pluginCollections.push(createSeoRedirectsCollection(redirectsSlug, allowExternalRedirects))
     if (features.performance) pluginCollections.push(createSeoPerformanceCollection())
     if (features.seoLogs) pluginCollections.push(createSeoLogsCollection())
     if (features.gscApi) pluginCollections.push(createSeoGscAuthCollection(), createSeoRankHistoryCollection())
@@ -462,6 +471,12 @@ export const seoAnalyzerPlugin =
     // 10/min cap (the expensive limiter) throttled the polls themselves and surfaced as HTTP 429
     // mid-build. This higher cap fits sustained polling (≈20 req/min/tab) while still guarding abuse.
     const auditPollLimiter = createRateLimiter(120, 60_000)
+    // Per-document LLM endpoints (/ai-rewrite, /ai-optimize) were registered with NO limiter at
+    // all: a panel user could bill the site owner an unbounded number of Claude calls in a loop.
+    // They are driven one document at a time by a human click (SEO sidebar, CTR panel), so the
+    // 10/min expensive cap would surface as a 429 in the middle of a legitimate pass over a list.
+    // 30/min per user still bounds the spend hard while staying well above human clicking.
+    const aiInteractiveLimiter = createRateLimiter(30, 60_000)
 
     /** Wrap a handler with rate limiting. Returns 429 if limit exceeded. */
     function withRateLimit(
@@ -472,8 +487,13 @@ export const seoAnalyzerPlugin =
         // Prefer the authenticated user id (not spoofable) over the client IP —
         // X-Forwarded-For is client-controlled, so an IP-only key is trivially
         // bypassed by varying the header. Falls back to IP for public endpoints.
-        const userId = (req.user as { id?: string | number } | undefined)?.id
-        const key = userId != null ? `user:${userId}` : `ip:${getClientIp(req)}`
+        // Ids are only unique WITHIN an auth collection: `users#3` and `customers#3`
+        // are different people, and a shared `user:3` bucket would let one of them
+        // consume the other's quota (or hide behind it). Scope the key by collection.
+        const authUser = req.user as { id?: string | number; collection?: string } | undefined
+        const userId = authUser?.id
+        const userCollection = authUser?.collection ?? 'unknown'
+        const key = userId != null ? `user:${userCollection}:${userId}` : `ip:${getClientIp(req)}`
         if (!limiter.check(key)) {
           return Response.json(
             { error: 'Too Many Requests. Please try again later.' },
@@ -591,11 +611,11 @@ export const seoAnalyzerPlugin =
     if (features.redirects) {
       const rSlug = pluginConfig.redirectsCollection ?? 'seo-redirects'
       pluginEndpoints.push(
-        { path: `${basePath}/create-redirect`, method: 'post', handler: createRedirectHandler(rSlug) },
-        { path: `${basePath}/redirects`, method: 'get', handler: createRedirectsHandler(rSlug) },
-        { path: `${basePath}/redirects`, method: 'post', handler: createRedirectsHandler(rSlug) },
-        { path: `${basePath}/redirects`, method: 'patch', handler: createRedirectsHandler(rSlug) },
-        { path: `${basePath}/redirects`, method: 'delete', handler: createRedirectsHandler(rSlug) },
+        { path: `${basePath}/create-redirect`, method: 'post', handler: createRedirectHandler(rSlug, allowExternalRedirects) },
+        { path: `${basePath}/redirects`, method: 'get', handler: createRedirectsHandler(rSlug, allowExternalRedirects) },
+        { path: `${basePath}/redirects`, method: 'post', handler: createRedirectsHandler(rSlug, allowExternalRedirects) },
+        { path: `${basePath}/redirects`, method: 'patch', handler: createRedirectsHandler(rSlug, allowExternalRedirects) },
+        { path: `${basePath}/redirects`, method: 'delete', handler: createRedirectsHandler(rSlug, allowExternalRedirects) },
         { path: `${basePath}/redirect-chains`, method: 'get', handler: withRateLimit(createRedirectChainsHandler(rSlug)) },
       )
     }
@@ -604,8 +624,8 @@ export const seoAnalyzerPlugin =
     if (features.aiFeatures) {
       pluginEndpoints.push(
         { path: `${basePath}/ai-generate`, method: 'post', handler: createAiGenerateHandler() },
-        { path: `${basePath}/ai-rewrite`, method: 'post', handler: createAiRewriteHandler(targetCollections) },
-        { path: `${basePath}/ai-optimize`, method: 'post', handler: createAiOptimizeHandler(targetCollections, seoConfig) },
+        { path: `${basePath}/ai-rewrite`, method: 'post', handler: withRateLimit(createAiRewriteHandler(targetCollections), aiInteractiveLimiter) },
+        { path: `${basePath}/ai-optimize`, method: 'post', handler: withRateLimit(createAiOptimizeHandler(targetCollections, seoConfig), aiInteractiveLimiter) },
         { path: `${basePath}/alt-text-audit`, method: 'get', handler: createAltTextAuditHandler(uploadsCollection) },
         { path: `${basePath}/ai-alt-text`, method: 'post', handler: withRateLimit(createAiAltTextHandler(uploadsCollection, seoConfig)) },
         { path: `${basePath}/ai-content-brief`, method: 'post', handler: withRateLimit(createAiContentBriefHandler(targetCollections, seoConfig)) },

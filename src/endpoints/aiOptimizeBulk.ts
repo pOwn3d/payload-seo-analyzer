@@ -23,7 +23,7 @@ const TITLE_MAX = 70
 const DESC_MAX = 160
 const KEYWORD_MAX = 60
 
-import { isSeoAdmin as isAdmin } from '../helpers/isAdmin.js'
+import { isSeoAdminRequest as isAdmin } from '../helpers/isAdmin.js'
 
 interface BulkRow {
   collection: string
@@ -44,7 +44,7 @@ export function createAiOptimizeBulkHandler(
 ): PayloadHandler {
   return async (req) => {
     try {
-      if (!isAdmin(req.user)) return Response.json({ error: 'Forbidden' }, { status: 403 })
+      if (!isAdmin(req)) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
       const body = await parseJsonBody(req)
       const rawIds = Array.isArray(body.ids) ? (body.ids as unknown[]).map(String) : []

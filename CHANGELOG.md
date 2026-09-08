@@ -5,6 +5,214 @@ All notable changes to `@consilioweb/payload-seo-analyzer` will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-09-08
+
+**Security release.** Every version published so far, 2.0.0 included, carries the holes closed
+here. Each entry below states what was exposed and to whom, so you can judge whether you were
+concerned and whether your own data is worth auditing.
+
+### Security
+
+- **The admin gate accepted a session from *any* auth collection, not only the admin panel.**
+  A Payload app routinely declares several `auth` collections — staff `users` plus front-office
+  `customers`, members or subscribers. Any of them populates `req.user` on every route, this
+  plugin's endpoints included, and `isSeoAdmin` looked only at `role` / `roles`. On the
+  role-less setups the documented fail-open covers, a front-office customer therefore passed
+  the admin gate outright; on every setup they passed the `!!req.user` gate. That handed an
+  ordinary customer account the admin surface: `POST /create-redirect` and the whole redirects
+  CRUD, `POST /robots.txt`, `PATCH /settings`, `DELETE /seo-logs`, `POST /gsc/disconnect`,
+  `POST /alerts-run` (which sends e-mail) and `POST /indexnow-submit`. Two explicit layers
+  replace it: `isSeoPanelUser(req)` compares `req.user.collection` with
+  `req.payload.config.admin.user`, and `isSeoAdminRequest(req)` is that check plus the role
+  check; both are applied on the endpoints *and* on the plugin's collections. **You were
+  exposed if your Payload config declares more than one authenticated collection** — a single
+  `users` collection was never reachable this way. Traces worth reading if you were: the rows
+  of `seo-redirects`, `robotsCustomRules` in `seo-settings`, and whether `seo-logs` was
+  emptied. Hosts where several collections legitimately reach the panel widen the gate with
+  `SEO_ADMIN_USER_COLLECTIONS=users,staff`.
+
+- **The site-wide aggregation endpoints published the whole corpus, drafts included, to any
+  authenticated account.** `/audit`, `/link-graph`, `/duplicate-content`, `/keyword-research`,
+  `/cannibalization`, `/indexation-audit`, `/sitemap-audit` and `/suggest-links` were gated by
+  `!!req.user` alone while reading with `overrideAccess: true`, and their responses carry
+  `title`, `slug`, `metaTitle`, `metaDescription`, word counts and scores for every document of
+  every target collection — unpublished drafts (product launches, pages in preparation)
+  included, and documents the caller's own `access.read` would have refused. On the same gate:
+  `POST /validate`, which reads any `{ id, collection }` within the configured allowlist, and
+  `GET /gsc/status`, which returns the connected Google account e-mail and the OAuth
+  `redirectUri` — plus `/breadcrumb`, `/check-keyword`, `/generate`, `/ai-generate`,
+  `/history`, `/schema-generator` and `/sitemap-config`. Reachable by a front-office customer
+  as above, and by any panel account whatever its role. All of them now require an admin-panel
+  session. Note that `SEO_STRICT_READ_ACCESS=1` never covered this: it only applies to
+  single-document reads, not to the aggregations.
+
+- **`seo-performance`, `seo-logs` and `seo-score-history` were writable through the collection
+  REST API by any authenticated account.** Payload exposes a REST API for every collection, so
+  the endpoint-level gate was never the only door. The June hardening had covered only
+  `seo-settings`, `seo-redirects` and `seo-gsc-auth`; the other four kept
+  `create`/`update`/`delete` (or at least `create`) on `!!req.user`, and all seven kept `read`
+  on `!!req.user`. Consequences for an unprivileged account: deleting the imported Search
+  Console history (`seo-performance` — CSV imports and daily snapshots are not
+  reconstructible), forging `seo-score-history` snapshots, which feed the alert digest mailed
+  to admins, and reading `seo-logs`, i.e. the 404 URLs, referrers and user-agents of anonymous
+  visitors. `read` is now admin-panel-only on all seven, writes are SEO-admin-only, and
+  `seo-rank-history` / `seo-score-history` keep their stricter `role === 'admin'` on
+  `update`/`delete`.
+
+- **SSRF: the private-address filter of `/external-links` did not recognise IPv4-mapped IPv6
+  literals.** `isPrivateIP` matched IPv4 with a dotted-quad regex and IPv6 with a handful of
+  `startsWith` tests, so an address written in the `::ffff:` mapped form — the form `new URL()`
+  normalizes such a host to — was classified public by *both* the hostname pass and the
+  DNS-rebinding pass, and the server issued the request. Loopback, the RFC 1918 ranges and the
+  link-local cloud metadata range were reachable that way, per-hop redirect re-validation
+  included, and the HTTP status and error class come back in the endpoint's JSON — enough to
+  map internal services. The actor is anyone who can put a link into tracked content, i.e. any
+  editor. Replaced by `helpers/ssrfGuard.ts`, which expands IPv6 to its eight groups and
+  re-checks any embedded IPv4 (`::ffff:` mapped, `::` compatible, 6to4, NAT64) with the IPv4
+  rules, adds the missing ranges (0/8, 100.64/10 CGNAT, 192.0.0/24, 198.18/15, multicast and
+  reserved), restricts the scheme to http(s) and the port to 80/443, and rejects the host if
+  **any** address returned by `dns.lookup(host, { all: true })` is private — only the first
+  answer was checked before.
+
+- **Redirect destinations on another origin were accepted everywhere, with no way to forbid
+  them.** `validateRedirectTarget` flagged an absolute `http(s)` destination as `external` so
+  that "callers can gate them if needed", and no caller ever read the flag. Every redirect
+  writer — `POST /create-redirect`, `POST`/`PATCH /redirects`, the `seo-redirects` admin UI —
+  was therefore an unconditional site-hijack primitive: a permanent 301 from one of your own
+  paths to an attacker's origin, served with your domain's authority (phishing, OAuth
+  `redirect_uri` abuse, SEO reputation), and stored as ordinary content, so the host
+  application logs nothing. The gate now exists and is closed by default; open it with the new
+  `allowExternalRedirects: true` plugin option. Separately, the auto-redirect hook validated
+  the *new slug* of a document as a redirect target, so an editor who typed an absolute URL
+  into a slug field produced an off-site 301 without touching the redirects collection at all;
+  a slug now goes through `normalizeFromPath`, which can only yield a site-relative path.
+
+- **`sitemap.xml` published the URLs of `noindex` documents to anonymous visitors.** The public
+  sitemap skipped drafts and the hand-maintained `excludedSlugs` list, but never looked at
+  `doc.noindex` / `doc.meta.noindex` — a filter `/llms.txt` already applied. Any anonymous
+  caller therefore collected the slugs of published pages the editor had explicitly removed
+  from indexing (post-purchase thank-you pages, private pricing, test landing pages). The
+  filter is now applied by `sitemap.xml` and by the news / image / video sitemaps. Reminder,
+  now stated in the threat model: these endpoints are built with `overrideAccess: true` and are
+  **not** an access-control boundary — a collection with restricted `read` must not be listed
+  in `targetCollections`.
+
+- **Any authenticated account could keep the site-wide rebuild running permanently.**
+  `GET /audit?nocache=1` dropped the cache and started a full rebuild — up to
+  `SEO_FETCH_MAX_DOCS` documents at full `depth` — and the single-flight guard bounded only
+  *concurrent* builds, so a request loop restarted one as soon as the previous finished, at the
+  120 req/min poll limiter. That is the load documented as having OOM-killed the process on
+  low-memory hosts, and it takes the public site down with Next.js. Manual refresh is now
+  reserved to SEO admins and throttled to one full rebuild per `SEO_AUDIT_MIN_REFRESH_MS`
+  (default 5 min) per locale. The same `?nocache=1` gate is applied to `/cannibalization`,
+  `/core-web-vitals`, `/duplicate-content`, `/external-links`, `/keyword-research`,
+  `/link-graph`, `/redirect-chains` and `/sitemap-audit`.
+
+- **The cache key of those endpoints was derived from the caller-supplied `?locale=`.** Payload
+  only sanitizes `req.locale` when a `localization` block exists (and, even then, not when
+  `fallback` is off), so on a single-language site the raw query string reached the cache key
+  untouched. Varying it gave a guaranteed cache miss on every request — no cache, no
+  single-flight, one full site-wide recomputation per request — which walked straight past both
+  the admin gate and the refresh throttle above, and grew an unbounded key space in the LRU
+  cache and in the refresh-timestamp map. The locale that scopes a cache key now comes from
+  `helpers/safeCacheLocale.ts` and must be one of the host's own `localization.localeCodes`.
+
+- **`sitemap.xml`, the only anonymous endpoint, was also the most expensive request in the
+  plugin.** It passed a hard-coded `limit: 10000` to `fetchAllDocs`, which takes precedence
+  over `SEO_FETCH_MAX_DOCS`: an operator who had lowered that variable to survive on a
+  constrained host still loaded 10 000 documents on every anonymous hit, with no caching of the
+  rendered XML, so a plain `curl` loop re-scanned the whole corpus each time. The cap now comes
+  from `SEO_SITEMAP_MAX_DOCS` (falling back to `SEO_FETCH_MAX_DOCS`, default 5000) and the
+  rendered XML is served from the shared cache, invalidated by the existing `afterChange` hook.
+  The deliberate absence of a rate limit on public endpoints is unchanged.
+
+- **`POST /seo-logs` stored visitor-controlled `referrer` and `userAgent` with no length
+  bound.** `url` was refused past 500 characters; the other two — the raw `Referer` and
+  `User-Agent` headers relayed by the host middleware — went to the database untouched. An
+  anonymous visitor requesting a missing page with a multi-kilobyte `Referer` grew the
+  `seo-logs` table in bytes rather than rows (the row is upserted, so the value is overwritten
+  on each hit), and the admin 404 panel reads those fields back. Both are now truncated at 500
+  characters rather than rejected, so the 404 report itself is never dropped.
+
+- **`/ai-rewrite` and `/ai-optimize` were registered with no rate limiter at all, and
+  `/ai-content-brief` forwarded an unbounded free-text `keyword` to the model.** Combined with
+  the `!!req.user` gate, that made these endpoints a metered Claude relay billed to the site
+  owner's `ANTHROPIC_API_KEY` — reachable, before the gate fix above, from a front-office
+  account — and a prompt-injection surface, the keyword being concatenated at the head of the
+  prompt. `/ai-rewrite` and `/ai-optimize` now run on a dedicated 30 req/min-per-user bucket
+  and `keyword` is capped at 120 characters.
+
+- **Rate-limit buckets were keyed by `user.id` alone.** Ids are unique only within an auth
+  collection, so `users#3` and `customers#3` shared one quota — one could exhaust the other's
+  budget or hide inside it. The key is now `collection:id`.
+
+### Fixed
+
+- **A non-ASCII `seoLogsSecret` made every `POST /seo-logs` fail with a 500.** The shared-secret
+  comparison tested JavaScript string length (code units) before handing the values to
+  `timingSafeEqual`, which compares byte lengths: a secret containing any non-ASCII character
+  passed the first test and threw inside the second. The comparison goes through the existing
+  byte-safe `safeEqual` helper, so such a secret now authenticates instead of erroring — the
+  timing-safe property is preserved.
+
+### Changed
+
+- **External redirect destinations are refused unless you opt in.** With
+  `allowExternalRedirects` left at its default `false`, `POST /create-redirect`, the bulk
+  `POST /redirects` import and the `seo-redirects` admin UI reject an absolute `http(s)`
+  destination; site-relative paths are unaffected. **Rows created before the upgrade stay
+  editable**: the gate only refuses a destination that *changes*, so an existing external
+  redirect can still have its source path or its 301/302 type edited, and the stored
+  destination is left as it is. A bulk import containing external destinations will now report
+  them in `failed`, and the auto-redirect hook silently stops producing a redirect when a slug
+  is an absolute URL. Set `allowExternalRedirects: true` if you genuinely rely on cross-origin
+  redirects.
+- **`sitemap.xml` is now served from a shared cache and honours the document cap.** A publish
+  or unpublish invalidates it through the existing `afterChange` hook; outside that, staleness
+  is bounded by the cache TTL, well under the one-hour `Cache-Control` the endpoint has always
+  advertised. The cap moving from a hard-coded 10 000 to `SEO_SITEMAP_MAX_DOCS` /
+  `SEO_FETCH_MAX_DOCS` (default 5000) means **a site with more than 5 000 documents loses
+  entries from its sitemap unless the variable is raised**. `noindex` documents are dropped
+  from `sitemap.xml` and from the news / image / video sitemaps, so URLs may disappear from
+  what Search Console has already discovered.
+- **`?nocache=1` is silently ignored for a panel user without the admin role** on `/audit`,
+  `/cannibalization`, `/core-web-vitals`, `/duplicate-content`, `/external-links`,
+  `/keyword-research`, `/link-graph`, `/redirect-chains` and `/sitemap-audit`: they get the
+  cached result rather than a 403, so nothing breaks visibly, but a "refresh" click by a
+  non-admin no longer recomputes. On `/audit`, an admin refresh is additionally throttled to
+  one rebuild per `SEO_AUDIT_MIN_REFRESH_MS`.
+- **Cache scoping ignores an unknown `?locale=`.** A locale absent from
+  `localization.localeCodes` — and every `?locale=` value on a site with no `localization`
+  block — now falls back to the unscoped cache key instead of getting its own.
+- **`/external-links` reports a link on a port other than 80/443 as `blocked-private-ip`.** The
+  port allowlist is what stops the checker from doubling as an internal port scanner; a
+  legitimate external link on a non-standard port is collateral, and shows up as blocked rather
+  than as checked.
+- **`POST /ai-content-brief` answers `400` when `keyword` exceeds 120 characters**, and
+  `POST /seo-logs` truncates `referrer` and `userAgent` at 500 characters instead of storing
+  them whole.
+- Rate-limit buckets are keyed by `collection:id`, which resets existing in-memory counters on
+  restart — no action needed.
+- CI actions are pinned to commit SHAs rather than floating tags.
+
+### Added
+
+- **`allowExternalRedirects` plugin option** (`boolean`, default `false`) — see Changed.
+- **`SEO_ADMIN_USER_COLLECTIONS`** — comma-separated collection slugs accepted as admin-panel
+  users, for hosts where more than one collection legitimately reaches the panel. Defaults to
+  `config.admin.user`.
+- **`SEO_AUDIT_MIN_REFRESH_MS`** (default `300000`) — minimum delay between two manual
+  site-wide audit rebuilds.
+- `GET /audit` returns `refreshThrottled: true` alongside the cached results when a manual
+  refresh was refused, so the UI can say "showing cached results" instead of reporting an
+  error.
+- A non-regression test suite for every finding above (`src/__tests__/securityRegressions.test.ts`),
+  and the collection-access tests extended to all seven plugin collections and to sessions
+  coming from a foreign auth collection.
+- A `Security` workflow (pnpm audit at `--audit-level high`, gitleaks secret scan, CodeQL with
+  `security-extended`), run on push, on pull requests and weekly, plus Dependabot for npm and
+  GitHub Actions.
+
 ## [2.0.0] - 2026-09-07 — Correct public URLs, admin-only writes, verifiable releases
 
 ### Breaking

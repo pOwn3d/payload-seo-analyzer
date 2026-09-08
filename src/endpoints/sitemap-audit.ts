@@ -12,6 +12,8 @@ import type { PayloadHandler } from 'payload'
 import { seoCache } from '../cache.js'
 import { extractAllInternalLinks, normalizeToSlug, resolveToDocSlug } from '../helpers/linkExtractor.js'
 import { fetchAllDocs } from '../helpers/fetchAllDocs.js'
+import { isSeoAdminRequest, isSeoPanelUser } from '../helpers/isAdmin.js'
+import { safeCacheLocale } from '../helpers/safeCacheLocale.js'
 
 // ---------------------------------------------------------------------------
 // Slug suggestion for broken links (C1)
@@ -51,15 +53,18 @@ export function createSitemapAuditHandler(
 ): PayloadHandler {
   return async (req) => {
     try {
-      if (!req.user) {
+      if (!isSeoPanelUser(req)) {
         return Response.json({ error: 'Unauthorized' }, { status: 401 })
       }
 
       const url = new URL(req.url as string)
-      const noCache = url.searchParams.get('nocache') === '1'
+      // Cache-busting forces the full site-wide recomputation this endpoint caches,
+      // so it is reserved to SEO admins — the same gate as /audit?nocache=1. A panel
+      // user without the role silently gets the cached result instead of a 403.
+      const noCache = url.searchParams.get('nocache') === '1' && isSeoAdminRequest(req)
 
       // Locale-scoped: content differs per locale, so cache must not collide across locales.
-      const reqLocale = typeof req.locale === 'string' && req.locale ? req.locale : undefined
+      const reqLocale = safeCacheLocale(req)
       const CACHE_KEY = reqLocale ? `sitemap-audit:${reqLocale}` : 'sitemap-audit'
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cached = noCache ? null : seoCache.get<any>(CACHE_KEY)

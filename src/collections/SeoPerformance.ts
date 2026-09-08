@@ -11,6 +11,7 @@
  */
 
 import type { CollectionConfig } from 'payload'
+import { isSeoAdminRequest, isSeoPanelUser } from '../helpers/isAdmin.js'
 
 export function createSeoPerformanceCollection(): CollectionConfig {
   return {
@@ -19,10 +20,14 @@ export function createSeoPerformanceCollection(): CollectionConfig {
       custom: { navHidden: true },
     },
     access: {
-      read: ({ req }) => !!req.user,
-      create: ({ req }) => !!req.user,
-      update: ({ req }) => !!req.user,
-      delete: ({ req }) => !!req.user,
+      // `read` stays open to any admin-panel user (the SEO views surface this
+      // data to editors); writes are SEO-admin only. `!!req.user` was not enough:
+      // a session on ANOTHER auth collection (front-office customers, members…)
+      // satisfies it and could wipe/forge this history through the REST API.
+      read: ({ req }) => isSeoPanelUser(req),
+      create: ({ req }) => isSeoAdminRequest(req),
+      update: ({ req }) => isSeoAdminRequest(req),
+      delete: ({ req }) => isSeoAdminRequest(req),
     },
     timestamps: false,
     fields: [

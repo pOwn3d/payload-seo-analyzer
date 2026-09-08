@@ -32,7 +32,7 @@ import {
   getOrCreateGscAuthDoc,
   getGscAccessToken,
   queryGscSearchAnalytics,
-  isGscAdmin,
+  isGscAdminRequest,
   type GscRow,
 } from '../helpers/gscClient.js'
 import { expectedCtrForPosition } from './ctrOpportunities.js'
@@ -485,7 +485,7 @@ export function createContentGradeHandler(
   return async (req) => {
     try {
       // GSC data is admin-sensitive — gate like the other Search Console endpoints.
-      if (!isGscAdmin(req.user)) return Response.json({ error: 'Forbidden' }, { status: 403 })
+      if (!isGscAdminRequest(req)) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
       const url = new URL(req.url as string)
       const collection = url.searchParams.get('collection') || ''

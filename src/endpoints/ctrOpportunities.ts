@@ -17,7 +17,7 @@ import {
   getOrCreateGscAuthDoc,
   getGscAccessToken,
   queryGscSearchAnalytics,
-  isGscAdmin,
+  isGscAdminRequest,
   type GscRow,
 } from '../helpers/gscClient.js'
 
@@ -136,7 +136,7 @@ export function createCtrOpportunitiesHandler(
 ): PayloadHandler {
   return async (req) => {
     try {
-      if (!isGscAdmin(req.user)) return Response.json({ error: 'Forbidden' }, { status: 403 })
+      if (!isGscAdminRequest(req)) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
       const cfg = getGscOAuthConfig(basePath, seoConfig)
       if (!cfg) return Response.json({ error: 'GSC OAuth not configured.' }, { status: 400 })

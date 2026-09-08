@@ -9,6 +9,7 @@
 
 import type { PayloadHandler } from 'payload'
 import { seoCache } from '../cache.js'
+import { isSeoAdminRequest, isSeoPanelUser } from '../helpers/isAdmin.js'
 
 interface RedirectChainResult {
   chain: string[]
@@ -19,12 +20,15 @@ interface RedirectChainResult {
 export function createRedirectChainsHandler(redirectsCollection: string): PayloadHandler {
   return async (req) => {
     try {
-      if (!req.user) {
+      if (!isSeoPanelUser(req)) {
         return Response.json({ error: 'Unauthorized' }, { status: 401 })
       }
 
       const url = new URL(req.url || '', 'http://localhost')
-      const noCache = url.searchParams.get('nocache') === '1'
+      // Cache-busting forces the full site-wide recomputation this endpoint caches,
+      // so it is reserved to SEO admins — the same gate as /audit?nocache=1. A panel
+      // user without the role silently gets the cached result instead of a 403.
+      const noCache = url.searchParams.get('nocache') === '1' && isSeoAdminRequest(req)
       const CACHE_KEY = 'redirect-chains'
       const cached = noCache ? null : seoCache.get<unknown>(CACHE_KEY)
       if (cached) {

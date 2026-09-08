@@ -21,6 +21,7 @@ import { analyzeSeo } from '../index.js'
 import type { SeoConfig, SeoCheck } from '../types.js'
 import { buildSeoInputFromDoc } from './validate.js'
 import { loadMergedConfig } from '../helpers/loadMergedConfig.js'
+import { isSeoPanelUser } from '../helpers/isAdmin.js'
 
 /** Technical-group check ids that represent an indexation/canonical hygiene problem. */
 const INDEXATION_CHECK_IDS = new Set([
@@ -393,7 +394,7 @@ export function createIndexationAuditHandler(
 ): PayloadHandler {
   return async (req) => {
     try {
-      if (!req.user) {
+      if (!isSeoPanelUser(req)) {
         return Response.json({ error: 'Unauthorized' }, { status: 401 })
       }
 

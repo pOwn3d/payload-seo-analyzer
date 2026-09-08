@@ -156,6 +156,7 @@ Every field of `SeoPluginConfig`. All are optional.
 | `addSitemapAuditView` | `boolean` | `true` | Set `false` to drop only `/admin/sitemap-audit`. |
 | `trackScoreHistory` | `boolean` | `true` | Adds `seo-score-history` plus the `afterChange` hook that feeds it. |
 | `redirectsCollection` | `string` | `'seo-redirects'` | Slug of the redirects collection; an existing collection with that slug is reused. |
+| `allowExternalRedirects` | `boolean` | `false` | Allow redirect destinations on another origin (absolute `http(s)` URLs). Off by default: an off-site 301 served from your own path carries your domain's authority. Redirects created before you upgraded stay editable — the gate only refuses a destination that *changes*. |
 | `uploadsCollection` | `string` | `'media'` | Upload collection used by `meta.image` and the AI alt-text endpoints. |
 | `autoCreateMetaFields` | `boolean` | `true` | Adds the `meta` group (title, description, image, preview) to target collections. |
 | `seoLogsSecret` | `string` | — | Shared secret for `POST /seo-logs`; when set, the caller sends `X-SEO-Secret` instead of a session. |
@@ -218,6 +219,8 @@ analyzer sidebar, the `validate` endpoint and the meta fields are always active.
 | `SEO_AI_MODEL` | `claude-sonnet-4-6` | Model used by `/ai-optimize`, `/ai-optimize-bulk`, `/ai-content-brief` and `/ai-alt-text`. `/ai-rewrite` is pinned to Haiku and `/ai-generate` is purely heuristic, so neither reads it. |
 | `SEO_MEDIA_ORIGIN` | — | Extra origin the AI alt-text endpoint may fetch images from, alongside `siteUrl`. |
 | `SEO_REQUIRE_ADMIN_ROLE` | — | `1` disables the fail-open in `isSeoAdmin`, requiring an explicit `admin` role. |
+| `SEO_ADMIN_USER_COLLECTIONS` | `config.admin.user` | Comma-separated collection slugs accepted as admin-panel users. Only needed if several collections may reach the panel. |
+| `SEO_AUDIT_MIN_REFRESH_MS` | `300000` | Minimum delay between two manual (`?nocache=1`) rebuilds of the site-wide audit. |
 | `SEO_STRICT_READ_ACCESS` | — | `1` makes single-document reads honour the caller's collection and field-level ACL. |
 | `SEO_FETCH_MAX_DOCS` | `5000` | Cap on documents loaded by site-wide helpers. |
 | `SEO_AUDIT_MAX_DOCS` | `1500` | Cap on documents included in one site-wide audit. |
@@ -244,9 +247,16 @@ analyzer sidebar, the `validate` endpoint and the meta fields are always active.
 ## API Endpoints
 
 All paths are relative to `/api/seo-plugin` (change the prefix with `endpointBasePath`). "Authenticated"
-means any logged-in panel user; "SEO admin" means `isSeoAdmin` — a user with `role: 'admin'` or an
-`admin` entry in `roles`, falling back to any authenticated user when the users collection has no role
-field at all, unless `SEO_REQUIRE_ADMIN_ROLE=1`.
+means a logged-in **admin-panel** user — a session on another auth collection (front-office customers,
+members, subscribers) does **not** qualify, even though Payload populates `req.user` for it on every
+route. The panel collection is `config.admin.user`; widen it with `SEO_ADMIN_USER_COLLECTIONS` if
+several collections may reach the panel. "SEO admin" adds a role check on top — a user with
+`role: 'admin'` or an `admin` entry in `roles`, falling back to any admin-panel user when the users
+collection has no role field at all, unless `SEO_REQUIRE_ADMIN_ROLE=1`.
+
+The plugin's own collections (`seo-settings`, `seo-redirects`, `seo-gsc-auth`, `seo-performance`,
+`seo-logs`, `seo-score-history`, `seo-rank-history`) enforce the same rule through their `access`
+config, since Payload exposes a REST API for every collection.
 
 ### Always registered
 

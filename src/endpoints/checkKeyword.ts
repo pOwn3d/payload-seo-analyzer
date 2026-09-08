@@ -8,11 +8,12 @@
  */
 
 import type { PayloadHandler, Where } from 'payload'
+import { isSeoPanelUser } from '../helpers/isAdmin.js'
 
 export function createCheckKeywordHandler(collections: string[], globals: string[] = []): PayloadHandler {
   return async (req) => {
     try {
-      if (!req.user) {
+      if (!isSeoPanelUser(req)) {
         return Response.json({ error: 'Unauthorized' }, { status: 401 })
       }
 

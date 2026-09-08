@@ -11,12 +11,12 @@
 import type { PayloadHandler } from 'payload'
 import { parseJsonBody } from '../helpers/parseBody.js'
 
-import { isSeoAdmin as isAdmin } from '../helpers/isAdmin.js'
+import { isSeoAdminRequest as isAdmin, isSeoPanelUser } from '../helpers/isAdmin.js'
 
 export function createSettingsHandler(): PayloadHandler {
   return async (req) => {
     try {
-      if (!req.user) {
+      if (!isSeoPanelUser(req)) {
         return Response.json({ error: 'Unauthorized' }, { status: 401 })
       }
 
@@ -33,7 +33,7 @@ export function createSettingsHandler(): PayloadHandler {
 
       // PATCH — update settings (admin only)
       if (req.method === 'PATCH') {
-        if (!isAdmin(req.user)) {
+        if (!isAdmin(req)) {
           return Response.json({ error: 'Admin access required' }, { status: 403 })
         }
         const rawBody = await parseJsonBody(req)

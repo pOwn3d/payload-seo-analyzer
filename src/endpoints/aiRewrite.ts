@@ -20,6 +20,7 @@ import {
   generateMetaTitle as heuristicTitle,
   generateMetaDescription as heuristicDescription,
 } from '../helpers/metaGeneration.js'
+import { isSeoPanelUser } from '../helpers/isAdmin.js'
 
 // ---------------------------------------------------------------------------
 // Claude API call
@@ -96,7 +97,7 @@ function extractDocContent(doc: Record<string, unknown>): string {
 export function createAiRewriteHandler(targetCollections?: string[]): PayloadHandler {
   return async (req) => {
     try {
-      if (!req.user) {
+      if (!isSeoPanelUser(req)) {
         return Response.json({ error: 'Unauthorized' }, { status: 401 })
       }
 

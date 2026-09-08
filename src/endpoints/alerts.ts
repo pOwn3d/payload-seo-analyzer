@@ -19,7 +19,7 @@
  */
 import type { Payload, PayloadHandler } from 'payload'
 
-import { isSeoAdmin as isAdmin } from '../helpers/isAdmin.js'
+import { isSeoAdminRequest as isAdmin } from '../helpers/isAdmin.js'
 import { escapeHtml } from '../helpers/escapeHtml.js'
 
 export interface AlertConfig {
@@ -262,7 +262,7 @@ export async function deliverAlertDigest(
 export function createAlertsDigestHandler(): PayloadHandler {
   return async (req) => {
     try {
-      if (!isAdmin(req.user)) return Response.json({ error: 'Forbidden' }, { status: 403 })
+      if (!isAdmin(req)) return Response.json({ error: 'Forbidden' }, { status: 403 })
       const cfg = getAlertConfig()
       const digest = await buildAlertDigest(req.payload, cfg)
       return Response.json(
@@ -292,7 +292,7 @@ export function createAlertsDigestHandler(): PayloadHandler {
 export function createAlertsRunHandler(siteUrl?: string): PayloadHandler {
   return async (req) => {
     try {
-      if (!isAdmin(req.user)) return Response.json({ error: 'Forbidden' }, { status: 403 })
+      if (!isAdmin(req)) return Response.json({ error: 'Forbidden' }, { status: 403 })
       const cfg = getAlertConfig()
       const digest = await buildAlertDigest(req.payload, cfg)
       const delivery = await deliverAlertDigest(req.payload, digest, cfg, siteUrl)

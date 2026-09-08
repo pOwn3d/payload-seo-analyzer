@@ -11,6 +11,7 @@
 import type { PayloadHandler } from 'payload'
 import { generateMetaTitle, generateMetaDescription } from '../helpers/metaGeneration.js'
 import { parseJsonBody } from '../helpers/parseBody.js'
+import { isSeoPanelUser } from '../helpers/isAdmin.js'
 
 // ---------------------------------------------------------------------------
 // Endpoint handler factory
@@ -18,7 +19,7 @@ import { parseJsonBody } from '../helpers/parseBody.js'
 export function createAiGenerateHandler(): PayloadHandler {
   return async (req) => {
     try {
-      if (!req.user) {
+      if (!isSeoPanelUser(req)) {
         return Response.json({ error: 'Unauthorized' }, { status: 401 })
       }
 

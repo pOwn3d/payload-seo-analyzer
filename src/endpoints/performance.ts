@@ -112,12 +112,12 @@ function getDateThreshold(period: string): Date {
 // Handler
 // ---------------------------------------------------------------------------
 
-import { isSeoAdmin as isAdmin } from '../helpers/isAdmin.js'
+import { isSeoAdminRequest as isAdmin, isSeoPanelUser } from '../helpers/isAdmin.js'
 
 export function createPerformanceHandler(): PayloadHandler {
   return async (req) => {
     try {
-      if (!req.user) {
+      if (!isSeoPanelUser(req)) {
         return Response.json({ error: 'Unauthorized' }, { status: 401 })
       }
 
@@ -257,7 +257,7 @@ export function createPerformanceHandler(): PayloadHandler {
       // POST — Import performance data (admin only)
       // =======================================================================
       if (method === 'POST') {
-        if (!isAdmin(req.user)) {
+        if (!isAdmin(req)) {
           return Response.json({ error: 'Admin access required' }, { status: 403 })
         }
         const body = await parseJsonBody(req)
