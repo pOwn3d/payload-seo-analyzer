@@ -3,8 +3,8 @@ updates:
   - package-ecosystem: npm
     directory: /
     schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
+      interval: monthly
+    open-pull-requests-limit: 3
     # Peer ranges are the package's public contract: widening or narrowing them
     # is a semver decision, never an automated bump.
     ignore:
@@ -16,12 +16,24 @@ updates:
         update-types: [version-update:semver-major]
       - dependency-name: next
         update-types: [version-update:semver-major]
+    # Two pull requests a month, not fifteen. Without an `applies-to` group for
+    # security-updates, Dependabot opens ONE PR PER ADVISORY on that stream and
+    # ignores open-pull-requests-limit entirely — which is how seven repositories
+    # produced forty-seven pull requests in an afternoon. Nearly all of them were
+    # transitive devDependencies (undici, picomatch, immutable, postcss) reachable
+    # only through tsup, next or payload, so there was nothing to merge anyway:
+    # the fix arrives when the direct dependency is bumped.
     groups:
-      payload:
-        patterns: ['payload', '@payloadcms/*']
-      dev-tooling:
-        patterns: ['tsup', 'vitest', 'typescript', '@types/*']
+      security:
+        applies-to: security-updates
+        patterns: ['*']
+      dependencies:
+        applies-to: version-updates
+        patterns: ['*']
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
+    groups:
+      actions:
+        patterns: ['*']
