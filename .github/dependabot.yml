@@ -1,39 +1,39 @@
 version: 2
 updates:
+  # `open-pull-requests-limit: 0` desactive les mises a jour de VERSION et rien
+  # d'autre : le flux des mises a jour de SECURITE l'ignore et continue d'ouvrir
+  # une PR des qu'un advisory touche une dependance. C'est ce qu'on veut garder.
+  #
+  # Le bruit venait des montees de routine. Sur sept depots, meme groupees et
+  # mensuelles, elles produisent une notification par depot et par mois pour des
+  # devDependencies qui ne partent chez aucun consommateur — ces paquets n'ont
+  # aucune dependance de runtime, ou trois pour payload-support.
+  #
+  # La couverture ne repose donc pas sur Dependabot : le workflow Security lance
+  # `pnpm audit --audit-level high` chaque semaine et sur chaque push, et les
+  # advisories transitives que le toolchain epingle sont neutralisees par les
+  # `overrides` de pnpm-workspace.yaml. Ce garde-fou-la est vert, donc lisible.
+  #
+  # Contrepartie assumee : les actions GitHub sont epinglees par SHA, et sans le
+  # flux de version leurs pins vieillissent en silence. Les advisories qui les
+  # concernent passent toujours par le flux de securite ; le reste demande une
+  # revue manuelle. Repasser `open-pull-requests-limit` a 3 pour la rouvrir.
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: monthly
-    open-pull-requests-limit: 3
-    # Peer ranges are the package's public contract: widening or narrowing them
-    # is a semver decision, never an automated bump.
-    ignore:
-      - dependency-name: payload
-        update-types: [version-update:semver-major]
-      - dependency-name: react
-        update-types: [version-update:semver-major]
-      - dependency-name: react-dom
-        update-types: [version-update:semver-major]
-      - dependency-name: next
-        update-types: [version-update:semver-major]
-    # Two pull requests a month, not fifteen. Without an `applies-to` group for
-    # security-updates, Dependabot opens ONE PR PER ADVISORY on that stream and
-    # ignores open-pull-requests-limit entirely — which is how seven repositories
-    # produced forty-seven pull requests in an afternoon. Nearly all of them were
-    # transitive devDependencies (undici, picomatch, immutable, postcss) reachable
-    # only through tsup, next or payload, so there was nothing to merge anyway:
-    # the fix arrives when the direct dependency is bumped.
+    open-pull-requests-limit: 0
     groups:
       security:
         applies-to: security-updates
         patterns: ['*']
-      dependencies:
-        applies-to: version-updates
-        patterns: ['*']
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
+    open-pull-requests-limit: 0
     groups:
-      actions:
+      security:
+        applies-to: security-updates
         patterns: ['*']
