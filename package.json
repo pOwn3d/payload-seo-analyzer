@@ -53,7 +53,7 @@
     "./dist/client.cjs"
   ],
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && node scripts/verify-dist-imports.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e:ui:setup": "cd e2e/ui && npm install && npx playwright install chromium",
