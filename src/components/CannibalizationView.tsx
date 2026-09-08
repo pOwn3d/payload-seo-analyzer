@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSeoLocale } from '../hooks/useSeoLocale.js'
 import { getDashboardT } from '../dashboard-i18n.js'
 import type { DashboardTranslations } from '../dashboard-i18n.js'
+import { toCsv } from '../helpers/csv.js'
 
 // ---------------------------------------------------------------------------
 // Design tokens — uses Payload CSS variables for theme compatibility
@@ -342,12 +343,8 @@ export function CannibalizationView() {
       }
     }
 
-    const csv = [
-      headers.join(','),
-      ...rows.map((r) =>
-        r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','),
-      ),
-    ].join('\n')
+    // toCsv neutralizes spreadsheet formulas — see helpers/csv.ts.
+    const csv = toCsv([headers, ...rows])
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)

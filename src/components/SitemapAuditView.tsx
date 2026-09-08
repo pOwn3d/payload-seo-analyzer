@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react'
 import { useSeoLocale } from '../hooks/useSeoLocale.js'
 import { getDashboardT } from '../dashboard-i18n.js'
+import { toCsv } from '../helpers/csv.js'
 
 // ---------------------------------------------------------------------------
 // Design tokens — uses Payload CSS variables for theme compatibility
@@ -1468,9 +1469,8 @@ function ExternalLinksTab() {
         r.sourcePages.map((p) => `/${p.slug} (${p.collection})`).join('; '),
       ])
     }
-    const csvContent = rows
-      .map((row) => row.map((cell) => `"${(cell || '').replace(/"/g, '""')}"`).join(','))
-      .join('\n')
+    // toCsv neutralizes spreadsheet formulas — see helpers/csv.ts.
+    const csvContent = toCsv(rows)
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const now = new Date().toISOString().split('T')[0]
@@ -1733,9 +1733,8 @@ function exportCSV(data: SitemapAuditData, t: ReturnType<typeof getDashboardT>) 
     rows.push(['broken-source', b.sourceSlug, b.sourceTitle, b.collection, `${t.sitemapAudit.brokenLinkTo} /${b.targetSlug}`])
   }
 
-  const csvContent = rows
-    .map((row) => row.map((cell) => `"${(cell || '').replace(/"/g, '""')}"`).join(','))
-    .join('\n')
+  // toCsv neutralizes spreadsheet formulas — see helpers/csv.ts.
+  const csvContent = toCsv(rows)
 
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' })
   const url = URL.createObjectURL(blob)

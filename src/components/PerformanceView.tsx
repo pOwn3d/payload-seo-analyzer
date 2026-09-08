@@ -12,6 +12,7 @@ import { RankTrackingPanel } from './RankTrackingPanel.js'
 import { CtrOpportunitiesPanel } from './CtrOpportunitiesPanel.js'
 import { AlertsPanel } from './AlertsPanel.js'
 import { AltTextPanel } from './AltTextPanel.js'
+import { toCsv } from '../helpers/csv.js'
 
 // NOTE: xlsx (SheetJS) is loaded dynamically on the client side only.
 // Known CVEs: CVE-2023-30533 (Prototype Pollution), CVE-2024-22363 (ReDoS).
@@ -428,12 +429,8 @@ export function PerformanceView() {
     const headers = ['URL', t.performance.clicks, t.performance.impressions, t.performance.ctrPercent, t.performance.position]
     const rows = sortedPages.map((p) => [p.url, p.clicks, p.impressions, p.ctr, p.position])
 
-    const csv = [
-      headers.join(','),
-      ...rows.map((r) =>
-        r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','),
-      ),
-    ].join('\n')
+    // toCsv neutralizes spreadsheet formulas — see helpers/csv.ts.
+    const csv = toCsv([headers, ...rows])
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)

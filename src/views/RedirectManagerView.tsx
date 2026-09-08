@@ -10,11 +10,16 @@ import React from 'react'
 // @ts-ignore — next is a peer dependency
 import { redirect } from 'next/navigation'
 import { RedirectManagerViewClient } from './RedirectManagerViewClient.js'
+import { seoViewRedirectTarget } from '../helpers/viewAccess.js'
 
 export const RedirectManagerView: React.FC<AdminViewServerProps> = (props) => {
   const { initPageResult } = props
 
-  if (!initPageResult?.req?.user) { redirect('/admin/login') }
+  // Not just `!!req.user`: a session on any OTHER auth collection (front-office
+  // customers, members…) also populates it, and declaring these views takes the route
+  // out of Payload's own canAccessAdmin redirect. See helpers/viewAccess.ts.
+  const denied = seoViewRedirectTarget(initPageResult)
+  if (denied) { redirect(denied) }
 
   const { req, visibleEntities, permissions, locale } = initPageResult
 

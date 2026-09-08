@@ -232,7 +232,8 @@ analyzer sidebar, the `validate` endpoint and the meta fields are always active.
 | `SEO_AUDIT_FILE_CACHE` | — | `0` or `false` ignores `auditCacheFile` and forces a live build. |
 | `SEO_AUDIT_TRUST_FILE` | — | `1` serves `auditCacheFile` without the staleness check (for CI-prewarmed deployments). |
 | `SEO_SITEMAP_BATCH_SIZE` | `50` | Batch size for the news/image/video sitemaps (capped at 100). |
-| `SEO_SITEMAP_MAX_DOCS` | `5000` | Document cap for the news/image/video sitemaps. |
+| `SEO_SITEMAP_MAX_DOCS` | `5000` | Document cap for the news/image/video sitemaps. Counts every document **read**, filtered ones included. |
+| `SEO_LOGS_MAX_ROWS` | `5000` | Ceiling on the rows `POST /seo-logs` may create. Past it, known URLs keep incrementing but no new path is recorded. |
 | `SEO_LLMS_TXT` | — | `1` enables `/llms.txt`; it returns 404 otherwise. |
 | `SEO_INDEXNOW_KEY` | — | IndexNow key, served at `/indexnow-key.txt`. Required by the `indexNow` feature. |
 | `GSC_OAUTH_CLIENT_ID` / `GSC_OAUTH_CLIENT_SECRET` | — | Google Cloud OAuth client for the `gscApi` feature. |
@@ -251,8 +252,15 @@ means a logged-in **admin-panel** user — a session on another auth collection 
 members, subscribers) does **not** qualify, even though Payload populates `req.user` for it on every
 route. The panel collection is `config.admin.user`; widen it with `SEO_ADMIN_USER_COLLECTIONS` if
 several collections may reach the panel. "SEO admin" adds a role check on top — a user with
-`role: 'admin'` or an `admin` entry in `roles`, falling back to any admin-panel user when the users
-collection has no role field at all, unless `SEO_REQUIRE_ADMIN_ROLE=1`.
+`role: 'admin'` or an `admin` entry in `roles` — including when the host models roles as a
+single-value select or as a relationship the plugin can read a name from. It falls back to any
+admin-panel user only when the users collection declares **no** `role`/`roles` field at all; a field
+that exists but holds an unreadable value (an unpopulated relationship id) denies rather than
+promotes, and the plugin logs why. Set `SEO_REQUIRE_ADMIN_ROLE=1` to remove the fallback entirely.
+
+The plugin's **admin views** (`/admin/seo`, `/admin/redirects`, …) apply the same panel-session rule.
+Registering a custom view takes its route out of Payload's own `canAccessAdmin` redirect, so the
+views check it themselves and send a foreign session to `/admin/unauthorized`.
 
 The plugin's own collections (`seo-settings`, `seo-redirects`, `seo-gsc-auth`, `seo-performance`,
 `seo-logs`, `seo-score-history`, `seo-rank-history`) enforce the same rule through their `access`
@@ -300,7 +308,7 @@ config, since Payload exposes a REST API for every collection.
 | `GET` | `/alt-text-audit` | SEO admin | `aiFeatures` |
 | `POST` | `/ai-alt-text`, `/ai-optimize-bulk` | SEO admin | `aiFeatures` |
 | `GET` | `/seo-logs` | Authenticated | `seoLogs` |
-| `POST` | `/seo-logs` | `X-SEO-Secret` header, or authenticated when no `seoLogsSecret` is set | `seoLogs` |
+| `POST` | `/seo-logs` | `X-SEO-Secret` header, or SEO admin when no `seoLogsSecret` is set | `seoLogs` |
 | `DELETE` | `/seo-logs` | SEO admin | `seoLogs` |
 | `GET` | `/gsc/status` | Authenticated | `gscApi` |
 | `GET` | `/gsc/auth`, `/gsc/callback`, `/gsc/data` | SEO admin | `gscApi` |
@@ -341,7 +349,7 @@ Created by the plugin, only when the matching feature is on.
 | `seo-redirects` | Redirect rules (slug configurable) | Authenticated | SEO admin | `redirects` |
 | `seo-score-history` | Score snapshots per document | Authenticated | Create: authenticated; update/delete: `role: 'admin'` | `scoreHistory` |
 | `seo-performance` | Imported Search Console rows | Authenticated | Authenticated | `performance` |
-| `seo-logs` | 404 tracking | Authenticated | Authenticated | `seoLogs` |
+| `seo-logs` | 404 tracking | Authenticated | SEO admin | `seoLogs` |
 | `seo-gsc-auth` | OAuth tokens, encrypted at rest and never readable through the API | Authenticated | SEO admin | `gscApi` |
 | `seo-rank-history` | Daily rank snapshots from GSC | Authenticated | `role: 'admin'` | `gscApi` |
 

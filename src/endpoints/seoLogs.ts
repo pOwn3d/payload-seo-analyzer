@@ -1,7 +1,7 @@
 /**
  * SEO Logs endpoint handler.
  * - GET: Returns 404 logs for the admin dashboard (with stats)
- * - POST: Logs a new 404 hit (requires secret header or authenticated admin)
+ * - POST: Logs a new 404 hit (requires the secret header, or an SEO-admin session)
  * - DELETE: Clear/ignore logs
  *
  * NOTE: Rate limiting is not handled by this plugin. The consuming application
@@ -11,7 +11,7 @@
 
 import type { PayloadHandler, Where } from 'payload'
 import { safeEqual } from '../helpers/tokenCrypto.js'
-import { createRateLimiter, getClientIp } from '../rateLimiter.js'
+import { createRateLimiter, rateLimitKey } from '../rateLimiter.js'
 import { parseJsonBody } from '../helpers/parseBody.js'
 
 import { isSeoAdminRequest as isAdmin, isSeoPanelUser } from '../helpers/isAdmin.js'
@@ -35,6 +35,21 @@ const VALID_LOG_TYPES = ['404', 'redirect', 'error']
  */
 export const MAX_LOG_TEXT_LENGTH = 500
 
+/**
+ * Hard ceiling on the number of rows this endpoint may CREATE.
+ *
+ * Each POST carrying an unseen URL adds a row (up to 500 characters of url, referrer
+ * and user agent each); an already-known URL only bumps its counter. Nothing bounded
+ * the first case, so a caller feeding fresh paths grew the table for as long as they
+ * kept going — on a SQLite host, the only plugin table with no cap at all. Past the
+ * ceiling the endpoint stops creating rows and says so, but keeps incrementing the
+ * ones already there: the 404 report the panel exists for goes on working.
+ */
+function seoLogsMaxRows(): number {
+  const parsed = parseInt(process.env.SEO_LOGS_MAX_ROWS || '5000', 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 5000
+}
+
 /** Trim, then cap — used for the two visitor-supplied text fields. */
 function cappedText(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined
@@ -43,25 +58,26 @@ function cappedText(value: unknown): string | undefined {
 }
 
 export function createSeoLogsHandler(seoLogsSecret?: string): PayloadHandler {
-  // Rate limiter for POST: 30 requests per 60 seconds per IP
+  // Rate limiter for POST: 30 requests per 60 seconds per caller (user, else IP)
   const postLimiter = createRateLimiter(30, 60_000)
 
   return async (req) => {
     const method = req.method?.toUpperCase()
 
-    // POST: Log a hit (requires secret header or authenticated admin)
+    // POST: Log a hit (requires the secret header, or an SEO-admin session)
     if (method === 'POST') {
       try {
-        // Rate limit POST requests
-        const ip = getClientIp(req)
-        if (!postLimiter.check(ip)) {
+        // Rate limit POST requests. The bucket is keyed by the authenticated user when
+        // there is one: keyed by IP alone, a caller varying X-Forwarded-For (which the
+        // client controls) got a fresh bucket on every request and never hit the limit.
+        if (!postLimiter.check(rateLimitKey(req))) {
           return Response.json(
             { error: 'Too Many Requests. Please try again later.' },
             { status: 429 },
           )
         }
 
-        // Auth check: secret header OR authenticated user
+        // Auth check: secret header OR SEO-admin session
         if (seoLogsSecret) {
           const headerSecret = req.headers.get('x-seo-secret')
           if (!headerSecret) {
@@ -74,8 +90,13 @@ export function createSeoLogsHandler(seoLogsSecret?: string): PayloadHandler {
             return Response.json({ error: 'Unauthorized' }, { status: 401 })
           }
         } else {
-          // No secret configured — require authenticated admin
-          if (!isSeoPanelUser(req)) {
+          // No secret configured — require an SEO ADMIN, not merely a panel session.
+          // This POST writes `seo-logs`, whose collection ACL is `create: isSeoAdminRequest`,
+          // and the 404 report it feeds is what admins turn into 301s. A panel session alone
+          // let every editor/author/viewer write rows the collection refuses them, and
+          // contradicted the option's own contract ("POST requires authenticated admin user").
+          // Hosts that want anonymous 404 middleware to log must set `seoLogsSecret`.
+          if (!isAdmin(req)) {
             return Response.json({ error: 'Unauthorized' }, { status: 401 })
           }
         }
@@ -131,6 +152,22 @@ export function createSeoLogsHandler(seoLogsSecret?: string): PayloadHandler {
           }
         } catch {
           // Collection might not exist yet
+        }
+
+        // Growth cap: only the CREATE path grows the table, so it is the only one gated.
+        // `count` may be missing on exotic adapters — a failure here must not drop the log.
+        try {
+          const max = seoLogsMaxRows()
+          const total = await req.payload.count?.({ collection: 'seo-logs', overrideAccess: true })
+          if (typeof total?.totalDocs === 'number' && total.totalDocs >= max) {
+            req.payload.logger.warn(
+              `[seo] seo-logs reached the ${max}-row cap — new 404 paths are no longer recorded. ` +
+                'Clear the panel or raise SEO_LOGS_MAX_ROWS.',
+            )
+            return Response.json({ success: false, action: 'capped' })
+          }
+        } catch {
+          // count unavailable — fall through rather than lose the 404 report
         }
 
         // Create new log entry

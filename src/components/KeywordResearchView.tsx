@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSeoLocale } from '../hooks/useSeoLocale.js'
 import { getDashboardT } from '../dashboard-i18n.js'
 import { ContentBriefPanel } from './ContentBriefPanel.js'
+import { toCsv } from '../helpers/csv.js'
 
 // ---------------------------------------------------------------------------
 // Design tokens — uses Payload CSS variables for theme compatibility
@@ -267,12 +268,8 @@ export function KeywordResearchView() {
       s.suggestedFor.join(' | '),
     ])
 
-    const csv = [
-      headers.join(','),
-      ...rows.map((r) =>
-        r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','),
-      ),
-    ].join('\n')
+    // toCsv neutralizes spreadsheet formulas — see helpers/csv.ts.
+    const csv = toCsv([headers, ...rows])
 
     const bom = '\uFEFF' // UTF-8 BOM for Excel
     const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' })

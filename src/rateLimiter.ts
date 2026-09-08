@@ -83,3 +83,26 @@ export function getClientIp(req: { headers: Headers }): string {
 
   return 'unknown'
 }
+
+/**
+ * Bucket key for a rate limiter, shared by every limited path in the plugin.
+ *
+ * The authenticated user comes first because it is NOT spoofable, unlike
+ * `X-Forwarded-For`: a caller who varies that header gets a fresh bucket on every
+ * request and the limiter never fires. Ids are only unique WITHIN an auth
+ * collection — `users#3` and `customers#3` are different people — so the key is
+ * scoped by collection. Anonymous callers (public endpoints, host middleware
+ * relaying a visitor) fall back to the best-effort client IP.
+ */
+export function rateLimitKey(req: {
+  headers: Headers
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  user?: any
+}): string {
+  const user = req?.user as { id?: string | number; collection?: string } | undefined | null
+  const id = user?.id
+  if (id !== undefined && id !== null) {
+    return `user:${user?.collection ?? 'unknown'}:${id}`
+  }
+  return `ip:${getClientIp(req)}`
+}

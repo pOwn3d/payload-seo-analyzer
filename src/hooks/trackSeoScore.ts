@@ -37,6 +37,11 @@ const CACHE_BASES = [
   // Rendered sitemap.xml — see endpoints/sitemap.ts. Public, anonymous and cached,
   // so a publish/unpublish must drop it or the new URL waits for the TTL.
   'sitemap-xml',
+  // Same deal for the three extension sitemaps — see endpoints/sitemapExtensions.ts.
+  // The news one especially: a freshly published article must appear without waiting.
+  'sitemap-news',
+  'sitemap-images',
+  'sitemap-video',
 ] as const
 
 export function createTrackSeoScoreHook(seoConfig?: SeoConfig): CollectionAfterChangeHook {

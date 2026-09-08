@@ -6,7 +6,8 @@ The plugin's security model and deliberate design choices.
 
 - Every plugin endpoint requires an **admin-panel session** — not merely `req.user`. No mutating endpoint is anonymous.
   > A Payload app may expose several auth collections (staff `users` **and** front-office `customers`, members, subscribers…). Any of them populates `req.user` on every route, this plugin's endpoints included. `!!req.user` therefore never meant "an admin is calling". The gate is `helpers/isAdmin.ts::isSeoPanelUser`, which compares `req.user.collection` with `req.payload.config.admin.user`.
-- Intentionally **public**, read-only, non-sensitive endpoints: `/robots.txt`, `/sitemap.xml`, `/sitemap-*.xml`, and the opt-in `/llms.txt`. These are deliberately **not** rate-limited (to avoid blocking Googlebot).
+- Intentionally **public**, read-only, non-sensitive endpoints: `/robots.txt`, `/sitemap.xml`, `/sitemap-*.xml`, and the opt-in `/llms.txt`. These are deliberately **not** rate-limited (to avoid blocking Googlebot); the shared cache is what bounds their cost instead — see *Public endpoints* below.
+- The plugin's **admin views** (`/admin/seo`, `/admin/redirects`, …) enforce the same admin-panel rule as the endpoints, in `helpers/viewAccess.ts`. Declaring a custom view with a non-root `path` takes its route OUT of Payload's own `canAccessAdmin` redirect (`@payloadcms/next::isCustomAdminView` matches on the path and never reads `view.public`), so a `!!req.user` check there would have let a front-office session into the admin shell — and the layout serializes the whole `clientConfig` to whoever renders it. A foreign session is sent to `/admin/unauthorized`, an anonymous one to `/admin/login`.
 
 ## Access control (RBAC)
 
@@ -14,10 +15,10 @@ The plugin's security model and deliberate design choices.
   1. `isSeoPanelUser(req)` — the session must come from the host's admin-panel collection (`config.admin.user`). Hosts with several admin-capable collections widen it with `SEO_ADMIN_USER_COLLECTIONS=users,staff`. When neither the user's collection nor the host's admin collection is known (mocks, non-sanitized config), the legacy authenticated-only behaviour applies — we never lock an admin out on missing information.
   2. `isSeoAdmin(user)` — the role check below. `isSeoAdminRequest(req)` is layer 1 + layer 2 and is what endpoints and collection `access` rules call.
 - The same two layers apply to the plugin's **collections** (`seo-settings`, `seo-redirects`, `seo-gsc-auth`, `seo-performance`, `seo-logs`, `seo-score-history`, `seo-rank-history`): Payload auto-exposes their REST API, so an endpoint-only gate is bypassable.
-- **Fail-open by default** on a role-less Payload setup (a `users` collection with no `role`/`roles` field): any admin-panel user is treated as privileged — otherwise legitimate admins would be locked out.
+- **Fail-open by default** on a role-less Payload setup (a `users` collection with no `role`/`roles` field): any admin-panel user is treated as privileged — otherwise legitimate admins would be locked out. The test is the **presence** of the field, not its shape: a `role` relationship (a number at `auth.depth: 0`, an object once populated) or a single-value `roles` select is a role scheme, and closes the fallback. `admin` is recognised through all of those shapes — string, array, populated relationship (`name`/`slug`/`value`/`role`/`label`/`title`) — so a real admin still passes. A role field that yields no readable name at all denies, and logs once per collection to say so.
 - **Opt-in strict mode**: `SEO_REQUIRE_ADMIN_ROLE=1` rejects users without an explicit `admin` role. Recommended for multi-user setups with roles.
-- **Admin-only** endpoints (redirects CRUD, settings, robots, seo-logs, GSC disconnect, IndexNow, alerts) are gated by `isSeoAdminRequest`.
-- Rate-limit buckets are keyed by `collection:id`, not by `id` alone — ids only being unique within one auth collection.
+- **Admin-only** endpoints (redirects CRUD, settings, robots, seo-logs `POST`/`DELETE`, GSC disconnect, IndexNow, alerts) are gated by `isSeoAdminRequest`. `POST /seo-logs` writes a collection whose ACL is `create: isSeoAdminRequest`, so a panel session alone is not enough; a host that wants anonymous 404 middleware to log must configure `seoLogsSecret`. Row creation is capped by `SEO_LOGS_MAX_ROWS` — increments of known URLs continue past the cap, so the report keeps working.
+- Rate-limit buckets are keyed by `collection:id`, not by `id` alone — ids only being unique within one auth collection. One helper (`rateLimiter.ts::rateLimitKey`) builds that key for every limited path, `POST /seo-logs` included, so no path can drift back to an IP-only bucket (`X-Forwarded-For` is client-controlled: varying it hands the caller a fresh bucket on every request).
 
 ## `overrideAccess: true` — a deliberate choice (not a bug)
 
@@ -80,7 +81,8 @@ The auto-redirect hook treats the new **slug** with `normalizeFromPath`, never `
 | `SEO_AUDIT_MIN_REFRESH_MS` | Minimum delay between two manual site-wide audit rebuilds (default 300000). |
 | `SEO_GSC_ENCRYPTION_KEY` | Dedicated 32-byte key to encrypt GSC tokens (recommended). |
 | `SEO_FETCH_MAX_DOCS` | Memory cap on the documents loaded by aggregation endpoints, `sitemap.xml` included (default 5000). |
-| `SEO_SITEMAP_MAX_DOCS` | Same cap for the public sitemaps only (`sitemap.xml`, `sitemap-news/images/video.xml`); overrides `SEO_FETCH_MAX_DOCS` there. |
+| `SEO_SITEMAP_MAX_DOCS` | Same cap for the public sitemaps only (`sitemap.xml`, `sitemap-news/images/video.xml`); overrides `SEO_FETCH_MAX_DOCS` there. Counts every document **read**, not only those emitted. |
+| `SEO_LOGS_MAX_ROWS` | Ceiling on the rows `POST /seo-logs` may create (default 5000). |
 | `SEO_AI_MODEL` | LLM model override (default Sonnet; set `claude-opus-4-8` for max quality). |
 
 ## Public endpoints & content exposure
@@ -95,6 +97,21 @@ with a hard-coded 10 000-document read that ignored `SEO_FETCH_MAX_DOCS`. It now
 the cap above and serves the rendered XML from the shared cache, invalidated by the same
 `afterChange` hook as the other caches. The document is identical for every anonymous
 caller, so the shared entry is neither an oracle nor a cross-user leak.
+
+The same mitigation now covers `sitemap-news.xml`, `sitemap-images.xml` and `sitemap-video.xml`,
+which are **more** expensive than `sitemap.xml`: the image and video ones read at `depth: 1`
+(every relation populated) and walk each document's tree looking for uploads. They were the only
+public routes with neither a cache nor a working cap — `SEO_SITEMAP_MAX_DOCS` counted emitted
+documents only, so a corpus of drafts or `noindex` pages was paginated in full whatever the cap
+said. The cap now counts every document read, exactly like `fetchAllDocs`.
+
+## Dashboard exports (CSV)
+
+Every CSV the dashboard produces goes through `helpers/csv.ts::toCsv`, which prefixes any cell
+starting with `=`, `+`, `-`, `@`, a tab or a CR with a single quote (CWE-1236). Quoting alone is not
+protection: Excel and LibreOffice strip the quotes before deciding whether a cell is a formula, and
+these cells carry text a low-privileged editor writes (page title, meta title/description, focus
+keyword, slug) and an admin later opens. Plain numbers are left numeric.
 
 `overrideAccess: true` means these endpoints are **not** an access-control boundary:
 a collection whose `read` is restricted to a subset of users must not be listed in

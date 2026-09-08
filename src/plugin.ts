@@ -96,7 +96,7 @@ import { resolveGscSiteUrl } from './helpers/gscClient.js'
 import { createGenerateHandler } from './endpoints/generate.js'
 import { seoTranslations } from './translations.js'
 import { registerDashboardTranslations } from './dashboard-i18n.js'
-import { createRateLimiter, getClientIp } from './rateLimiter.js'
+import { createRateLimiter, rateLimitKey } from './rateLimiter.js'
 
 /** Arguments passed to generate functions (generateTitle, generateDescription, etc.) */
 export interface GenerateFnArgs {
@@ -152,7 +152,12 @@ export interface SeoPluginConfig {
    * own entries (e.g. `{ projects: 'work' }`).
    */
   collectionRoutes?: CollectionRoutes
-  /** Secret header value for seo-logs POST endpoint. If set, POST requests must include X-SEO-Secret header with this value. If not set, POST requires authenticated admin user. */
+  /**
+   * Secret header value for the seo-logs POST endpoint. If set, POST requests must carry the
+   * `X-SEO-Secret` header with this value — which is what lets a host's 404 middleware log hits
+   * from ANONYMOUS visitors. If not set, POST requires an SEO-admin session (the same gate as the
+   * collection's own `create` ACL), so a panel editor cannot write rows the collection refuses them.
+   */
   seoLogsSecret?: string
   /** Locale for language-specific analysis (default: 'fr') */
   locale?: 'fr' | 'en'
@@ -486,15 +491,9 @@ export const seoAnalyzerPlugin =
       return async (req) => {
         // Prefer the authenticated user id (not spoofable) over the client IP —
         // X-Forwarded-For is client-controlled, so an IP-only key is trivially
-        // bypassed by varying the header. Falls back to IP for public endpoints.
-        // Ids are only unique WITHIN an auth collection: `users#3` and `customers#3`
-        // are different people, and a shared `user:3` bucket would let one of them
-        // consume the other's quota (or hide behind it). Scope the key by collection.
-        const authUser = req.user as { id?: string | number; collection?: string } | undefined
-        const userId = authUser?.id
-        const userCollection = authUser?.collection ?? 'unknown'
-        const key = userId != null ? `user:${userCollection}:${userId}` : `ip:${getClientIp(req)}`
-        if (!limiter.check(key)) {
+        // bypassed by varying the header. Shared with the other limited paths, so
+        // the rule cannot drift between them — see rateLimiter.ts::rateLimitKey.
+        if (!limiter.check(rateLimitKey(req))) {
           return Response.json(
             { error: 'Too Many Requests. Please try again later.' },
             { status: 429 },

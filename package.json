@@ -1,6 +1,6 @@
 {
   "name": "@consilioweb/payload-seo-analyzer",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "description": "Payload CMS SEO plugin — 50+ checks, dashboard, Lexical JSON support, Flesch FR/EN readability, i18n",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -102,10 +102,10 @@
   "license": "MIT",
   "packageManager": "pnpm@11.25.0",
   "peerDependencies": {
-    "@payloadcms/next": "^3.0.0",
-    "@payloadcms/ui": "^3.0.0",
+    "@payloadcms/next": ">=3.79.1 <4.0.0",
+    "@payloadcms/ui": ">=3.79.1 <4.0.0",
     "next": "^15.2.0 || ^16.0.0",
-    "payload": "^3.0.0",
+    "payload": ">=3.79.1 <4.0.0",
     "react": "^18.0.0 || ^19.0.0"
   },
   "peerDependenciesMeta": {

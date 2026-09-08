@@ -6,6 +6,7 @@ import { useSeoLocale } from '../hooks/useSeoLocale.js'
 import { escapeHtml } from '../helpers/escapeHtml.js'
 import { getDashboardT } from '../dashboard-i18n.js'
 import type { DashboardTranslations } from '../dashboard-i18n.js'
+import { toCsv } from '../helpers/csv.js'
 
 // ---------------------------------------------------------------------------
 // Design tokens — uses Payload CSS variables for theme compatibility
@@ -1003,12 +1004,9 @@ export function SeoView() {
         i.readingTime,
         i.updatedAt ? new Date(i.updatedAt).toLocaleDateString(locale) : '',
       ])
-      const csv = [
-        headers.join(','),
-        ...rows.map((r) =>
-          r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','),
-        ),
-      ].join('\n')
+      // toCsv neutralizes spreadsheet formulas — these cells carry editor-written
+      // titles and meta values, opened later by an admin in Excel. See helpers/csv.ts.
+      const csv = toCsv([headers, ...rows])
 
       const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
       const url = URL.createObjectURL(blob)
@@ -1152,9 +1150,8 @@ export function SeoView() {
       r.before.focusKeyword,
       r.after.focusKeyword,
     ])
-    const csv = [header, ...rows]
-      .map((row) => row.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(','))
-      .join('\n')
+    // toCsv neutralizes spreadsheet formulas — see helpers/csv.ts.
+    const csv = toCsv([header, ...rows])
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')

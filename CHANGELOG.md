@@ -5,6 +5,188 @@ All notable changes to `@consilioweb/payload-seo-analyzer` will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0] - 2026-09-08
+
+**Second security release in a day.** 3.0.0 closed the endpoint gate; this one closes the door
+standing next to it — the plugin's nine admin views, which Payload exempts from its own
+`canAccessAdmin` redirect. Every version published so far, 3.0.0 included, carries the holes below.
+Upgrade first if your Payload config declares more than one `auth` collection, or if your users
+collection models `role` / `roles` as anything other than a plain string or an array of strings.
+
+### Security
+
+- **The nine admin views let any authenticated account into the admin shell, whatever collection
+  its session came from.** Registering a custom admin view with a non-root `path` takes that route
+  *out* of Payload's own access redirect: `@payloadcms/next::isCustomAdminView` matches on the URL
+  path and never reads a visibility flag, so Payload delegates the authorization to the view
+  component. All nine of this plugin's views (`/admin/seo`, `/admin/sitemap-audit`,
+  `/admin/redirects`, `/admin/performance`, `/admin/keyword-research`, `/admin/cannibalization`,
+  `/admin/link-graph`, `/admin/schema-builder`, `/admin/seo-config`) tested `!!initPageResult.req.user`
+  and nothing else. A session on a **second auth collection** — front-office `customers`, members,
+  subscribers — populates `req.user` on every route, so such an account rendered the Payload admin
+  layout, which serializes the whole `clientConfig` (every collection, global and field of the CMS,
+  their labels, their admin conditions) into that visitor's browser. Since 3.0.0 the data endpoints
+  behind the views answer 401 to that account, so what leaked from a 3.0.0 install is the shell and
+  the config, not the SEO data; **before 3.0.0 the endpoints answered too**. The views now call
+  `helpers/viewAccess.ts::seoViewRedirectTarget`, which applies the same `isSeoPanelUser` rule as the
+  endpoints and sends a foreign session to `/admin/unauthorized`, an anonymous one to the login
+  screen — exactly what Payload's `handleAuthRedirect` would have done. **You were exposed if your
+  Payload config declares more than one authenticated collection**; a single `users` collection was
+  never reachable this way. Nothing in the plugin logs a view render, so there is no trace to audit
+  here — judge by the shape of your config, not by your logs.
+
+- **The RBAC fail-open asked about the *shape* of the role field instead of its *presence*, and
+  promoted every panel user to SEO admin on a large class of hosts.** The documented fallback — a
+  users collection with no role field at all treats any admin-panel user as privileged — was
+  implemented as `typeof user.role !== 'string' && !Array.isArray(user.roles)`. A host that models
+  `role` as a **relationship** (a number at the default `auth.depth: 0`, an object once populated) or
+  `roles` as a **single-value select** (a bare string, not an array) fell straight through that test:
+  the user was not an `admin`, the field was not a string, `roles` was not an array, so the fallback
+  fired and returned `true`. Every editor, author or read-only contributor of such a host was an SEO
+  admin. That is the full admin surface: the redirects CRUD (`POST /create-redirect`,
+  `POST`/`PATCH`/`DELETE /redirects`), `POST /robots.txt`, `PATCH /settings`, `DELETE /seo-logs`,
+  `POST /gsc/disconnect`, `POST /alerts-run` (which sends e-mail) and `POST /indexnow-submit`, plus
+  the write ACLs of the seven plugin collections, which are built on the same helper. `isSeoAdmin`
+  now collects role **names** from every shape the host may have used — string, array, populated
+  relationship or select option read through `name` / `slug` / `value` / `role` / `label` / `title` —
+  and falls open only when neither `role` nor `roles` exists on the user at all. **You were exposed
+  if your users collection defines `role` or `roles` as anything other than a plain string or an
+  array of strings**, and this one needs only a single auth collection to bite. Traces worth reading
+  if you were: the rows of `seo-redirects`, `robotsCustomRules` in `seo-settings`, and whether
+  `seo-logs` was emptied.
+
+- **`POST /seo-logs` accepted writes the collection itself refuses, and its rate limiter never
+  fired.** The `seo-logs` collection has been `create: isSeoAdminRequest` since 3.0.0, but the
+  endpoint that writes it with `overrideAccess: true` only asked for `isSeoPanelUser` — so any panel
+  account, of any role, could insert rows the REST API would have refused it, and the option's own
+  contract ("POST requires authenticated admin user") did not hold. Those rows are the 404 report an
+  admin turns into permanent 301 redirects. Two aggravating factors, both closed here: the POST
+  limiter was keyed on the client IP alone, read from the caller-controlled `X-Forwarded-For`, so a
+  caller who varied that header got a fresh 30-per-minute bucket on every request; and the create
+  path had **no row cap at all** — the only plugin table without one — so a caller feeding unseen
+  paths grew it for as long as they kept going, at up to 500 characters of `url`, `referrer` and
+  `userAgent` each. The endpoint now requires an SEO admin when no `seoLogsSecret` is configured, the
+  limiter key comes from the shared `rateLimiter.ts::rateLimitKey` (authenticated identity first,
+  scoped `collection:id`, IP only as a fallback), and creation stops at `SEO_LOGS_MAX_ROWS` (default
+  5000) while known URLs keep incrementing so the report goes on working. Note that on a host which
+  *does* set `seoLogsSecret`, the growth vector is anonymous by design — the secret exists so 404
+  middleware can log a visitor's hit — and an anonymous caller still keys by IP; the row cap is what
+  bounds that case. Worth checking: the size of your `seo-logs` table, and whether any redirect was
+  created from a 404 path you do not recognise.
+
+- **The three sitemap extensions were anonymous, uncached, and their document cap did not stop the
+  scan.** `/sitemap-news.xml`, `/sitemap-images.xml` and `/sitemap-video.xml` are public and
+  deliberately not rate-limited (Googlebot must not be throttled), and they are the most expensive
+  requests in the plugin: the image and video handlers read at `depth: 1`, populating every relation
+  of every document and walking each tree for uploads. 3.0.0 gave `sitemap.xml` a cache and a real
+  cap but left these three with neither. Worse, `SEO_SITEMAP_MAX_DOCS` was tested *after* the draft
+  and `noindex` filters, so it counted only the documents actually emitted: a corpus of drafts or
+  `noindex` pages was paginated in full, at depth 1, whatever the variable said. Any anonymous caller
+  therefore turned one plain request into one complete corpus scan, and concurrent requests into as
+  many. The rendered XML is now served from the shared cache — keys scoped by the handler's own
+  collections, never by anything the caller sends — invalidated by the same `afterChange` hook as the
+  other caches, and the cap counts every document **read**, filtered ones included, exactly like
+  `fetchAllDocs`.
+
+- **Every dashboard CSV export wrote editor-controlled text straight into spreadsheet cells
+  (CWE-1236).** The eight export paths across six dashboard components serialized their cells by
+  doubling the double-quotes and nothing else. Quoting is not protection here: Excel and LibreOffice
+  strip the surrounding quotes *before* deciding whether a cell is a formula, so a value beginning
+  with `=`, `+`, `-`, `@`, a tab or a carriage return is evaluated when the file is opened. The cells
+  carry values a low-privileged editor writes — page title, meta title, meta description, focus
+  keyword, slug, redirect path — and the file is opened later by an admin: the classic outcome is a
+  formula that quietly ships the rest of the report to a domain the editor chose. All exports now go
+  through `helpers/csv.ts::toCsv`, which prefixes a formula-leading cell with a single quote (read as
+  "this is text" by every spreadsheet) while leaving plain numbers numeric, and a test fails the
+  build if any component builds a CSV cell by hand again. **Exports downloaded before this upgrade
+  are not retroactively fixed** — re-export before opening one in a spreadsheet.
+
+- **The declared peer range accepted a Payload version with a pre-authentication account takeover.**
+  `peerDependencies` asked for `payload`, `@payloadcms/next` and `@payloadcms/ui` at `^3.0.0`, i.e.
+  anything from 3.0.0 up, and that range covers the versions vulnerable to GHSA-hp5w-3hxx-vmwf
+  (account takeover through password recovery, reachable without authentication) and to an SQL
+  injection through query handling — both fixed upstream in Payload **3.79.1**. The plugin never
+  shipped those versions itself, but it told your package manager they were acceptable hosts for it.
+  The floor moves to `>=3.79.1 <4.0.0` on all three packages. Check what you actually resolve
+  (`pnpm why payload` / `npm ls payload`): a host still on Payload 3.0–3.79.0 needs the upstream
+  upgrade regardless of this plugin.
+
+### Breaking
+
+- **`peerDependencies` now require Payload `>=3.79.1 <4.0.0`** for `payload`, `@payloadcms/next` and
+  `@payloadcms/ui`, instead of `^3.0.0` — see the last Security entry for why. `next`
+  (`^15.2.0 || ^16.0.0`) and `react` are unchanged. On a project below 3.79.1 the install now
+  surfaces an unmet peer instead of resolving silently; upgrade Payload first, then this plugin.
+
+- **Sessions from any collection other than the admin panel's lose the plugin's admin views.** They
+  are redirected to `/admin/unauthorized` (anonymous visitors to the login screen) instead of
+  rendering. If a second auth collection was reaching `/admin/seo` and that was deliberate, list it
+  in `SEO_ADMIN_USER_COLLECTIONS=users,staff` — the same variable the endpoints already honour.
+
+- **Panel users promoted by the old fail-open lose SEO-admin rights.** On a host that models `role`
+  as a relationship or `roles` as a single-value select, *every* panel user was an SEO admin; now
+  only those whose role actually reads `admin` are. Two consequences to check before upgrading: a
+  legitimate admin whose role the plugin cannot read a **name** from — typically an unpopulated
+  relationship, which arrives as a bare id at `auth.depth: 0` — is now denied rather than promoted,
+  and the plugin logs one warning per collection per boot saying so. Give the role a readable value
+  (a `select` or `text` field), or raise the collection's `auth.depth` so the relationship is
+  populated and one of `name` / `slug` / `value` / `role` / `label` / `title` carries `admin`. Hosts
+  with no `role`/`roles` field at all are unaffected: the fallback still applies to them, and
+  `SEO_REQUIRE_ADMIN_ROLE=1` still removes it.
+
+- **`POST /seo-logs` requires an SEO admin when no `seoLogsSecret` is configured**, where a plain
+  panel session used to be enough. A 404 logger that relied on a logged-in editor's session now gets
+  a 401. This is the supported path: set `seoLogsSecret` and have your middleware send the
+  `X-SEO-Secret` header — that is also what lets it log hits from anonymous visitors, which a session
+  never could.
+
+### Fixed
+
+- **The views sent anonymous visitors to a hard-coded `/admin/login`**, ignoring a host that renamed
+  its admin route through `routes.admin` or its login/unauthorized routes through `admin.routes` — on
+  such a site the redirect landed outside the panel. The target is now built from the host's own
+  config, and joined so that an admin route of `/` can never produce a protocol-relative `//login`
+  target.
+
+### Changed
+
+- **The news, image and video sitemaps are served from the shared cache.** A publish or unpublish
+  invalidates them through the existing `afterChange` hook (`sitemap-news`, `sitemap-images` and
+  `sitemap-video` joined `CACHE_BASES`), so a fresh article still appears immediately; outside that,
+  staleness is bounded by the cache TTL.
+- **`SEO_SITEMAP_MAX_DOCS` now counts every document read, not only those emitted.** On a corpus
+  where drafts or `noindex` pages outnumber publishable ones, **the news / image / video sitemaps may
+  contain fewer URLs than before** — the cap is reached while scanning past the filtered documents.
+  Raise the variable if entries disappear from what Search Console has already discovered.
+- **`POST /seo-logs` stops creating rows at `SEO_LOGS_MAX_ROWS`** (default 5000). Past the ceiling it
+  answers `200` with `{ success: false, action: 'capped' }` and logs a warning once, while hits on
+  URLs already recorded keep incrementing their counter — the 404 report the panel exists for goes on
+  working. Clear the panel or raise the variable.
+- **CSV cells beginning with `=`, `+`, `-`, `@`, a tab or a carriage return are prefixed with a single
+  quote** in every dashboard export. Plain numbers — including negative metrics such as a position
+  delta — are left numeric and unchanged. A downstream parser reading these files will see the extra
+  leading quote on those cells only.
+- Rate-limit buckets for `/ai-rewrite`, `/ai-optimize` and `POST /seo-logs` are built by one shared
+  helper (`rateLimiter.ts::rateLimitKey`) rather than each path keying its own way, so no path can
+  drift back to an IP-only bucket. In-memory counters reset on restart — no action needed.
+
+### Added
+
+- **`SEO_LOGS_MAX_ROWS`** (default `5000`) — ceiling on the rows `POST /seo-logs` may create.
+- `helpers/csv.ts` (`csvCell`, `toCsv`) — the single CSV serializer used by every dashboard export,
+  and `helpers/viewAccess.ts` (`seoViewRedirectTarget`) — the view access gate, kept free of
+  `next/navigation` so it is unit-testable on its own. Both are internal; the package's public
+  exports are unchanged.
+- Non-regression tests for every finding above (`SEO-12` to `SEO-16` in
+  `src/__tests__/securityRegressions.test.ts`, plus `src/__tests__/csv.test.ts`), including two that
+  fail the build on a regression of shape rather than of behaviour: one asserts that no view keeps a
+  bare `req.user` check, the other that no component builds a CSV cell by hand. The suite goes from
+  **593 to 621 tests**.
+- `docs/THREAT-MODEL.md` documents the custom-view exemption, the presence-not-shape rule behind the
+  RBAC fallback and the CSV export policy; the README's environment, endpoint and collection tables
+  record `SEO_LOGS_MAX_ROWS`, the new `POST /seo-logs` gate and the corrected `seo-logs` write
+  column.
+
 ## [3.0.0] - 2026-09-08
 
 **Security release.** Every version published so far, 2.0.0 included, carries the holes closed
@@ -938,6 +1120,7 @@ Four premium-tier features that close the gaps vs Yoast Premium / RankMath Pro.
 - Content freshness tracking
 - Uninstall script (`npx seo-analyzer-uninstall`)
 
+[4.0.0]: https://github.com/pOwn3d/payload-seo-analyzer/compare/v3.0.0...v4.0.0
 [1.7.0]: https://github.com/pOwn3d/payload-seo-analyzer/compare/v1.4.4...v1.7.0
 [1.4.4]: https://github.com/pOwn3d/payload-seo-analyzer/compare/v1.4.2...v1.4.4
 [1.4.2]: https://github.com/pOwn3d/payload-seo-analyzer/compare/v1.4.1...v1.4.2
