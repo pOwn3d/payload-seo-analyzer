@@ -19,6 +19,8 @@ import {
 import { seoCache } from '../cache.js'
 import { loadMergedConfig } from '../helpers/loadMergedConfig.js'
 import { extractDocContent } from '../helpers/extractDocContent.js'
+import { isSeoAdminRequest, isSeoPanelUser } from '../helpers/isAdmin.js'
+import { safeCacheLocale } from '../helpers/safeCacheLocale.js'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function analyzeDoc(doc: any, collection: string, seoConfig?: SeoConfig) {
@@ -124,6 +126,21 @@ type CachedAudit = { enrichedResults: EnrichedResult[]; stats: AuditStats; cappe
  * Keyed by locale so a multi-locale site builds (and serves) one audit per locale.
  */
 const auditBuildsInFlight = new Set<string>()
+
+/**
+ * Last completed full build per cache key. Backs the manual-refresh throttle:
+ * the single-flight guard above only bounds CONCURRENT builds, so a loop of
+ * `?nocache=1` (one every time the previous build finishes) kept the site-wide
+ * rebuild running permanently — the exact load that OOM-kills constrained hosts.
+ */
+const lastAuditBuildAt = new Map<string, number>()
+
+/** Minimum delay between two manual (nocache=1) full rebuilds, per locale key. */
+function minRefreshIntervalMs(): number {
+  const raw = process.env.SEO_AUDIT_MIN_REFRESH_MS
+  const parsed = raw != null ? Number(raw) : NaN
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 5 * 60_000
+}
 
 /**
  * Build the full site-wide audit cache. Intended to run in the BACKGROUND (not awaited by
@@ -341,6 +358,7 @@ function ensureAuditBuild(
     })
     .finally(() => {
       auditBuildsInFlight.delete(cacheKey)
+      lastAuditBuildAt.set(cacheKey, Date.now())
     })
 }
 
@@ -438,7 +456,7 @@ export function createAuditHandler(
 ): PayloadHandler {
   return async (req) => {
     try {
-      if (!req.user) {
+      if (!isSeoPanelUser(req)) {
         return Response.json({ error: 'Unauthorized' }, { status: 401 })
       }
 
@@ -449,13 +467,34 @@ export function createAuditHandler(
       const noCache = url.searchParams.get('nocache') === '1'
 
       // Scope the cache + single-flight by locale (multi-locale sites get one audit per locale).
-      const reqLocale = typeof req.locale === 'string' && req.locale ? req.locale : undefined
+      // The locale MUST come from safeCacheLocale(): `req.locale` is the raw `?locale=`
+      // query string on a site without a `localization` block, so keying on it directly
+      // gave the caller an unbounded key space — every value a guaranteed cache miss,
+      // hence a fresh site-wide build past both the admin gate and the refresh throttle.
+      const reqLocale = safeCacheLocale(req)
       const cacheKey = reqLocale ? `${CACHE_KEY}:${reqLocale}` : CACHE_KEY
 
       // Manual refresh — drop the stale cache so the next poll waits for the fresh build.
       // (Skip if a build is already running: it will repopulate the cache shortly anyway.)
+      //
+      // Gated twice, because forcing a site-wide rebuild is the most expensive thing any
+      // caller can ask of this plugin:
+      //  - only an SEO admin may trigger it (the legitimate caller is the dashboard's
+      //    "refresh" button), not merely an authenticated panel user;
+      //  - and never more than once per `minRefreshIntervalMs()` per locale, so a loop of
+      //    `?nocache=1` cannot keep the rebuild running back-to-back.
+      // A refused refresh is NOT an error: the caller gets the cached audit with
+      // `refreshThrottled: true` so the UI can say "showing cached results".
+      let refreshThrottled = false
       if (noCache && !auditBuildsInFlight.has(cacheKey)) {
-        seoCache.invalidateKey(cacheKey)
+        const last = lastAuditBuildAt.get(cacheKey) ?? 0
+        if (!isSeoAdminRequest(req)) {
+          refreshThrottled = true
+        } else if (Date.now() - last < minRefreshIntervalMs()) {
+          refreshThrottled = true
+        } else {
+          seoCache.invalidateKey(cacheKey)
+        }
       }
 
       let cached = seoCache.get<CachedAudit>(cacheKey)
@@ -512,6 +551,7 @@ export function createAuditHandler(
       return Response.json({
         results: paginatedResults,
         stats,
+        ...(refreshThrottled ? { refreshThrottled: true } : {}),
         pagination: {
           page,
           limit,

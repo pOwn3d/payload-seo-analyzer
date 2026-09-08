@@ -10,6 +10,7 @@
  */
 
 import type { CollectionConfig } from 'payload'
+import { isSeoAdminRequest, isSeoPanelUser } from '../helpers/isAdmin.js'
 
 export function createSeoScoreHistoryCollection(): CollectionConfig {
   return {
@@ -18,10 +19,13 @@ export function createSeoScoreHistoryCollection(): CollectionConfig {
       custom: { navHidden: true },
     },
     access: {
-      read: ({ req }) => !!req.user,
-      create: ({ req }) => !!req.user,
-      update: ({ req }) => req.user?.role === 'admin',
-      delete: ({ req }) => req.user?.role === 'admin',
+      // See SeoPerformance: `!!req.user` also accepted sessions from other auth
+      // collections. Snapshots feed the alert digest, so forging them is not benign.
+      // The trackSeoScore hook writes with overrideAccess: true — unaffected.
+      read: ({ req }) => isSeoPanelUser(req),
+      create: ({ req }) => isSeoAdminRequest(req),
+      update: ({ req }) => isSeoPanelUser(req) && req.user?.role === 'admin',
+      delete: ({ req }) => isSeoPanelUser(req) && req.user?.role === 'admin',
     },
     timestamps: false,
     fields: [

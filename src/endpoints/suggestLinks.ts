@@ -16,6 +16,8 @@ import {
 import { parseJsonBody } from '../helpers/parseBody.js'
 import { fetchAllDocs } from '../helpers/fetchAllDocs.js'
 import { seoCache } from '../cache.js'
+import { isSeoPanelUser } from '../helpers/isAdmin.js'
+import { safeCacheLocale } from '../helpers/safeCacheLocale.js'
 
 interface LinkSuggestion {
   title: string
@@ -45,7 +47,7 @@ export const SUGGEST_LINKS_CACHE_BASE = 'suggest-links-index'
 export function createSuggestLinksHandler(collections: string[], globals: string[] = []): PayloadHandler {
   return async (req) => {
     try {
-      if (!req.user) {
+      if (!isSeoPanelUser(req)) {
         return Response.json({ error: 'Unauthorized' }, { status: 401 })
       }
 
@@ -66,7 +68,7 @@ export function createSuggestLinksHandler(collections: string[], globals: string
       const normalizedContent = normalizeForComparison(content)
       const suggestions: LinkSuggestion[] = []
 
-      const reqLocale = typeof req.locale === 'string' && req.locale ? req.locale : undefined
+      const reqLocale = safeCacheLocale(req)
       const cacheKey = reqLocale
         ? `${SUGGEST_LINKS_CACHE_BASE}:${reqLocale}`
         : SUGGEST_LINKS_CACHE_BASE

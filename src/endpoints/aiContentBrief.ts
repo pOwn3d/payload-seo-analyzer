@@ -16,6 +16,7 @@ import type { SeoConfig } from '../types.js'
 import { parseJsonBody } from '../helpers/parseBody.js'
 import { fetchWithRetry } from '../helpers/fetchWithRetry.js'
 import { extractDocContent } from '../helpers/extractDocContent.js'
+import { isSeoPanelUser } from '../helpers/isAdmin.js'
 
 // Default to Sonnet (quality/cost balance); set SEO_AI_MODEL=claude-opus-4-8 for max quality.
 const DEFAULT_MODEL = 'claude-sonnet-4-6'
@@ -130,17 +131,29 @@ Return the JSON brief now:`
   return parseBrief(text)
 }
 
+/** Upper bound on the free-text `keyword` forwarded to the model. */
+export const MAX_KEYWORD_LENGTH = 120
+
 export function createAiContentBriefHandler(
   targetCollections?: string[],
   seoConfig?: SeoConfig,
 ): PayloadHandler {
   return async (req) => {
     try {
-      if (!req.user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+      if (!isSeoPanelUser(req)) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
       const body = await parseJsonBody(req)
       const keyword = typeof body.keyword === 'string' ? body.keyword.trim() : ''
       if (!keyword) return Response.json({ error: 'Missing required field: keyword' }, { status: 400 })
+      // `keyword` is concatenated into the prompt sent to the paid model. Unbounded,
+      // it turns this endpoint into a metered LLM relay billed to the site owner
+      // (and a prompt-injection surface). A real SEO keyword is a handful of words.
+      if (keyword.length > MAX_KEYWORD_LENGTH) {
+        return Response.json(
+          { error: `Keyword too long (max ${MAX_KEYWORD_LENGTH} characters)` },
+          { status: 400 },
+        )
+      }
 
       const apiKey = process.env.ANTHROPIC_API_KEY
       if (!apiKey) {

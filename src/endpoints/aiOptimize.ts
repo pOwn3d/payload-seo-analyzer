@@ -38,6 +38,7 @@ import {
   generateMetaDescription as heuristicDescription,
 } from '../helpers/metaGeneration.js'
 import type { SeoConfig } from '../types.js'
+import { isSeoPanelUser } from '../helpers/isAdmin.js'
 
 // Default to Sonnet (quality/cost balance); set SEO_AI_MODEL=claude-opus-4-8 for max quality.
 const DEFAULT_MODEL = 'claude-sonnet-4-6'
@@ -313,7 +314,7 @@ export function createAiOptimizeHandler(
 ): PayloadHandler {
   return async (req) => {
     try {
-      if (!req.user) {
+      if (!isSeoPanelUser(req)) {
         return Response.json({ error: 'Unauthorized' }, { status: 401 })
       }
 

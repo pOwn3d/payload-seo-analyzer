@@ -8,6 +8,32 @@ import type { PayloadHandler } from 'payload'
 import type { SeoConfig } from '../types.js'
 import { buildDocPath } from '../helpers/docUrl.js'
 import { fetchAllDocs } from '../helpers/fetchAllDocs.js'
+import { seoCache } from '../cache.js'
+
+/**
+ * Cache key base for the rendered XML. Scoped by the collections the handler was
+ * built with (never by anything the caller sends): the document is identical for
+ * every anonymous visitor, so a shared entry leaks nothing and is no oracle.
+ * Cleared by the same afterChange invalidation as the other caches — see
+ * CACHE_BASES in hooks/trackSeoScore.ts.
+ */
+export const SITEMAP_XML_CACHE_BASE = 'sitemap-xml'
+
+/**
+ * Memory cap for the public sitemap build.
+ *
+ * This handler used to pass a hard-coded `limit: 10000` to fetchAllDocs, which
+ * takes precedence over SEO_FETCH_MAX_DOCS: an operator lowering that variable to
+ * survive on a constrained host still loaded 10 000 documents on every ANONYMOUS
+ * request. The cap now comes from the environment, like every other site-wide read,
+ * and reuses the SEO_SITEMAP_MAX_DOCS name already honoured by the news/image/video
+ * sitemaps so the two public paths share one knob.
+ */
+function sitemapMaxDocs(): number {
+  const raw = process.env.SEO_SITEMAP_MAX_DOCS ?? process.env.SEO_FETCH_MAX_DOCS
+  const parsed = raw != null ? parseInt(raw, 10) : NaN
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 5000
+}
 
 /** Escape special XML characters */
 function escapeXml(str: string): string {
@@ -43,8 +69,26 @@ export function createSitemapHandler(
   targetCollections: string[],
   seoConfig?: SeoConfig,
 ): PayloadHandler {
+  const cacheKey = `${SITEMAP_XML_CACHE_BASE}:${targetCollections.join(',')}`
+
+  const xmlResponse = (xml: string) =>
+    new Response(xml, {
+      headers: {
+        'Content-Type': 'application/xml',
+        'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+      },
+    })
+
   return async (req) => {
     try {
+      // Serve the rendered XML when it is still warm. Without this, every anonymous
+      // hit re-scanned the whole corpus — the most expensive request in the plugin,
+      // on its only unauthenticated (and deliberately un-rate-limited) endpoint.
+      // Staleness stays bounded by the cache TTL, which is well under the one-hour
+      // Cache-Control this endpoint has always advertised.
+      const cachedXml = seoCache.get<string>(cacheKey)
+      if (typeof cachedXml === 'string') return xmlResponse(cachedXml)
+
       const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || ''
 
       // Read sitemap config from seo-settings
@@ -72,7 +116,7 @@ export function createSitemapHandler(
       const allDocs = await fetchAllDocs(req.payload, {
         collections: targetCollections,
         depth: 0,
-        limit: 10000,
+        maxDocs: sitemapMaxDocs(),
       })
 
       const urls: SitemapUrl[] = []
@@ -80,6 +124,11 @@ export function createSitemapHandler(
       for (const { doc, sourceSlug: collectionSlug } of allDocs) {
         // Skip drafts
         if (doc._status === 'draft') continue
+        // Skip documents the editor explicitly removed from indexing. sitemap.xml is a
+        // PUBLIC, anonymous endpoint built with overrideAccess: true — without this filter
+        // it published the URLs of noindex pages (post-purchase thank-you, private pricing,
+        // test landing pages) and contradicted /llms.txt, which already honours the flag.
+        if (doc.noindex === true || doc?.meta?.noindex === true) continue
 
         const slug: string = doc.slug || ''
 
@@ -142,12 +191,8 @@ export function createSitemapHandler(
       }
       xml += '</urlset>'
 
-      return new Response(xml, {
-        headers: {
-          'Content-Type': 'application/xml',
-          'Cache-Control': 'public, max-age=3600, s-maxage=3600',
-        },
-      })
+      seoCache.set(cacheKey, xml)
+      return xmlResponse(xml)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Internal server error'
       req.payload.logger.error(`[seo] sitemap.xml generation error: ${message}`)

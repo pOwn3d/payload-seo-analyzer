@@ -12,17 +12,20 @@
 import type { PayloadHandler } from 'payload'
 import { seoCache } from '../cache.js'
 import { parseJsonBody } from '../helpers/parseBody.js'
-import { validateRedirectTarget, normalizeFromPath } from '../helpers/redirectSafety.js'
+import { validateRedirectDestination, normalizeFromPath } from '../helpers/redirectSafety.js'
 
-import { isSeoAdmin as isAdmin } from '../helpers/isAdmin.js'
+import { isSeoAdminRequest as isAdmin, isSeoPanelUser } from '../helpers/isAdmin.js'
 
-export function createRedirectHandler(redirectsCollection: string): PayloadHandler {
+export function createRedirectHandler(
+  redirectsCollection: string,
+  allowExternalRedirects = false,
+): PayloadHandler {
   return async (req) => {
-    if (!req.user) {
+    if (!isSeoPanelUser(req)) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    if (!isAdmin(req.user)) {
+    if (!isAdmin(req)) {
       return Response.json({ error: 'Admin access required' }, { status: 403 })
     }
 
@@ -51,7 +54,7 @@ export function createRedirectHandler(redirectsCollection: string): PayloadHandl
               errors.push({ from: r.from, to: r.to, error: 'Invalid source path' })
               continue
             }
-            const toResult = validateRedirectTarget(r.to)
+            const toResult = validateRedirectDestination(r.to, allowExternalRedirects)
             if (!toResult.valid || !toResult.normalized) {
               errors.push({ from: r.from, to: r.to, error: toResult.reason || 'Invalid destination' })
               continue
@@ -113,7 +116,7 @@ export function createRedirectHandler(redirectsCollection: string): PayloadHandl
       if (!fromPath) {
         return Response.json({ error: 'Invalid source path' }, { status: 400 })
       }
-      const toResult = validateRedirectTarget(to)
+      const toResult = validateRedirectDestination(to, allowExternalRedirects)
       if (!toResult.valid || !toResult.normalized) {
         return Response.json({ error: toResult.reason || 'Invalid destination' }, { status: 400 })
       }

@@ -17,6 +17,7 @@
 import type { PayloadHandler } from 'payload'
 import type { SeoConfig } from '../types.js'
 import { seoCache } from '../cache.js'
+import { isSeoAdminRequest, isSeoPanelUser } from '../helpers/isAdmin.js'
 
 // Google's official Core Web Vitals thresholds (good / needs-improvement boundaries).
 const CWV_THRESHOLDS = {
@@ -46,7 +47,7 @@ function resolveSiteUrl(seoConfig?: SeoConfig): string | undefined {
 export function createCoreWebVitalsHandler(seoConfig?: SeoConfig): PayloadHandler {
   return async (req) => {
     try {
-      if (!req.user) {
+      if (!isSeoPanelUser(req)) {
         return Response.json({ error: 'Unauthorized' }, { status: 401 })
       }
 
@@ -83,7 +84,10 @@ export function createCoreWebVitalsHandler(seoConfig?: SeoConfig): PayloadHandle
 
       // Cache by url+strategy — CrUX field data changes slowly and the PSI quota is
       // strict (repeated panel opens would otherwise hammer the API → 429).
-      const noCache = reqUrl.searchParams.get('nocache') === '1'
+      // Cache-busting forces the full site-wide recomputation this endpoint caches,
+      // so it is reserved to SEO admins — the same gate as /audit?nocache=1. A panel
+      // user without the role silently gets the cached result instead of a 403.
+      const noCache = reqUrl.searchParams.get('nocache') === '1' && isSeoAdminRequest(req)
       const CACHE_KEY = `cwv:${strategy}:${target}`
       const cachedCwv = noCache ? null : seoCache.get<Record<string, unknown>>(CACHE_KEY)
       if (cachedCwv) {

@@ -91,6 +91,9 @@ async function eachPublishedDoc(
         const res = await payload.find({ collection, limit: BATCH, page, depth, overrideAccess: true })
         for (const doc of res.docs as Record<string, unknown>[]) {
           if (doc._status === 'draft') continue
+          // Same noindex filter as sitemap.xml / llms.txt: news, image and video
+          // sitemaps are public too.
+          if (doc.noindex === true || (doc.meta as Record<string, unknown> | undefined)?.noindex === true) continue
           if (count >= MAX) return
           onDoc(doc, collection)
           count++

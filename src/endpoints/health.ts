@@ -13,12 +13,12 @@ import type { SeoConfig } from '../types.js'
 import { seoCache } from '../cache.js'
 import { getGscOAuthConfig, getOrCreateGscAuthDoc } from '../helpers/gscClient.js'
 
-import { isSeoAdmin as isAdmin } from '../helpers/isAdmin.js'
+import { isSeoAdminRequest as isAdmin } from '../helpers/isAdmin.js'
 
 export function createSeoHealthHandler(basePath: string, seoConfig?: SeoConfig): PayloadHandler {
   return async (req) => {
     try {
-      if (!isAdmin(req.user)) return Response.json({ error: 'Forbidden' }, { status: 403 })
+      if (!isAdmin(req)) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
       // --- Env configuration (booleans only, never the values) ---
       const config = {

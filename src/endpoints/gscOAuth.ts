@@ -27,13 +27,14 @@ import { escapeHtml } from '../helpers/escapeHtml.js'
 import {
   GSC_AUTH_COLLECTION as AUTH_COLLECTION,
   GSC_SCOPES as SCOPES,
-  isGscAdmin as isAdmin,
+  isGscAdminRequest as isAdmin,
   getGscOAuthConfig as getOAuthConfig,
   getOrCreateGscAuthDoc as getOrCreateAuthDoc,
   gscTokenRequest as tokenRequest,
   getGscAccessToken,
   queryGscSearchAnalytics,
 } from '../helpers/gscClient.js'
+import { isSeoPanelUser } from '../helpers/isAdmin.js'
 
 // ---------------------------------------------------------------------------
 // GET /gsc/status
@@ -41,7 +42,7 @@ import {
 export function createGscStatusHandler(basePath: string, seoConfig?: SeoConfig): PayloadHandler {
   return async (req) => {
     try {
-      if (!req.user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+      if (!isSeoPanelUser(req)) return Response.json({ error: 'Unauthorized' }, { status: 401 })
       const cfg = getOAuthConfig(basePath, seoConfig)
       const doc = await getOrCreateAuthDoc(req.payload)
       return Response.json(
@@ -69,7 +70,7 @@ export function createGscStatusHandler(basePath: string, seoConfig?: SeoConfig):
 export function createGscAuthStartHandler(basePath: string, seoConfig?: SeoConfig): PayloadHandler {
   return async (req) => {
     try {
-      if (!isAdmin(req.user)) return Response.json({ error: 'Forbidden' }, { status: 403 })
+      if (!isAdmin(req)) return Response.json({ error: 'Forbidden' }, { status: 403 })
       const cfg = getOAuthConfig(basePath, seoConfig)
       if (!cfg) {
         return Response.json(
@@ -131,7 +132,7 @@ export function createGscCallbackHandler(basePath: string, seoConfig?: SeoConfig
       )
     try {
       // The callback is hit by a browser redirect; require an authenticated admin session.
-      if (!isAdmin(req.user)) {
+      if (!isAdmin(req)) {
         return htmlPage('Connection failed', 'You must be signed in as an admin to connect Google Search Console.')
       }
       const cfg = getOAuthConfig(basePath, seoConfig)
@@ -208,7 +209,7 @@ export function createGscCallbackHandler(basePath: string, seoConfig?: SeoConfig
 export function createGscDataHandler(basePath: string, seoConfig?: SeoConfig): PayloadHandler {
   return async (req) => {
     try {
-      if (!isAdmin(req.user)) return Response.json({ error: 'Forbidden' }, { status: 403 })
+      if (!isAdmin(req)) return Response.json({ error: 'Forbidden' }, { status: 403 })
       const cfg = getOAuthConfig(basePath, seoConfig)
       if (!cfg) return Response.json({ error: 'GSC OAuth not configured.' }, { status: 400 })
 
@@ -271,7 +272,7 @@ export function createGscDataHandler(basePath: string, seoConfig?: SeoConfig): P
 export function createGscDisconnectHandler(): PayloadHandler {
   return async (req) => {
     try {
-      if (!isAdmin(req.user)) return Response.json({ error: 'Forbidden' }, { status: 403 })
+      if (!isAdmin(req)) return Response.json({ error: 'Forbidden' }, { status: 403 })
       const doc = await getOrCreateAuthDoc(req.payload)
       await req.payload.update({
         collection: AUTH_COLLECTION,

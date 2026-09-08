@@ -14,7 +14,7 @@ import type { SeoConfig } from '../types.js'
 import { resolveGscSiteUrl } from '../helpers/gscClient.js'
 import { buildDocUrl, type CollectionRoutes } from '../helpers/docUrl.js'
 
-import { isSeoAdmin as isAdmin } from '../helpers/isAdmin.js'
+import { isSeoAdminRequest as isAdmin } from '../helpers/isAdmin.js'
 
 /**
  * Build a public URL for a doc from its slug.
@@ -85,7 +85,7 @@ export function createIndexNowSubmitHandler(
 ): PayloadHandler {
   return async (req) => {
     try {
-      if (!isAdmin(req.user)) return Response.json({ error: 'Forbidden' }, { status: 403 })
+      if (!isAdmin(req)) return Response.json({ error: 'Forbidden' }, { status: 403 })
       const key = process.env.SEO_INDEXNOW_KEY
       const siteUrl = resolveGscSiteUrl(seoConfig)
       if (!key) return Response.json({ error: 'SEO_INDEXNOW_KEY not configured.' }, { status: 400 })

@@ -10,10 +10,12 @@
  */
 
 import type { PayloadHandler } from 'payload'
-import { promises as dns } from 'dns'
+import { isUrlBlocked } from '../helpers/ssrfGuard.js'
 import { seoCache } from '../cache.js'
 import { fetchAllDocs } from '../helpers/fetchAllDocs.js'
 import { parseJsonBody } from '../helpers/parseBody.js'
+import { isSeoAdminRequest, isSeoPanelUser } from '../helpers/isAdmin.js'
+import { safeCacheLocale } from '../helpers/safeCacheLocale.js'
 
 // ---------------------------------------------------------------------------
 // In-memory cache with 1-hour TTL
@@ -141,62 +143,8 @@ function extractDocExternalLinks(
 
 // ---------------------------------------------------------------------------
 // SSRF protection: block requests to private/internal IP ranges
+// (implementation lives in helpers/ssrfGuard.ts — shared + unit-tested)
 // ---------------------------------------------------------------------------
-
-/** Check if a resolved IP address is in a private/reserved range */
-function isPrivateIP(ip: string): boolean {
-  // Localhost variants
-  if (ip === '127.0.0.1' || ip === '::1' || ip === '0.0.0.0') return true
-
-  // Private IPv4 ranges: 10.x.x.x, 172.16-31.x.x, 192.168.x.x, 169.254.x.x
-  const ipv4Match = ip.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)
-  if (ipv4Match) {
-    const [, a, b] = ipv4Match.map(Number)
-    if (a === 10) return true                              // 10.0.0.0/8
-    if (a === 172 && b >= 16 && b <= 31) return true       // 172.16.0.0/12
-    if (a === 192 && b === 168) return true                 // 192.168.0.0/16
-    if (a === 169 && b === 254) return true                 // 169.254.0.0/16 (link-local)
-    if (a === 0) return true                                // 0.0.0.0/8
-    if (a === 127) return true                              // 127.0.0.0/8
-  }
-
-  // IPv6 private ranges (simplified)
-  const ipv6 = ip.toLowerCase()
-  if (ipv6.startsWith('fc') || ipv6.startsWith('fd')) return true  // Unique local
-  if (ipv6.startsWith('fe80')) return true                          // Link-local
-  if (ipv6 === '::1' || ipv6 === '::') return true                // Loopback / unspecified
-
-  return false
-}
-
-/** Hostname-level checks (localhost aliases, raw IP literals) */
-function isPrivateUrl(urlString: string): boolean {
-  try {
-    const parsed = new URL(urlString)
-    const hostname = parsed.hostname
-
-    // Block localhost variants
-    if (hostname === 'localhost') return true
-
-    // Check raw IP in hostname (strip brackets for IPv6)
-    const rawIp = hostname.startsWith('[') ? hostname.slice(1, -1) : hostname
-    return isPrivateIP(rawIp)
-  } catch {
-    // If URL parsing fails, block the request as a precaution
-    return true
-  }
-}
-
-/** Resolve hostname via DNS and check if the resolved IP is private (DNS rebinding protection) */
-async function resolveAndCheckPrivate(hostname: string): Promise<boolean> {
-  try {
-    const { address } = await dns.lookup(hostname)
-    return isPrivateIP(address)
-  } catch {
-    // DNS resolution failed — treat as private (block)
-    return true
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Concurrency pool — runs async tasks with a max concurrency limit
@@ -229,21 +177,6 @@ async function asyncPool<T, R>(
 // ---------------------------------------------------------------------------
 // Check a single URL via HEAD request with 5s AbortController timeout
 // ---------------------------------------------------------------------------
-
-/** Returns true if the URL targets a private/internal address (hostname or resolved IP). */
-async function isUrlBlocked(url: string): Promise<boolean> {
-  // Hostname-based SSRF check.
-  if (isPrivateUrl(url)) return true
-  // DNS rebinding protection: resolve hostname and verify the IP is not private.
-  try {
-    const parsed = new URL(url)
-    const hostname = parsed.hostname.startsWith('[') ? parsed.hostname.slice(1, -1) : parsed.hostname
-    if (await resolveAndCheckPrivate(hostname)) return true
-  } catch {
-    return true
-  }
-  return false
-}
 
 async function checkUrl(url: string): Promise<CachedResult> {
   // SSRF protection on the initial URL.
@@ -327,14 +260,17 @@ async function checkUrl(url: string): Promise<CachedResult> {
 export function createExternalLinksHandler(collections: string[], globals: string[] = []): PayloadHandler {
   return async (req) => {
     try {
-      if (!req.user) {
+      if (!isSeoPanelUser(req)) {
         return Response.json({ error: 'Unauthorized' }, { status: 401 })
       }
 
       const url = new URL(req.url as string)
-      const noCache = url.searchParams.get('nocache') === '1'
+      // Cache-busting forces the full site-wide recomputation this endpoint caches,
+      // so it is reserved to SEO admins — the same gate as /audit?nocache=1. A panel
+      // user without the role silently gets the cached result instead of a 403.
+      const noCache = url.searchParams.get('nocache') === '1' && isSeoAdminRequest(req)
       // Locale-scoped: content differs per locale, so cache must not collide across locales.
-      const reqLocale = typeof req.locale === 'string' && req.locale ? req.locale : undefined
+      const reqLocale = safeCacheLocale(req)
       const CACHE_KEY = reqLocale ? `external-links:${reqLocale}` : 'external-links'
       const cached = noCache ? null : seoCache.get<any>(CACHE_KEY)
       if (cached) {

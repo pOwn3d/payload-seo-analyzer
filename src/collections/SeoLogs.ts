@@ -5,6 +5,7 @@
  */
 
 import type { CollectionConfig } from 'payload'
+import { isSeoAdminRequest, isSeoPanelUser } from '../helpers/isAdmin.js'
 
 export function createSeoLogsCollection(): CollectionConfig {
   return {
@@ -18,12 +19,16 @@ export function createSeoLogsCollection(): CollectionConfig {
       group: 'SEO',
     },
     access: {
-      read: ({ req }) => !!req.user,
-      // Require authentication for creating log entries.
-      // Use overrideAccess: true in the seoLogs endpoint handler for middleware-driven inserts.
-      create: ({ req }) => !!req.user,
-      update: ({ req }) => !!req.user,
-      delete: ({ req }) => !!req.user,
+      // `read` stays open to any admin-panel user (the SEO views surface 404 logs
+      // to editors); writes are SEO-admin only. `!!req.user` was not enough: a
+      // session on ANOTHER auth collection (front-office customers, members…)
+      // satisfies it, and these rows carry visitor referrers / user-agents.
+      // Middleware-driven inserts go through the seoLogs endpoint, which writes
+      // with overrideAccess: true — they are unaffected by this gate.
+      read: ({ req }) => isSeoPanelUser(req),
+      create: ({ req }) => isSeoAdminRequest(req),
+      update: ({ req }) => isSeoAdminRequest(req),
+      delete: ({ req }) => isSeoAdminRequest(req),
     },
     fields: [
       {

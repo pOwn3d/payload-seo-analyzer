@@ -1,0 +1,27 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    # Peer ranges are the package's public contract: widening or narrowing them
+    # is a semver decision, never an automated bump.
+    ignore:
+      - dependency-name: payload
+        update-types: [version-update:semver-major]
+      - dependency-name: react
+        update-types: [version-update:semver-major]
+      - dependency-name: react-dom
+        update-types: [version-update:semver-major]
+      - dependency-name: next
+        update-types: [version-update:semver-major]
+    groups:
+      payload:
+        patterns: ['payload', '@payloadcms/*']
+      dev-tooling:
+        patterns: ['tsup', 'vitest', 'typescript', '@types/*']
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

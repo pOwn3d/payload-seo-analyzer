@@ -5,7 +5,7 @@
  */
 
 import type { CollectionBeforeChangeHook } from 'payload'
-import { validateRedirectTarget, normalizeFromPath } from '../helpers/redirectSafety.js'
+import { normalizeFromPath } from '../helpers/redirectSafety.js'
 
 export function createAutoRedirectHook(redirectsCollection: string): CollectionBeforeChangeHook {
   return async ({ data, originalDoc, req, operation }) => {
@@ -19,10 +19,13 @@ export function createAutoRedirectHook(redirectsCollection: string): CollectionB
     if (oldSlug && newSlug && oldSlug !== newSlug) {
       try {
         // Check if an identical redirect already exists (avoid duplicates)
+        // BOTH sides are document slugs, so both go through normalizeFromPath:
+        // validateRedirectTarget() accepts absolute http(s) URLs, which turned a
+        // slug typed as `https://evil.example` into a permanent 301 off-site.
+        // A slug is never a destination on another origin.
         const fromPath = normalizeFromPath(oldSlug)
-        const toResult = validateRedirectTarget(newSlug)
-        if (!fromPath || !toResult.valid || !toResult.normalized) return data
-        const toPath = toResult.normalized
+        const toPath = normalizeFromPath(newSlug)
+        if (!fromPath || !toPath) return data
 
         const existing = await req.payload.find({
           collection: redirectsCollection,

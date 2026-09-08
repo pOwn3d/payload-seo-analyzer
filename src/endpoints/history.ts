@@ -16,6 +16,7 @@
  */
 
 import type { PayloadHandler } from 'payload'
+import { isSeoPanelUser } from '../helpers/isAdmin.js'
 
 /** Trend threshold — delta must exceed this to be considered improving/declining */
 const TREND_THRESHOLD = 3
@@ -23,7 +24,7 @@ const TREND_THRESHOLD = 3
 export function createHistoryHandler(): PayloadHandler {
   return async (req) => {
     try {
-      if (!req.user) {
+      if (!isSeoPanelUser(req)) {
         return Response.json({ error: 'Unauthorized' }, { status: 401 })
       }
 

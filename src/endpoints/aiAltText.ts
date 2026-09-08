@@ -31,7 +31,7 @@ const SUPPORTED_MIME: Record<string, string> = {
   'image/webp': 'image/webp',
 }
 
-import { isSeoAdmin as isAdmin } from '../helpers/isAdmin.js'
+import { isSeoAdminRequest as isAdmin } from '../helpers/isAdmin.js'
 
 /** Resolve an absolute, SSRF-checked image URL from a media doc. Returns null if not allowed. */
 function resolveImageUrl(media: Record<string, unknown>, siteUrl: string | undefined): string | null {
@@ -122,7 +122,7 @@ Rules:
 export function createAltTextAuditHandler(uploadsCollection: string): PayloadHandler {
   return async (req) => {
     try {
-      if (!isAdmin(req.user)) return Response.json({ error: 'Forbidden' }, { status: 403 })
+      if (!isAdmin(req)) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
       const url = new URL(req.url as string)
       const limit = Math.min(200, Math.max(1, parseInt(url.searchParams.get('limit') || '50', 10)))
@@ -167,7 +167,7 @@ export function createAltTextAuditHandler(uploadsCollection: string): PayloadHan
 export function createAiAltTextHandler(uploadsCollection: string, seoConfig?: SeoConfig): PayloadHandler {
   return async (req) => {
     try {
-      if (!isAdmin(req.user)) return Response.json({ error: 'Forbidden' }, { status: 403 })
+      if (!isAdmin(req)) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
       const body = await parseJsonBody(req)
       // The target collection is NOT taken from the body: `findByID` and

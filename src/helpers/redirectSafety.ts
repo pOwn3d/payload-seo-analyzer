@@ -97,3 +97,73 @@ export function normalizeFromPath(raw: unknown): string | null {
   if (path.startsWith('//')) return null
   return path
 }
+
+/**
+ * Apply the host's external-destination policy on top of `validateRedirectTarget`.
+ *
+ * `validateRedirectTarget` flags absolute http(s) destinations as `external` so
+ * "callers can gate them if needed" — but no caller ever read the flag, so every
+ * redirect writer was an unconditional site-hijack primitive (`/` → attacker
+ * origin, served as a 301 with the site's own authority). This is that gate.
+ *
+ * @param raw - the user-supplied `to` value
+ * @param allowExternal - host opt-in (`allowExternalRedirects` plugin option)
+ */
+export const EXTERNAL_DISABLED_REASON =
+  'External destinations are disabled. Set the plugin option `allowExternalRedirects: true` to allow absolute http(s) redirect targets.'
+
+export function validateRedirectDestination(
+  raw: unknown,
+  allowExternal: boolean,
+): RedirectTargetResult {
+  const result = validateRedirectTarget(raw)
+  if (!result.valid) return result
+  if (result.external && !allowExternal) {
+    return { valid: false, reason: EXTERNAL_DISABLED_REASON }
+  }
+  return result
+}
+
+/**
+ * Same policy, but aware of what is ALREADY stored on the document.
+ *
+ * Payload revalidates the whole merged document on every write, including a
+ * partial update that does not touch `to` at all. Refusing an external value
+ * unconditionally therefore froze every redirect stored back when external
+ * destinations were allowed: you could no longer flip its 301/302 type, fix its
+ * source path, or edit it at all without rewriting the destination first. The
+ * gate must only refuse a destination that actually CHANGES.
+ *
+ * @param raw - the submitted `to` value
+ * @param allowExternal - host opt-in (`allowExternalRedirects` plugin option)
+ * @param context - what the caller knows about the previous state of the field.
+ *   `previousValue` is supplied by Payload on every server-side update (field
+ *   `validate` receives `siblingDoc[field.name]`); it is absent only in the admin
+ *   UI's client-side `onChange` pass, which is cosmetic — the authoritative
+ *   server pass (`event: 'submit'`) always carries it.
+ */
+export function validateRedirectDestinationChange(
+  raw: unknown,
+  allowExternal: boolean,
+  context: { event?: string; operation?: string; previousValue?: unknown } = {},
+): RedirectTargetResult {
+  const result = validateRedirectTarget(raw)
+  if (!result.valid) return result
+  if (!result.external || allowExternal) return result
+
+  // Creating an external destination is always refused — that is the gate itself.
+  if (context.operation === 'update') {
+    const previous = context.previousValue
+    if (typeof previous === 'string' && previous.trim() !== '') {
+      const stored = validateRedirectTarget(previous)
+      // Unchanged legacy destination: accepting it writes nothing new.
+      if (stored.valid && stored.normalized === result.normalized) return result
+    } else if (context.event !== 'submit') {
+      // Client-side pass with no previous value: cannot prove a change here, and
+      // the server-side pass will refuse it if there is one.
+      return result
+    }
+  }
+
+  return { valid: false, reason: EXTERNAL_DISABLED_REASON }
+}

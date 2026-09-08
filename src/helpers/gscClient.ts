@@ -9,13 +9,18 @@
 import type { Payload } from 'payload'
 import type { SeoConfig } from '../types.js'
 import { decryptToken } from './tokenCrypto.js'
-import { isSeoAdmin } from './isAdmin.js'
+import { isSeoAdmin, isSeoAdminRequest } from './isAdmin.js'
 
 export const GSC_AUTH_COLLECTION = 'seo-gsc-auth'
 export const GSC_SCOPES = 'https://www.googleapis.com/auth/webmasters.readonly openid email'
 
 /** Admin gate for GSC endpoints — delegates to the shared SEO admin gate. */
 export const isGscAdmin = isSeoAdmin
+/**
+ * Request-level admin gate for GSC endpoints: also verifies the session comes
+ * from the host's admin-panel collection (see helpers/isAdmin.ts).
+ */
+export const isGscAdminRequest = isSeoAdminRequest
 
 export function resolveGscSiteUrl(seoConfig?: SeoConfig): string | undefined {
   return (

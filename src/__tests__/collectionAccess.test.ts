@@ -3,6 +3,10 @@ import type { Access } from 'payload'
 import { createSeoSettingsCollection } from '../collections/SeoSettings.js'
 import { createSeoRedirectsCollection } from '../collections/SeoRedirects.js'
 import { createSeoGscAuthCollection } from '../collections/SeoGscAuth.js'
+import { createSeoPerformanceCollection } from '../collections/SeoPerformance.js'
+import { createSeoLogsCollection } from '../collections/SeoLogs.js'
+import { createSeoScoreHistoryCollection } from '../collections/SeoScoreHistory.js'
+import { createSeoRankHistoryCollection } from '../collections/SeoRankHistory.js'
 import { createAiAltTextHandler } from '../endpoints/aiAltText.js'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -12,7 +16,24 @@ const collections = [
   ['seo-settings', createSeoSettingsCollection()],
   ['seo-redirects', createSeoRedirectsCollection()],
   ['seo-gsc-auth', createSeoGscAuthCollection()],
+  // Added after the 2026 audit: the June hardening had covered only the three
+  // collections above, leaving these two on `create/update/delete: !!req.user`
+  // (wipe the imported GSC history / read visitor referrers from any account).
+  ['seo-performance', createSeoPerformanceCollection()],
+  ['seo-logs', createSeoLogsCollection()],
 ] as const
+
+/** Every collection the plugin registers, whatever its write policy. */
+const allCollections = [
+  ...collections,
+  ['seo-score-history', createSeoScoreHistoryCollection()],
+  ['seo-rank-history', createSeoRankHistoryCollection()],
+] as const
+
+/** A request from a user authenticated on ANOTHER auth collection. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const callAs = (fn: Access | undefined, user: any, adminCollection = 'users') =>
+  Boolean(fn?.({ req: { user, payload: { config: { admin: { user: adminCollection } } } } } as any))
 
 // Regression: create/update/delete used to be `!!req.user`, so an editor could
 // bypass the admin-gated endpoints through the REST collection API — writing
@@ -83,5 +104,55 @@ describe('POST /ai-alt-text collection allowlist', () => {
     expect(update).toHaveBeenCalledWith(
       expect.objectContaining({ collection: 'media', id: '7' }),
     )
+  })
+})
+
+
+// Regression (SEO-01/02/04): a session on a second auth collection — a front-office
+// customer on an e-commerce site — populates `req.user` on every route. Every access
+// rule of the plugin must reject it, on read as well as on write.
+describe.each(allCollections)('%s — foreign auth collection', (_slug, collection) => {
+  const customer = { id: 3, collection: 'customers' }
+
+  it.each(['read', 'create', 'update', 'delete'] as const)(
+    'denies %s to a customer, even role-less',
+    (op) => {
+      expect(callAs(collection.access?.[op], customer)).toBe(false)
+    },
+  )
+
+  it('denies write to a customer who carries role: admin on their own collection', () => {
+    expect(callAs(collection.access?.create, { ...customer, role: 'admin' })).toBe(false)
+  })
+
+  it('still allows the admin-panel user', () => {
+    expect(callAs(collection.access?.read, { id: 1, collection: 'users' })).toBe(true)
+    expect(callAs(collection.access?.create, { id: 1, collection: 'users', role: 'admin' })).toBe(true)
+  })
+})
+
+// Regression (SEO-04): seo-score-history feeds the alert digest; forged snapshots
+// change the e-mails sent to admins.
+describe('seo-score-history / seo-rank-history write policy', () => {
+  const scoreHistory = createSeoScoreHistoryCollection()
+  const rankHistory = createSeoRankHistoryCollection()
+  const editor = { id: 2, role: 'editor' }
+
+  it('denies create to a non-admin on seo-score-history', () => {
+    expect(call(scoreHistory.access?.create, editor)).toBe(false)
+  })
+
+  it('keeps create working for an admin and on a role-less setup', () => {
+    expect(call(scoreHistory.access?.create, { id: 1, role: 'admin' })).toBe(true)
+    expect(call(scoreHistory.access?.create, { id: 3 })).toBe(true)
+  })
+
+  it('keeps the stricter update/delete policy of both collections', () => {
+    for (const op of ['update', 'delete'] as const) {
+      expect(call(scoreHistory.access?.[op], editor)).toBe(false)
+      expect(call(rankHistory.access?.[op], editor)).toBe(false)
+      expect(call(scoreHistory.access?.[op], { id: 1, role: 'admin' })).toBe(true)
+      expect(call(rankHistory.access?.[op], { id: 1, role: 'admin' })).toBe(true)
+    }
   })
 })

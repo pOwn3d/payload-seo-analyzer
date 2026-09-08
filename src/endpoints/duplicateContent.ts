@@ -10,6 +10,8 @@
 import type { PayloadHandler } from 'payload'
 import { seoCache } from '../cache.js'
 import { extractDocContent } from '../helpers/extractDocContent.js'
+import { isSeoAdminRequest, isSeoPanelUser } from '../helpers/isAdmin.js'
+import { safeCacheLocale } from '../helpers/safeCacheLocale.js'
 
 interface PageInfo {
   id: string | number
@@ -76,18 +78,21 @@ const SIMILARITY_THRESHOLD = 0.7
 export function createDuplicateContentHandler(collections: string[]): PayloadHandler {
   return async (req) => {
     try {
-      if (!req.user) {
+      if (!isSeoPanelUser(req)) {
         return Response.json({ error: 'Unauthorized' }, { status: 401 })
       }
 
       const url = new URL(req.url || '', 'http://localhost')
-      const noCache = url.searchParams.get('nocache') === '1'
+      // Cache-busting forces the full site-wide recomputation this endpoint caches,
+      // so it is reserved to SEO admins — the same gate as /audit?nocache=1. A panel
+      // user without the role silently gets the cached result instead of a 403.
+      const noCache = url.searchParams.get('nocache') === '1' && isSeoAdminRequest(req)
       // Clamp + round the user-supplied threshold so the cache key can't be exploded
       // into unbounded distinct entries (?threshold=0.7001, 0.7002, …).
       const rawThreshold = parseFloat(url.searchParams.get('threshold') || '') || SIMILARITY_THRESHOLD
       const threshold = Math.min(1, Math.max(0, Math.round(rawThreshold * 100) / 100))
       // Locale-scoped: content differs per locale, so cache must not collide across locales.
-      const reqLocale = typeof req.locale === 'string' && req.locale ? req.locale : undefined
+      const reqLocale = safeCacheLocale(req)
       const CACHE_KEY = `duplicate-content:${reqLocale || 'default'}:${threshold}`
       const cached = noCache ? null : seoCache.get<unknown>(CACHE_KEY)
       if (cached) {

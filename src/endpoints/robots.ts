@@ -8,7 +8,7 @@ import type { PayloadHandler } from 'payload'
 import { parseJsonBody } from '../helpers/parseBody.js'
 import { sanitizeRobotsRules } from '../helpers/robotsSafety.js'
 
-import { isSeoAdmin as isAdmin } from '../helpers/isAdmin.js'
+import { isSeoAdminRequest as isAdmin, isSeoPanelUser } from '../helpers/isAdmin.js'
 
 /**
  * GET handler — generates robots.txt dynamically from seo-settings.
@@ -62,10 +62,10 @@ export function createRobotsHandler(targetCollections: string[]): PayloadHandler
 export function createRobotsUpdateHandler(): PayloadHandler {
   return async (req) => {
     try {
-      if (!req.user) {
+      if (!isSeoPanelUser(req)) {
         return Response.json({ error: 'Unauthorized' }, { status: 401 })
       }
-      if (!isAdmin(req.user)) {
+      if (!isAdmin(req)) {
         return Response.json({ error: 'Admin access required' }, { status: 403 })
       }
 

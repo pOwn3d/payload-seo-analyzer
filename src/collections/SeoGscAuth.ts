@@ -8,7 +8,7 @@
  * Only created when `features.gscApi` is enabled (opt-in).
  */
 import type { CollectionConfig } from 'payload'
-import { isSeoAdmin } from '../helpers/isAdmin.js'
+import { isSeoAdminRequest, isSeoPanelUser } from '../helpers/isAdmin.js'
 
 export function createSeoGscAuthCollection(): CollectionConfig {
   return {
@@ -25,10 +25,10 @@ export function createSeoGscAuthCollection(): CollectionConfig {
     // `robotsCustomRules`, neutralising `disabledRules`, creating a redirect or
     // overwriting the OAuth CSRF state.
     access: {
-      read: ({ req }) => !!req.user,
-      create: ({ req }) => isSeoAdmin(req.user),
-      update: ({ req }) => isSeoAdmin(req.user),
-      delete: ({ req }) => isSeoAdmin(req.user),
+      read: ({ req }) => isSeoPanelUser(req),
+      create: ({ req }) => isSeoAdminRequest(req),
+      update: ({ req }) => isSeoAdminRequest(req),
+      delete: ({ req }) => isSeoAdminRequest(req),
     },
     fields: [
       {

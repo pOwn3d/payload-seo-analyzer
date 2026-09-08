@@ -5,10 +5,13 @@
  */
 
 import type { CollectionConfig } from 'payload'
-import { validateRedirectTarget, normalizeFromPath } from '../helpers/redirectSafety.js'
-import { isSeoAdmin } from '../helpers/isAdmin.js'
+import { validateRedirectDestinationChange, normalizeFromPath } from '../helpers/redirectSafety.js'
+import { isSeoAdminRequest, isSeoPanelUser } from '../helpers/isAdmin.js'
 
-export function createSeoRedirectsCollection(slug: string = 'seo-redirects'): CollectionConfig {
+export function createSeoRedirectsCollection(
+  slug: string = 'seo-redirects',
+  allowExternalRedirects = false,
+): CollectionConfig {
   return {
     slug,
     admin: {
@@ -22,10 +25,10 @@ export function createSeoRedirectsCollection(slug: string = 'seo-redirects'): Co
     // `robotsCustomRules`, neutralising `disabledRules`, creating a redirect or
     // overwriting the OAuth CSRF state.
     access: {
-      read: ({ req }) => !!req.user,
-      create: ({ req }) => isSeoAdmin(req.user),
-      update: ({ req }) => isSeoAdmin(req.user),
-      delete: ({ req }) => isSeoAdmin(req.user),
+      read: ({ req }) => isSeoPanelUser(req),
+      create: ({ req }) => isSeoAdminRequest(req),
+      update: ({ req }) => isSeoAdminRequest(req),
+      delete: ({ req }) => isSeoAdminRequest(req),
     },
     fields: [
       {
@@ -46,10 +49,20 @@ export function createSeoRedirectsCollection(slug: string = 'seo-redirects'): Co
         type: 'text',
         required: true,
         label: 'Destination URL',
-        // Defense-in-depth against open redirects (`//evil.com`, `javascript:` …).
-        validate: (value: unknown) => {
+        // Defense-in-depth against open redirects (`//evil.com`, `javascript:` …)
+        // and, when `allowExternalRedirects` is off, against off-site destinations.
+        //
+        // The external gate only fires when the destination CHANGES: Payload
+        // revalidates the merged document on every write, so refusing it outright
+        // would make a row stored before the option existed impossible to edit at
+        // all — not even to flip its 301/302 type. See
+        // validateRedirectDestinationChange().
+        validate: (
+          value: unknown,
+          options?: { event?: string; operation?: string; previousValue?: unknown },
+        ) => {
           if (value == null || value === '') return true
-          const res = validateRedirectTarget(value)
+          const res = validateRedirectDestinationChange(value, allowExternalRedirects, options ?? {})
           return res.valid ? true : (res.reason || 'Invalid destination URL')
         },
       },

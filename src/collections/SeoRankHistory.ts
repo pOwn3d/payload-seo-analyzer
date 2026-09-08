@@ -9,6 +9,7 @@
  */
 
 import type { CollectionConfig } from 'payload'
+import { isSeoAdminRequest, isSeoPanelUser } from '../helpers/isAdmin.js'
 
 export function createSeoRankHistoryCollection(): CollectionConfig {
   return {
@@ -17,10 +18,10 @@ export function createSeoRankHistoryCollection(): CollectionConfig {
       custom: { navHidden: true },
     },
     access: {
-      read: ({ req }) => !!req.user,
-      create: ({ req }) => req.user?.role === 'admin',
-      update: ({ req }) => req.user?.role === 'admin',
-      delete: ({ req }) => req.user?.role === 'admin',
+      read: ({ req }) => isSeoPanelUser(req),
+      create: ({ req }) => isSeoPanelUser(req) && req.user?.role === 'admin',
+      update: ({ req }) => isSeoPanelUser(req) && req.user?.role === 'admin',
+      delete: ({ req }) => isSeoPanelUser(req) && req.user?.role === 'admin',
     },
     timestamps: false,
     fields: [

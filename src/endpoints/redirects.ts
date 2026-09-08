@@ -10,13 +10,44 @@
 
 import type { PayloadHandler, Where } from 'payload'
 import { parseJsonBody } from '../helpers/parseBody.js'
-import { validateRedirectTarget, normalizeFromPath } from '../helpers/redirectSafety.js'
+import {
+  validateRedirectDestination,
+  validateRedirectTarget,
+  normalizeFromPath,
+} from '../helpers/redirectSafety.js'
 
-import { isSeoAdmin as isAdmin } from '../helpers/isAdmin.js'
+import { isSeoAdminRequest as isAdmin, isSeoPanelUser } from '../helpers/isAdmin.js'
 
-export function createRedirectsHandler(redirectsCollection: string): PayloadHandler {
+/**
+ * True when `candidate` is exactly the destination already stored on the document.
+ *
+ * Only consulted on the refusal path (an external destination while
+ * `allowExternalRedirects` is off), so the normal update costs no extra read.
+ */
+async function isUnchangedDestination(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  req: any,
+  collection: string,
+  id: string,
+  candidate: string,
+): Promise<boolean> {
+  const submitted = validateRedirectTarget(candidate)
+  if (!submitted.valid || !submitted.normalized) return false
+  try {
+    const existing = await req.payload.findByID({ collection, id, depth: 0, overrideAccess: true })
+    const stored = typeof existing?.to === 'string' ? validateRedirectTarget(existing.to) : null
+    return Boolean(stored?.valid && stored.normalized === submitted.normalized)
+  } catch {
+    return false
+  }
+}
+
+export function createRedirectsHandler(
+  redirectsCollection: string,
+  allowExternalRedirects = false,
+): PayloadHandler {
   return async (req) => {
-    if (!req.user) {
+    if (!isSeoPanelUser(req)) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -54,7 +85,7 @@ export function createRedirectsHandler(redirectsCollection: string): PayloadHand
 
       // DELETE — Single or bulk delete (admin only)
       if (method === 'DELETE') {
-        if (!isAdmin(req.user)) {
+        if (!isAdmin(req)) {
           return Response.json({ error: 'Admin access required' }, { status: 403 })
         }
         const deleteBody = await parseJsonBody(req)
@@ -92,7 +123,7 @@ export function createRedirectsHandler(redirectsCollection: string): PayloadHand
 
       // PATCH — Update a single redirect (admin only — redirects control SEO traffic routing)
       if (method === 'PATCH') {
-        if (!isAdmin(req.user)) {
+        if (!isAdmin(req)) {
           return Response.json({ error: 'Admin access required' }, { status: 403 })
         }
         const patchBody = await parseJsonBody(req)
@@ -112,11 +143,18 @@ export function createRedirectsHandler(redirectsCollection: string): PayloadHand
           updateData.from = fromPath
         }
         if (to !== undefined) {
-          const toResult = validateRedirectTarget(to)
+          const toResult = validateRedirectDestination(to, allowExternalRedirects)
           if (!toResult.valid || !toResult.normalized) {
-            return Response.json({ error: toResult.reason || 'Invalid destination' }, { status: 400 })
+            // The Redirect Manager re-sends `to` verbatim when you only edit `from`
+            // or the 301/302 type. A row stored back when external destinations were
+            // allowed must stay editable, so an UNCHANGED destination is accepted —
+            // and simply left alone, no write. Anything else is refused.
+            if (!(await isUnchangedDestination(req, redirectsCollection, id, to))) {
+              return Response.json({ error: toResult.reason || 'Invalid destination' }, { status: 400 })
+            }
+          } else {
+            updateData.to = toResult.normalized
           }
-          updateData.to = toResult.normalized
         }
         if (type !== undefined) updateData.type = type
 
@@ -132,7 +170,7 @@ export function createRedirectsHandler(redirectsCollection: string): PayloadHand
 
       // POST — Bulk import (admin only)
       if (method === 'POST') {
-        if (!isAdmin(req.user)) {
+        if (!isAdmin(req)) {
           return Response.json({ error: 'Admin access required' }, { status: 403 })
         }
         const body = await parseJsonBody(req)
@@ -159,7 +197,7 @@ export function createRedirectsHandler(redirectsCollection: string): PayloadHand
         const validRedirects: Array<{ from: string; to: string; type: string }> = []
         for (const r of redirects) {
           const fromPath = normalizeFromPath(r.from)
-          const toResult = validateRedirectTarget(r.to)
+          const toResult = validateRedirectDestination(r.to, allowExternalRedirects)
           if (!fromPath || !toResult.valid || !toResult.normalized) {
             reportFailure(String(r.from ?? ''), String(r.to ?? ''), 'invalid source or target')
             continue

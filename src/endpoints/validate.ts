@@ -13,6 +13,7 @@ import { analyzeSeo } from '../index.js'
 import { loadMergedConfig } from '../helpers/loadMergedConfig.js'
 import { parseJsonBody } from '../helpers/parseBody.js'
 import type { SeoInput, SeoConfig } from '../types.js'
+import { isSeoPanelUser } from '../helpers/isAdmin.js'
 
 /**
  * Build a SeoInput object from a Payload document (page or post).
@@ -135,7 +136,7 @@ export function createValidateHandler(
 ): PayloadHandler {
   return async (req) => {
     try {
-      if (!req.user) {
+      if (!isSeoPanelUser(req)) {
         return Response.json({ error: 'Unauthorized' }, { status: 401 })
       }
 
