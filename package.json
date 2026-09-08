@@ -130,14 +130,14 @@
     "@payloadcms/ui": "^3.88.0",
     "@testing-library/react": "^16.3.3",
     "@types/react": "^19.2.18",
-    "jsdom": "^29.1.1",
+    "jsdom": "^30.0.1",
     "next": "^16.3.4",
     "payload": "^3.88.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "tsup": "^8.5.1",
-    "typescript": "^5.9.3",
-    "vitest": "^3.2.7"
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.0"
   },
   "publishConfig": {
     "access": "public"
