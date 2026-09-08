@@ -126,18 +126,18 @@
     "node": "^20.19.0 || >=22.12.0"
   },
   "devDependencies": {
-    "@payloadcms/next": "^3.77.0",
-    "@payloadcms/ui": "^3.77.0",
-    "@testing-library/react": "^16.3.2",
-    "@types/react": "^19.0.0",
+    "@payloadcms/next": "^3.88.0",
+    "@payloadcms/ui": "^3.88.0",
+    "@testing-library/react": "^16.3.3",
+    "@types/react": "^19.2.18",
     "jsdom": "^29.1.1",
-    "next": "^16.2.0",
-    "payload": "^3.77.0",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
-    "tsup": "^8.0.0",
-    "typescript": "^5.5.0",
-    "vitest": "^2.0.0"
+    "next": "^16.3.4",
+    "payload": "^3.88.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
   },
   "publishConfig": {
     "access": "public"
