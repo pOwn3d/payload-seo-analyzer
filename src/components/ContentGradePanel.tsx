@@ -172,7 +172,13 @@ export function ContentGradePanel({ locale }: { locale: 'fr' | 'en' }) {
       </div>
 
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        <select value={selected} onChange={(e) => onSelect(e.target.value)} style={selectStyle} disabled={pagesLoading}>
+        <select
+          aria-label={s.selectPage}
+          value={selected}
+          onChange={(e) => onSelect(e.target.value)}
+          style={selectStyle}
+          disabled={pagesLoading}
+        >
           <option value="">{pagesLoading ? s.loadingPages : pages.length === 0 ? s.noPages : s.selectPage}</option>
           {pages.map((p) => (
             <option key={`${p.collection}::${p.id}`} value={`${p.collection}::${p.id}`}>
@@ -191,7 +197,7 @@ export function ContentGradePanel({ locale }: { locale: 'fr' | 'en' }) {
         )}
       </div>
 
-      {error && <div style={{ color: C.red, fontSize: 13, fontWeight: 600, marginTop: 10 }}>{error}</div>}
+      {error && <div role="alert" style={{ color: C.red, fontSize: 13, fontWeight: 600, marginTop: 10 }}>{error}</div>}
       {grading && <div style={{ marginTop: 12, fontSize: 13, color: C.sub }}>{s.grading}</div>}
 
       {!grading && data && data.gscConnected === false && (

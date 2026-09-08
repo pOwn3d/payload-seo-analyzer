@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState, useMemo } from 'react'
+import React, { useEffect, useState, useMemo, useId } from 'react'
 import { useSeoLocale } from '../hooks/useSeoLocale.js'
 import { getDashboardT } from '../dashboard-i18n.js'
 
@@ -153,7 +153,10 @@ function Sparkline({
   const latestScore = data.length > 0 ? data[data.length - 1] : 0
   const lineColor = getScoreColor(latestScore)
 
-  const gradientId = `sparkline-grad-${Math.random().toString(36).slice(2, 8)}`
+  // useId(), not Math.random(): the random id changed on every render (so the
+  // gradient reference was rebuilt each time) and differed between the server
+  // and client renders, which is a hydration mismatch.
+  const gradientId = `sparkline-grad-${useId()}`
 
   if (data.length === 0) return null
 

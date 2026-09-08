@@ -122,3 +122,35 @@ describe('seoAnalyzerPlugin — integration (config transform)', () => {
     expect(typeof out.onInit).toBe('function')
   })
 })
+
+describe('seoAnalyzerPlugin — retention purge (opt-in)', () => {
+  it('registers no retention route at all without the option', () => {
+    // The route does not exist rather than existing and refusing: a host that
+    // never asked for a purge has no delete endpoint on its API surface.
+    expect(paths(run({ collections: ['pages'] }))).not.toContain('/seo-plugin/retention')
+  })
+
+  it('registers a GET (dry run) and a POST (run now) once a window is set', () => {
+    const out = run({ collections: ['pages'], retentionDays: { 'seo-logs': 90 } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const routes = (out.endpoints || []).filter((e: any) => e.path === '/seo-plugin/retention')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(routes.map((e: any) => e.method).sort()).toEqual(['get', 'post'])
+  })
+
+  it('registers nothing for a window that would mean "delete everything"', () => {
+    // 0 and negatives are dropped by resolveRetention, so the config resolves to
+    // no target — and the endpoints must follow.
+    for (const days of [0, -1, Number.NaN]) {
+      const out = run({ collections: ['pages'], retentionDays: { 'seo-logs': days } })
+      expect(paths(out)).not.toContain('/seo-plugin/retention')
+    }
+  })
+
+  it('leaves the rest of the config untouched when retention is on', () => {
+    const withRetention = run({ collections: ['pages'], retentionDays: { 'seo-logs': 30 } })
+    const without = run({ collections: ['pages'] })
+    expect(slugs(withRetention)).toEqual(slugs(without))
+    expect(paths(withRetention).filter((p) => p !== '/seo-plugin/retention')).toEqual(paths(without))
+  })
+})

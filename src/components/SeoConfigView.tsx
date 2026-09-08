@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'
+import React, { useEffect, useState, useCallback, useRef, useMemo, useId } from 'react'
 import {
   TITLE_LENGTH_MIN,
   TITLE_LENGTH_MAX,
@@ -221,7 +221,10 @@ function Toast({ message, type, onClose }: { message: string; type: 'success' | 
   }, [onClose])
 
   return (
+    // Announced, not just painted — see RedirectManagerView's Toast.
     <div
+      role={type === 'error' ? 'alert' : 'status'}
+      aria-live={type === 'error' ? 'assertive' : 'polite'}
       style={{
         position: 'fixed',
         bottom: 24,
@@ -247,6 +250,17 @@ function Toast({ message, type, onClose }: { message: string; type: 'success' | 
 export function SeoConfigView() {
   const locale = useSeoLocale()
   const t = getDashboardT(locale)
+  // useId(), never a literal id: nothing forbids a host from mounting this view
+  // twice (a custom route reusing the component), and duplicate ids break the
+  // very label association they are meant to create.
+  const uid = useId()
+  const siteNameId = `${uid}-site-name`
+  const ignoredSlugId = `${uid}-ignored-slug`
+  const excludedSlugId = `${uid}-excluded-slug`
+  const changefreqId = `${uid}-changefreq`
+  const priorityId = `${uid}-priority`
+  const homeLabelId = `${uid}-home-label`
+  const separatorId = `${uid}-separator`
   const RULE_GROUPS = useMemo(() => getRuleGroups(t), [t])
   const THRESHOLD_FIELDS = useMemo(() => getThresholdFields(t), [t])
 
@@ -533,7 +547,7 @@ export function SeoConfigView() {
           {t.common.loadingError}
         </div>
         <div style={{ color: V.textSecondary, fontSize: 12, marginBottom: 16 }}>{error}</div>
-        <button
+        <button type="button"
           onClick={fetchSettings}
           style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
         >
@@ -572,7 +586,7 @@ export function SeoConfigView() {
             {t.seoConfig.subtitle}
           </p>
         </div>
-        <button
+        <button type="button"
           onClick={handleSave}
           disabled={saving}
           style={{
@@ -593,8 +607,9 @@ export function SeoConfigView() {
       <div style={cardStyle}>
         <div style={cardHeaderStyle}>General</div>
         <div style={cardBodyStyle}>
-          <label style={labelStyle}>{t.seoConfig.siteName}</label>
+          <label style={labelStyle} htmlFor={siteNameId}>{t.seoConfig.siteName}</label>
           <input
+            id={siteNameId}
             type="text"
             value={settings.siteName || ''}
             onChange={(e) => setSettings((prev) => ({ ...prev, siteName: e.target.value }))}
@@ -620,6 +635,8 @@ export function SeoConfigView() {
             <div style={{ flex: 1, position: 'relative' }}>
               <input
                 ref={slugInputRef}
+                id={ignoredSlugId}
+                aria-label={t.seoConfig.ignoredPages}
                 type="text"
                 value={newSlug}
                 onChange={(e) => {
@@ -659,7 +676,8 @@ export function SeoConfigView() {
                   }}
                 >
                   {filteredSlugs.map((item) => (
-                    <div
+                    <button
+                      type="button"
                       key={`${item.collection}-${item.slug}`}
                       onClick={() => {
                         setNewSlug(item.slug)
@@ -675,6 +693,13 @@ export function SeoConfigView() {
                         setNewSlug('')
                       }}
                       style={{
+                        display: 'block',
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        textAlign: 'left',
+                        fontFamily: 'inherit',
+                        background: 'none',
+                        border: 'none',
                         padding: '8px 12px',
                         cursor: 'pointer',
                         borderBottom: `1px solid ${V.border}`,
@@ -682,13 +707,14 @@ export function SeoConfigView() {
                         transition: 'background-color 0.1s',
                       }}
                       onMouseEnter={(e) => {
-                        ;(e.currentTarget as HTMLDivElement).style.backgroundColor = 'rgba(59,130,246,0.06)'
+                        ;(e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(59,130,246,0.06)'
                       }}
                       onMouseLeave={(e) => {
-                        ;(e.currentTarget as HTMLDivElement).style.backgroundColor = 'transparent'
+                        ;(e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent'
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      {/* <span>, not <div>: a <button> only accepts phrasing content. */}
+                      <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <span style={{ fontFamily: 'monospace', fontWeight: 600, color: V.blue }}>
                           /{item.slug}
                         </span>
@@ -705,18 +731,18 @@ export function SeoConfigView() {
                         >
                           {item.collection}
                         </span>
-                      </div>
+                      </span>
                       {item.title && (
-                        <div style={{ fontSize: 11, color: V.textSecondary, marginTop: 2 }}>
+                        <span style={{ display: 'block', fontSize: 11, color: V.textSecondary, marginTop: 2 }}>
                           {item.title}
-                        </div>
+                        </span>
                       )}
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
             </div>
-            <button
+            <button type="button"
               onClick={() => {
                 addSlug()
                 setShowAutocomplete(false)
@@ -757,10 +783,14 @@ export function SeoConfigView() {
                 }}
               >
                 /{item.slug}
-                <span
+                <button
+                  type="button"
                   onClick={() => removeSlug(item.slug)}
                   style={{
                     cursor: 'pointer',
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
                     fontSize: 14,
                     fontWeight: 800,
                     color: V.red,
@@ -768,9 +798,10 @@ export function SeoConfigView() {
                     fontFamily: 'system-ui',
                   }}
                   title={t.common.delete}
+                  aria-label={`${t.common.delete} /${item.slug}`}
                 >
                   &times;
-                </span>
+                </button>
               </span>
             ))}
           </div>
@@ -843,8 +874,11 @@ export function SeoConfigView() {
               const currentValue = settings.thresholds?.[field.name]
               return (
                 <div key={field.name}>
-                  <label style={labelStyle}>{field.label}</label>
+                  <label style={labelStyle} htmlFor={`${uid}-threshold-${field.name}`}>
+                    {field.label}
+                  </label>
                   <input
+                    id={`${uid}-threshold-${field.name}`}
                     type="number"
                     value={currentValue != null ? String(currentValue) : ''}
                     onChange={(e) => updateThreshold(field.name, e.target.value)}
@@ -865,12 +899,13 @@ export function SeoConfigView() {
         <div style={cardBodyStyle}>
           {/* Slugs exclus du sitemap */}
           <div style={{ marginBottom: 20 }}>
-            <label style={labelStyle}>{t.seoConfig.sitemapExcludedSlugs}</label>
+            <label style={labelStyle} htmlFor={excludedSlugId}>{t.seoConfig.sitemapExcludedSlugs}</label>
             <div style={{ fontSize: 10, color: V.textSecondary, marginBottom: 8 }}>
               {t.seoConfig.ignoredPagesDesc}
             </div>
             <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
               <input
+                id={excludedSlugId}
                 type="text"
                 value={newSitemapSlug}
                 onChange={(e) => setNewSitemapSlug(e.target.value)}
@@ -883,7 +918,7 @@ export function SeoConfigView() {
                 placeholder={t.seoConfig.slugToExcludePlaceholder}
                 style={inputStyle}
               />
-              <button
+              <button type="button"
                 onClick={addSitemapSlug}
                 style={{
                   ...btnBase,
@@ -919,10 +954,14 @@ export function SeoConfigView() {
                   }}
                 >
                   /{item.slug}
-                  <span
+                  <button
+                    type="button"
                     onClick={() => removeSitemapSlug(item.slug)}
                     style={{
                       cursor: 'pointer',
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
                       fontSize: 14,
                       fontWeight: 800,
                       color: V.red,
@@ -930,9 +969,10 @@ export function SeoConfigView() {
                       fontFamily: 'system-ui',
                     }}
                     title={t.common.delete}
+                    aria-label={`${t.common.delete} /${item.slug}`}
                   >
                     &times;
-                  </span>
+                  </button>
                 </span>
               ))}
             </div>
@@ -948,8 +988,9 @@ export function SeoConfigView() {
             }}
           >
             <div>
-              <label style={labelStyle}>{t.seoConfig.defaultChangeFrequency}</label>
+              <label style={labelStyle} htmlFor={changefreqId}>{t.seoConfig.defaultChangeFrequency}</label>
               <select
+                id={changefreqId}
                 value={settings.sitemap?.defaultChangefreq || 'weekly'}
                 onChange={(e) => updateSitemapField('defaultChangefreq', e.target.value)}
                 style={inputStyle}
@@ -961,8 +1002,9 @@ export function SeoConfigView() {
               </select>
             </div>
             <div>
-              <label style={labelStyle}>{t.seoConfig.defaultPriority}</label>
+              <label style={labelStyle} htmlFor={priorityId}>{t.seoConfig.defaultPriority}</label>
               <input
+                id={priorityId}
                 type="number"
                 value={settings.sitemap?.defaultPriority != null ? String(settings.sitemap.defaultPriority) : ''}
                 onChange={(e) =>
@@ -1001,6 +1043,7 @@ export function SeoConfigView() {
                 }}
               >
                 <input
+                  aria-label={`${t.seoConfig.priorityOverrides} ${idx + 1} — ${t.seoConfig.patternPlaceholder}`}
                   type="text"
                   value={override.slugPattern}
                   onChange={(e) => updatePriorityOverride(idx, 'slugPattern', e.target.value)}
@@ -1008,6 +1051,7 @@ export function SeoConfigView() {
                   style={{ ...inputStyle, flex: 2 }}
                 />
                 <input
+                  aria-label={`${t.seoConfig.priorityOverrides} ${idx + 1} — ${t.seoConfig.priority}`}
                   type="number"
                   value={String(override.priority)}
                   onChange={(e) =>
@@ -1020,6 +1064,7 @@ export function SeoConfigView() {
                   style={{ ...inputStyle, flex: 1 }}
                 />
                 <select
+                  aria-label={`${t.seoConfig.priorityOverrides} ${idx + 1} — ${t.seoConfig.defaultChangeFrequency}`}
                   value={override.changefreq || ''}
                   onChange={(e) =>
                     updatePriorityOverride(
@@ -1036,7 +1081,7 @@ export function SeoConfigView() {
                   <option value="monthly">{t.seoConfig.monthly}</option>
                   <option value="yearly">{t.seoConfig.yearly}</option>
                 </select>
-                <button
+                <button type="button"
                   onClick={() => removePriorityOverride(idx)}
                   style={{
                     ...btnBase,
@@ -1053,7 +1098,7 @@ export function SeoConfigView() {
               </div>
             ))}
 
-            <button
+            <button type="button"
               onClick={addPriorityOverride}
               style={{
                 ...btnBase,
@@ -1072,7 +1117,7 @@ export function SeoConfigView() {
           {/* Preview du sitemap */}
           <div>
             <label style={labelStyle}>{t.seoConfig.sitemapPreview}</label>
-            <button
+            <button type="button"
               onClick={fetchSitemapPreview}
               disabled={loadingPreview}
               style={{
@@ -1247,8 +1292,9 @@ export function SeoConfigView() {
             }}
           >
             <div>
-              <label style={labelStyle}>{t.seoConfig.homePageLabel}</label>
+              <label style={labelStyle} htmlFor={homeLabelId}>{t.seoConfig.homePageLabel}</label>
               <input
+                id={homeLabelId}
                 type="text"
                 value={settings.breadcrumb?.homeLabel || 'Accueil'}
                 onChange={(e) => updateBreadcrumbField('homeLabel', e.target.value)}
@@ -1260,8 +1306,9 @@ export function SeoConfigView() {
               </div>
             </div>
             <div>
-              <label style={labelStyle}>{t.seoConfig.separator}</label>
+              <label style={labelStyle} htmlFor={separatorId}>{t.seoConfig.separator}</label>
               <select
+                id={separatorId}
                 value={settings.breadcrumb?.separator || '>'}
                 onChange={(e) => updateBreadcrumbField('separator', e.target.value)}
                 style={inputStyle}
@@ -1337,7 +1384,7 @@ export function SeoConfigView() {
 
       {/* Bottom save button */}
       <div style={{ textAlign: 'right', paddingBottom: 40 }}>
-        <button
+        <button type="button"
           onClick={handleSave}
           disabled={saving}
           style={{

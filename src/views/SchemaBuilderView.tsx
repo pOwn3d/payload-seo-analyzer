@@ -10,6 +10,7 @@ import React from 'react'
 // @ts-ignore — next is a peer dependency
 import { redirect } from 'next/navigation'
 import { SchemaBuilderViewClient } from './SchemaBuilderViewClient.js'
+import { ViewErrorBoundary } from './ErrorBoundaryClient.js'
 import { seoViewRedirectTarget } from '../helpers/viewAccess.js'
 
 export const SchemaBuilderView: React.FC<AdminViewServerProps> = (props) => {
@@ -35,7 +36,11 @@ export const SchemaBuilderView: React.FC<AdminViewServerProps> = (props) => {
       user={req.user!}
       visibleEntities={visibleEntities}
     >
-      <SchemaBuilderViewClient />
+      {/* The client view is the whole page body: a render error there would
+          otherwise unmount the admin shell around it. */}
+      <ViewErrorBoundary viewName="SchemaBuilderView">
+        <SchemaBuilderViewClient />
+      </ViewErrorBoundary>
     </DefaultTemplate>
   )
 }

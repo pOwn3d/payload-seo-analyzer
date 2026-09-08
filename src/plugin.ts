@@ -91,6 +91,9 @@ import { createTrackSeoScoreGlobalHook } from './hooks/trackSeoScore.js'
 import { startCacheWarmUp } from './warmCache.js'
 import { startRankTracker } from './rankTracker.js'
 import { startAlertsScheduler } from './alertsScheduler.js'
+import { startRetentionPurge } from './retentionScheduler.js'
+import { resolveRetention, type RetentionConfig } from './retention.js'
+import { createRetentionPurgeHandler, createRetentionStatusHandler } from './endpoints/retention.js'
 import { createAlertsDigestHandler, createAlertsRunHandler } from './endpoints/alerts.js'
 import { resolveGscSiteUrl } from './helpers/gscClient.js'
 import { createGenerateHandler } from './endpoints/generate.js'
@@ -209,6 +212,25 @@ export interface SeoPluginConfig {
   tabbedUI?: boolean
   /** Custom TypeScript interface name for the generated meta group type (e.g. 'SharedSEO') */
   interfaceName?: string
+  /**
+   * Days of history to keep, per time-series collection. OPT-IN: with this
+   * option absent nothing is ever deleted, which is what every install does
+   * today.
+   *
+   * `seo-rank-history`, `seo-score-history`, `seo-performance` and `seo-logs`
+   * are append-only and grow without bound. Naming one here schedules a daily
+   * purge of the rows older than the window, and registers
+   * `GET/POST <basePath>/retention` for SEO admins (dry run / run now).
+   *
+   * A value that is not a finite number of at least 1 is ignored rather than
+   * clamped — `0` would mean "delete everything".
+   *
+   * @example
+   * ```ts
+   * retentionDays: { 'seo-rank-history': 365, 'seo-logs': 90 }
+   * ```
+   */
+  retentionDays?: RetentionConfig
 }
 
 /** Build a resolved SeoConfig from plugin config for use by analyzeSeo() */
@@ -684,6 +706,16 @@ export const seoAnalyzerPlugin =
       )
     }
 
+    // Retention purge (opt-in) — only exists when a window is actually configured,
+    // so a host that never asked for it has no delete route at all.
+    const retentionTargets = resolveRetention(pluginConfig.retentionDays)
+    if (retentionTargets.length > 0) {
+      pluginEndpoints.push(
+        { path: `${basePath}/retention`, method: 'get', handler: createRetentionStatusHandler(pluginConfig.retentionDays!) },
+        { path: `${basePath}/retention`, method: 'post', handler: withRateLimit(createRetentionPurgeHandler(pluginConfig.retentionDays!)) },
+      )
+    }
+
     // IndexNow — proactive indexing (opt-in). Key file is PUBLIC (search engines verify it).
     if (features.indexNow) {
       pluginEndpoints.push(
@@ -909,6 +941,8 @@ export const seoAnalyzerPlugin =
       if (features.alerts) {
         startAlertsScheduler(payload, resolveGscSiteUrl(seoConfig))
       }
+      // Daily retention purge — a no-op unless `retentionDays` was configured
+      startRetentionPurge(payload, pluginConfig.retentionDays)
     }
 
     return config

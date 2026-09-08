@@ -186,7 +186,7 @@ export function IndexationHygienePanel({ locale }: { locale: 'fr' | 'en' }) {
         )}
       </div>
 
-      {error && <div style={{ color: C.red, fontSize: 13, fontWeight: 600, marginTop: 10 }}>{error}</div>}
+      {error && <div role="alert" style={{ color: C.red, fontSize: 13, fontWeight: 600, marginTop: 10 }}>{error}</div>}
       {unavailable && <div style={{ marginTop: 12, fontSize: 13, color: C.sub }}>{s.unavailable}</div>}
       {loading && !unavailable && <div style={{ marginTop: 12, fontSize: 13, color: C.sub }}>{s.loading}</div>}
 

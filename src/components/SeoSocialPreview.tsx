@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useId } from 'react'
 import { useSeoLocale } from '../hooks/useSeoLocale.js'
 import { getDashboardT } from '../dashboard-i18n.js'
 
@@ -56,6 +56,9 @@ export function SeoSocialPreview({
   const t = getDashboardT(locale)
   const [open, setOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<'facebook' | 'twitter'>('facebook')
+  // This component is rendered inside the document editor, once per locale tab
+  // on a localized document: literal ids would collide.
+  const uid = useId()
 
   const title = metaTitle || ''
   const desc = metaDescription || ''
@@ -70,12 +73,18 @@ export function SeoSocialPreview({
   return (
     <div style={{ marginBottom: 8 }}>
       {/* Header — collapsible */}
-      <div
+      <button
+        type="button"
         onClick={() => setOpen(!open)}
+        aria-expanded={open}
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
+          width: '100%',
+          boxSizing: 'border-box',
+          textAlign: 'left',
+          font: 'inherit',
           padding: '10px 12px',
           cursor: 'pointer',
           borderRadius: 8,
@@ -126,7 +135,7 @@ export function SeoSocialPreview({
         >
           {'\u25B6'}
         </span>
-      </div>
+      </button>
 
       {/* Body */}
       {open && (
@@ -136,22 +145,26 @@ export function SeoSocialPreview({
           }}
         >
           {/* Tab switcher */}
-          <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+          <div role="tablist" aria-label={t.socialPreview.title} style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
             <TabButton
               label={t.socialPreview.facebook}
               active={activeTab === 'facebook'}
               onClick={() => setActiveTab('facebook')}
+              id={`${uid}-tab-facebook`}
+              panelId={`${uid}-panel-facebook`}
             />
             <TabButton
               label={t.socialPreview.twitter}
               active={activeTab === 'twitter'}
               onClick={() => setActiveTab('twitter')}
+              id={`${uid}-tab-twitter`}
+              panelId={`${uid}-panel-twitter`}
             />
           </div>
 
           {/* Facebook Preview */}
           {activeTab === 'facebook' && (
-            <div>
+            <div role="tabpanel" id={`${uid}-panel-facebook`} aria-labelledby={`${uid}-tab-facebook`}>
               <div
                 style={{
                   backgroundColor: '#f0f2f5',
@@ -222,7 +235,7 @@ export function SeoSocialPreview({
 
           {/* Twitter/X Preview */}
           {activeTab === 'twitter' && (
-            <div>
+            <div role="tabpanel" id={`${uid}-panel-twitter`} aria-labelledby={`${uid}-tab-twitter`}>
               <div
                 style={{
                   border: '1px solid #cfd9de',
@@ -293,14 +306,24 @@ function TabButton({
   label,
   active,
   onClick,
+  id,
+  panelId,
 }: {
   label: string
   active: boolean
   onClick: () => void
+  id?: string
+  panelId?: string
 }) {
   return (
+    // role="tab" + aria-selected: the active tab used to be signalled by
+    // background colour and a box-shadow only.
     <button
       type="button"
+      role="tab"
+      id={id}
+      aria-selected={active}
+      aria-controls={panelId}
       onClick={onClick}
       style={{
         padding: '4px 12px',

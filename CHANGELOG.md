@@ -5,6 +5,251 @@ All notable changes to `@consilioweb/payload-seo-analyzer` will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.0] - 2026-09-08
+
+**Not a security release — nothing here fixes a vulnerability.** 3.0.0 and 4.0.0 closed the holes;
+this one clears what those two left open and what the audit never looked at: the accessibility of the
+admin UI (EAA / RGAA), an error boundary at every point Payload mounts a component of this plugin,
+opt-in retention for the four append-only tables, an uninstall notice that names the credential it
+leaves behind, and a README section on what this plugin does — and does not do — to your database
+schema. **It is not urgent.** No breaking change, no schema change, no peer range moved: if you are
+on 4.0.0 and your admin is not crashing, this can wait for your next maintenance window.
+
+### Accessibility
+
+Every figure below is a source-level correction across the 25 dashboard components that changed, and
+each category is now held by a test that fails the build on a regression of shape rather than of
+behaviour (`src/__tests__/a11yContract.test.ts`).
+
+- **49 form controls had no accessible name at all.** A screen reader announced them as "edit text",
+  "combo box" or "check box", with no indication of what they filtered, imported or selected — the
+  404 log checkboxes, the redirect table's inline edit fields, the alt-text inputs, the search boxes
+  of five dashboards, the sitemap priority overrides, the CSV file pickers. 30 now carry an
+  `aria-label` built from the strings the component already had (a placeholder, a column heading, the
+  row's own URL, so two rows never read the same); the other 19 are bound to a `<label htmlFor>` that
+  was previously decorative. **The ids come from `useId()`, never from a literal**, because several
+  of these components mount more than once on a page: `MetaTitleField` and `MetaDescriptionField`
+  once per locale tab on a localized document, `SerpPreview` and `SeoSocialPreview` inside every
+  document editor, one `InlineEditPanel` per expanded audit row, one id per generated sub-field in
+  the schema builder. A literal id there would point every tab's label at the first tab's input —
+  breaking the very association it was added to create. Ten components adopted `useId()` for this.
+
+- **18 non-interactive elements carried a click handler.** They are real controls now, not
+  `role` + `tabIndex` patches. Nine collapsible headers were `<div onClick>` — the SEO analyzer's
+  category, group, suggestions, cannibalization and internal-linking sections, the cannibalization
+  keyword groups, the SERP and social preview headers, the audit row title — and are `<button
+  type="button" aria-expanded>` now, so keyboard activation, the focus ring and the disclosure role
+  come for free. Two `<span role="button" tabIndex={0}>` in the redirect table (edit, delete) only
+  ever emulated Enter, never Space, and told assistive tech nothing about what the pencil and cross
+  glyphs meant; they carry an `aria-label` naming the affected redirect. Three more in the config
+  view (the slug autocomplete rows, the two "remove slug" crosses) and the audit table's sort header
+  followed. Where a `<button>` swallows content it cannot legally hold, the inner `<div>`s became
+  `<span>`s — a button only accepts phrasing content.
+
+- **Two "edit" pencils were `<span role="link">` driving `window.location.href`.** In the audit table
+  and the sitemap audit they are `<a href="/admin/collections/…">` now, which restores Enter,
+  middle-click, ⌘-click, "open in new tab" and the status-bar preview of the target. The href is the
+  same path the old handler built.
+
+- **The sortable performance columns lost their header semantics to gain a click target.**
+  `<th onClick>` is `<th scope="col" aria-sort="ascending|descending|none">` with the handler on a
+  `<button>` inside the cell — moving it onto the cell would have cost the column its meaning for
+  assistive technology.
+
+- **105 `type="button"` declarations added, 84 of them on buttons that already existed.** An untyped
+  `<button>` defaults to `type="submit"`. Those 84 live in the nine standalone admin views, where
+  there is no ancestor `<form>` and the omission was latent rather than active; the seven controls
+  this release creates inside Payload's *document* form — the analyzer's five collapsible headers,
+  the SERP and social preview headers — declare their type from the first line, because there an
+  untyped button saves the document on click. The rule is enforced uniformly, since a component can
+  be moved.
+
+- **The two fields that render on every page and post edit screen suppressed the focus ring.**
+  `MetaTitleField` and `MetaDescriptionField` set `outline: 'none'` and drew no indicator of their
+  own, so a keyboard user had nothing at all to tell them where they were (WCAG 2.4.7). Removed; the
+  contract test now fails on any `outline: 'none'` in the package.
+
+- **Status was communicated in colour only.** Eight inline error blocks (alerts, content brief,
+  content grade, Core Web Vitals, CTR opportunities, GSC, indexation hygiene, rank tracking) got
+  `role="alert"`. The two toasts — redirect manager, SEO config — are announced as an assertive
+  `alert` on failure and a polite `status` on success; a toast that is only painted means the user
+  fires a CSV import and never learns it finished. A new `LiveRegion` component is mounted at six
+  points in the SEO dashboard and the sitemap audit to announce the start, the failure and the result
+  of runs that take minutes. It mounts **empty** and fills 100 ms later, on purpose: an ARIA live
+  region only fires on a content *change* while it is already in the DOM, and these views swap whole
+  branches (loading / error / results) rather than mutating a message in place, so a region that
+  arrives already holding its text announces nothing in most screen readers.
+
+- **Two tab switchers signalled the active tab through background colour and font weight.** The
+  social preview (Facebook / X) and the sitemap audit (six tabs) implement the ARIA tabs pattern now
+  — `role="tablist"` with a label, `role="tab"` + `aria-selected` + `aria-controls`, `role="tabpanel"`
+  + `aria-labelledby`, ids scoped by `useId()`. The keyword research filter row deliberately did
+  **not** become a tablist: those buttons filter one table rather than swapping panels, so they got
+  `aria-pressed`. Declaring a tablist with no tabpanel would announce a structure that does not
+  exist.
+
+- **The link graph is the one place `role` + `tabIndex` is the correct answer.** HTML interactive
+  elements are not valid inside `<svg>` (only through a `<foreignObject>`, which would break the
+  graph layout), so the node circles keep `role="button"` and `tabIndex={0}`, and gain an
+  `onKeyDown` for Enter and Space plus `aria-label={node.title}` — they had no accessible name
+  before. The contract test documents this as the single allowed exception.
+
+- **What is *not* fixed, stated so it is not mistaken for done.** Two mouse-only handlers survive in
+  the SEO dashboard, both pinned as expected values in the contract test: the audit table row, whose
+  expand/collapse is duplicated by the title `<button>` beside it (the row cannot itself become a
+  button — it already contains a checkbox and a link, and interactive elements do not nest), and the
+  bulk-preview overlay's click-to-dismiss, which belongs with the focus trap and Escape handling this
+  pass did not do. No automated audit (axe or equivalent) was run: the evidence here is 6
+  source-shape tests plus 8 rendering tests over three components, not a conformance claim.
+
+### Added
+
+- **An error boundary at all 16 points Payload mounts a component of this plugin.** Payload mounts
+  them itself, from the import map, so the plugin never owns their parent and cannot be handed an
+  ancestor boundary from outside — the boundary has to live *inside* the module Payload imports. The
+  radius is what makes this worth a release: `SeoNavLink` is registered in
+  `admin.components.afterNavLinks`, so it renders on **every** admin page, and a single
+  `undefined.map()` there unmounted the whole admin React tree everywhere, not just the SEO section.
+  The six field components (`SeoAnalyzerField`, `MetaTitleField`, `MetaDescriptionField`,
+  `MetaImageField`, `OverviewField`, `SerpPreviewField`) render inside the document editor, where a
+  crash took the edit screen down with its sidebar and its save button. Each of the seven now exports
+  a wrapper around an inner implementation (`withSeoErrorBoundary`). `SeoNavLink` gets
+  `fallback: null` — it disappears rather than planting a permanent error panel in the sidebar of
+  every screen; the fields keep a visible, retryable notice.
+
+- **The nine admin views reach the same boundary across the RSC boundary — not through a try/catch.**
+  The wrappers under `src/views/` are **server** components, and a React error boundary is a class
+  with state: it cannot be bundled into the `views` entry, which carries no `"use client"` banner. A
+  try/catch there would not have substituted for it either — it would catch only what the server
+  component throws while building the element, never a render error in the client body it returns.
+  So `src/views/ErrorBoundaryClient.tsx` is a three-line `'use client'` module re-exporting
+  `LocalizedSeoErrorBoundary` from this package's own `/client` entry, which tsup keeps external, and
+  each view wraps its client body in it. A test asserts that no view imports the boundary directly,
+  which would silently break the RSC split.
+
+- **What the boundary does not catch, since these components fetch a great deal.** React boundaries
+  catch errors thrown during **render** only. A rejected promise in a `useEffect` and an error thrown
+  from an event handler still need a try/catch at the call site, and this release did not add those.
+  The caught message goes to `console.error` prefixed with the mount name
+  (`[seo-analyzer] SeoNavLink crashed:`) and never to the screen — it can carry a stack frame, a URL
+  or a fragment of a document, and this renders inside a CMS non-technical editors use. `resetKeys`
+  clears the error when a prop that caused it has since changed, and Retry remounts the subtree via a
+  key rather than replaying the same broken instance with the same broken state.
+
+- **`retentionDays` — opt-in retention for the four append-only collections.** `seo-rank-history`
+  gains a row per tracked query per day, `seo-score-history` one per document per save,
+  `seo-performance` one per imported Search Console row and `seo-logs` one per distinct 404 URL.
+  Nothing has ever trimmed them, so on a long-lived site they grow without bound. Naming at least one
+  collection schedules a purge **5 minutes after boot and every 24 hours** thereafter, deleting rows
+  older than its window. **Without the option nothing is ever deleted** — exactly the behaviour every
+  existing install has today. The README is explicit that this is a database-size problem rather than
+  a privacy one: the only visitor-derived values anywhere in the plugin are `referrer` and
+  `userAgent` on `seo-logs`, and no IP address is stored.
+
+  Four decisions worth knowing before you turn it on. Each collection is trimmed on **its own** date
+  field — `snapshotDate`, `date` or `lastSeen`, never `createdAt`, which three of the four do not
+  have (`timestamps: false`); `seo-logs` keys on `lastSeen`, so a 404 first recorded a year ago but
+  still being hit today is kept rather than hidden. A value that is not a finite number of at least
+  `1` is **dropped, not clamped**: `0`, `-1`, `NaN` and `'30'` would each mean "delete everything"
+  under a naive clamp, and this code deletes data. Collections are purged one after another, never in
+  parallel, because parallel writes are what produce `SQLITE_BUSY`. And one failing collection is
+  reported in the result while the others still run.
+
+- **`GET` and `POST /retention`, registered only when a window is actually configured.** A host that
+  never opted in has no delete route at all — the route does not exist rather than existing and
+  refusing. Both require an **SEO admin** (`isSeoAdminRequest`, the same gate as the rest of the
+  admin surface) and answer `Cache-Control: no-store`; the `POST` also goes through the shared
+  10-per-minute limiter keyed by user id. `GET` is a dry run: it reports the cutoffs and touches
+  nothing. `POST` **reads no body** — the windows come from your plugin config, so no caller can pass
+  its own `days: 0` and empty the tables.
+
+- **`purgeRetention`, `describeRetention`, `resolveRetention` and `RETENTION_TARGETS` are exported
+  from the package root**, for a host that would rather run the trim from its own cron than let the
+  plugin schedule it. `RetentionConfig`, `RetentionCollection` and `PurgeResult` come with them.
+
+- **The uninstall script now says what it leaves behind, and the wording is under test.**
+  `npx seo-analyzer-uninstall` still never touches your database, so what it *prints* is the only
+  warning you get. It used to list the seven plugin tables under "Optional", in an order that put
+  `seo-gsc-auth` sixth — the table that stores an **encrypted Google OAuth refresh token** and the
+  connected account's e-mail, and dropping the package does not revoke that grant. It is listed first
+  now, flagged as a credential, with the link to revoke the grant at
+  [myaccount.google.com/permissions](https://myaccount.google.com/permissions); `seo-redirects` is
+  flagged as the table whose loss stops your 301/302 rules being served, and `seo-logs` as holding
+  visitor `referrer` and `userAgent` strings (no IP addresses). A second section names what the
+  script does **not** remove and you should not drop blindly: the fields injected into *your*
+  collections — `isCornerstone`, `focusKeyword`, the `focusKeywords` array table, and the `meta`
+  group. `meta.title` / `meta.description` are editorial content your editors wrote, and the group
+  may belong to `@payloadcms/plugin-seo` rather than to this plugin, in which case the plugin
+  detected it at boot and never created one. Removing any of them is a schema change:
+  `payload migrate:create`, then `payload migrate`, never `push`. The notice is a pure exported
+  function (`leftoverNotice()`), ANSI-free so the wording stays greppable, with six tests over it.
+
+- **README — a "Database and updates" section, because the plugin's relationship to your schema was
+  never written down.** The plugin adds collections and fields to your config but does **not own the
+  schema**; your app does. **Payload does not let a plugin ship migrations**: `payload migrate` reads
+  a single directory and resolves it in the host app, never in a dependency
+  (`payload/dist/database/migrations/readMigrationFiles.js`, `findMigrationDir.js`), so a migration
+  file published inside an npm package is dead code. In development `push` syncs the schema for you;
+  in production run `migrate:create` then `migrate`, and never `push` — it is skipped as soon as
+  `NODE_ENV=production`, and mixing it with migrations raises a data-loss warning
+  (`@payloadcms/drizzle/dist/migrate.js`). The section also names what the plugin writes into *your*
+  tables: the analyzer fields (`src/fields.ts`) and the `meta` group (`src/metaFields.ts`) become
+  real columns — plus a real array table for `focusKeywords` — in every collection you list under
+  `collections`. **The migration you owe is therefore triggered by your own config, not by a version
+  bump**: adding a slug to `collections` is what creates columns. Both field definitions are
+  byte-identical to their 1.19.0 versions, so no upgrade of this plugin has ever owed you a migration
+  by itself.
+
+- **README — "Migration to 4.0" and "Migration to 3.0" sections**, written after the fact: both
+  security releases shipped the same day with their account in the CHANGELOG only. Each states **no
+  schema change** in its first line, so nobody generates a migration for them, then lists what
+  changes at runtime; the 3.0 section adds the SQLite and Postgres queries that list the external
+  redirect destinations you are grandfathering under `allowExternalRedirects: false`. `retentionDays`
+  joins the config table and gets its own `Retention` section; `GET`/`POST /retention` join the
+  endpoint table.
+
+- **Tests: the suite goes from 621 to 690.** `a11yContract` (6) asserts shape, not behaviour — no
+  `outline: 'none'` anywhere, no anonymous `input`/`select`/`textarea`, every `htmlFor` resolving to
+  an id the same file produces, no literal id where `useId()` is required, every `<button>` typed,
+  and no `<div>`/`<span>` with a click handler outside the two exceptions listed above.
+  `accessibility` (8) renders the SERP preview, the social preview and `LiveRegion` in jsdom and
+  checks the disclosure contract, the tabs pattern, per-instance ids and the empty-then-filled live
+  region. `errorBoundary` (11) covers containment, `fallback={null}` versus the default notice, the
+  reset keys, the remount-on-retry and the fact that the error message never reaches the screen.
+  `boundaryWiring` (21) guards the wiring itself: all seven client entry points still export a
+  wrapper rather than the inner component, the nav link keeps `fallback: null` while the fields do
+  not, and all nine views reach the boundary through the `/client` entry. `retention` (13), six on
+  the uninstall notice, and four on the retention endpoints' registration.
+
+### Changed
+
+- **A daily retention job starts in `onInit` — as a no-op unless you configured it.**
+  `startRetentionPurge` is called unconditionally, and returns immediately when `retentionDays`
+  resolves to no target: nothing scheduled, nothing logged. Configured, it logs one line at boot
+  (`[seo] retention: scheduled every 24h — seo-logs:90d`) and one per purge that actually deleted
+  something. The interval is cleared on `SIGTERM` / `SIGINT`, and starting it twice replaces the
+  previous interval rather than doubling the job.
+
+- **The SEO nav link now disappears instead of taking the admin down with it.** With
+  `fallback: null`, a render error there removes the link from every admin page rather than showing
+  an error panel on every admin page — and rather than unmounting the shell. The degradation is
+  silent by design; the reason is in the browser console, prefixed `[seo-analyzer] SeoNavLink
+  crashed:`.
+
+- **The two "edit" pencils are links, so the browser treats them as links.** ⌘-click and middle-click
+  now open the document in a new tab instead of doing nothing, and hovering shows the target. Same
+  destination as before.
+
+- The `type="button"` sweep changes nothing you can see: the 84 buttons it retyped all sit in the
+  standalone admin views, which have no ancestor `<form>` to submit.
+
+### Fixed
+
+- **The score sparkline built its gradient id with `Math.random()`, which is a hydration mismatch.**
+  `ScoreHistoryChart` generated `sparkline-grad-<random>` inside the render body, so the id differed
+  between the server and the client render and changed again on every re-render, rebuilding the
+  `fill="url(#…)"` reference each time. It is a `useId()` now.
+
 ## [4.0.0] - 2026-09-08
 
 **Second security release in a day.** 3.0.0 closed the endpoint gate; this one closes the door
@@ -1120,6 +1365,7 @@ Four premium-tier features that close the gaps vs Yoast Premium / RankMath Pro.
 - Content freshness tracking
 - Uninstall script (`npx seo-analyzer-uninstall`)
 
+[4.1.0]: https://github.com/pOwn3d/payload-seo-analyzer/compare/v4.0.0...v4.1.0
 [4.0.0]: https://github.com/pOwn3d/payload-seo-analyzer/compare/v3.0.0...v4.0.0
 [1.7.0]: https://github.com/pOwn3d/payload-seo-analyzer/compare/v1.4.4...v1.7.0
 [1.4.4]: https://github.com/pOwn3d/payload-seo-analyzer/compare/v1.4.2...v1.4.4

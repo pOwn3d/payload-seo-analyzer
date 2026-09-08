@@ -1,5 +1,10 @@
 // Client-side exports — React components for Payload admin UI
 // "use client" is prepended by tsup onSuccess (see tsup.config.ts)
+// Error boundary — exported so the server `views` entry can mount it across the
+// RSC boundary (see views/ErrorBoundaryClient.tsx)
+export { SeoErrorBoundary } from './components/ErrorBoundary.js'
+export type { SeoErrorBoundaryProps, SeoErrorBoundaryLabels } from './components/ErrorBoundary.js'
+export { LocalizedSeoErrorBoundary, withSeoErrorBoundary } from './components/withSeoErrorBoundary.js'
 export { default as SeoAnalyzerField } from './components/SeoAnalyzer.js'
 export { SeoView } from './components/SeoView.js'
 export { default as SeoNavLink } from './components/SeoNavLink.js'

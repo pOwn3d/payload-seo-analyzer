@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import { useSeoLocale } from '../hooks/useSeoLocale.js'
 import { getDashboardT } from '../dashboard-i18n.js'
+import { withSeoErrorBoundary } from './withSeoErrorBoundary.js'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -83,7 +84,7 @@ type DeviceMode = 'desktop' | 'mobile'
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
-export function SerpPreview({
+function SerpPreviewInner({
   metaTitle,
   metaDescription,
   slug,
@@ -115,12 +116,19 @@ export function SerpPreview({
   return (
     <div style={{ marginBottom: 8 }}>
       {/* Header — collapsible */}
-      <div
+      {/* A real <button>, not a div+role+tabIndex: it gets keyboard activation,
+          focus and the right screen-reader role for free. */}
+      <button
+        type="button"
         onClick={() => setOpen(!open)}
+        aria-expanded={open}
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
+          width: '100%',
+          textAlign: 'left',
+          font: 'inherit',
           padding: '10px 12px',
           cursor: 'pointer',
           borderRadius: 8,
@@ -168,7 +176,7 @@ export function SerpPreview({
         >
           {'\u25B6'}
         </span>
-      </div>
+      </button>
 
       {/* Body */}
       {open && (
@@ -504,5 +512,14 @@ function DeviceButton({
     </button>
   )
 }
+
+
+/**
+ * Payload mounts this field from the import map on every edit screen, so the
+ * boundary must live in this module — the plugin never owns the parent form.
+ * A crash here degrades to a retryable notice instead of taking the whole
+ * document editor down.
+ */
+export const SerpPreview = withSeoErrorBoundary(SerpPreviewInner, { viewName: 'SerpPreview' })
 
 export default SerpPreview

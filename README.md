@@ -30,6 +30,9 @@ and IndexNow are opt-in and use your own credentials.
 - [Package Exports](#package-exports)
 - [Requirements](#requirements)
 - [Uninstall](#uninstall)
+- [Database and updates](#database-and-updates)
+- [Migration to 4.0](#migration-to-40)
+- [Migration to 3.0](#migration-to-30)
 - [Migration to 2.0](#migration-to-20)
 - [Performance](#performance)
 - [Troubleshooting](#troubleshooting)
@@ -169,6 +172,7 @@ Every field of `SeoPluginConfig`. All are optional.
 | `tabbedUI` | `boolean` | `false` | Wraps collection fields in "Content" / "SEO" tabs. |
 | `interfaceName` | `string` | — | TypeScript interface name generated for the `meta` group. |
 | `customTranslations` | `Record<string, Partial<DashboardTranslations>>` | — | Dashboard strings for locales beyond FR/EN; missing keys fall back to English. |
+| `retentionDays` | `Partial<Record<'seo-rank-history' \| 'seo-score-history' \| 'seo-performance' \| 'seo-logs', number>>` | — | Days of history to keep, per time-series collection. Opt-in: without it nothing is ever deleted. See [Retention](#retention). |
 
 `thresholds` accepts `titleLengthMin`, `titleLengthMax`, `metaDescLengthMin`, `metaDescLengthMax`,
 `minWordsGeneric`, `minWordsPost`, `keywordDensityMin`, `keywordDensityMax`, `fleschScorePass` and
@@ -182,6 +186,49 @@ seoAnalyzerPlugin({
   thresholds: { titleLengthMax: 65, metaDescLengthMax: 165 },
 })
 ```
+
+### Retention
+
+The four time-series collections are append-only: `seo-rank-history` gains a row per tracked query
+per day, `seo-score-history` one per document per save, `seo-performance` one per imported Search
+Console row, and `seo-logs` one per distinct 404 URL. Nothing trims them, so on a long-lived site
+they grow without bound. That is a database-size problem, not a privacy one — the only
+visitor-derived values are `referrer` and `userAgent` on `seo-logs`, and no IP address is stored
+anywhere.
+
+`retentionDays` is **opt-in**. Without it, behaviour is exactly what it has always been: nothing is
+deleted.
+
+```ts
+seoAnalyzerPlugin({
+  retentionDays: {
+    'seo-rank-history': 365,
+    'seo-score-history': 180,
+    'seo-performance': 400,
+    'seo-logs': 90,
+  },
+})
+```
+
+Naming at least one collection:
+
+- schedules a purge 5 minutes after boot and every 24 hours, deleting rows older than the window;
+- registers `GET /api/seo-plugin/retention` (dry run — reports the cutoffs, deletes nothing) and
+  `POST /api/seo-plugin/retention` (run now), both **SEO-admin only**.
+
+Details worth knowing:
+
+- Each collection is trimmed on **its own date field** — `snapshotDate`, `date` or `lastSeen`, never
+  `createdAt`, which three of the four do not have (`timestamps: false`). `seo-logs` is keyed on
+  `lastSeen` so a 404 first recorded long ago but still being hit today is kept.
+- A value that is not a finite number of at least `1` is **ignored, not clamped**: `0` would mean
+  "delete everything".
+- Collections are purged one after another, never in parallel — parallel writes are what produce
+  `SQLITE_BUSY`.
+- The windows come from your config only. The `POST` endpoint reads no body, so no caller can pass
+  its own retention.
+- `purgeRetention`, `describeRetention` and `resolveRetention` are exported from the package root if
+  you would rather run the trim from your own cron.
 
 ### Feature flags
 
@@ -319,6 +366,8 @@ config, since Payload exposes a REST API for every collection.
 | `POST` | `/alerts-run` | SEO admin | `alerts` |
 | `GET` | `/indexnow-key.txt` | Public (search engines verify it) | `indexNow` |
 | `POST` | `/indexnow-submit` | SEO admin | `indexNow` |
+| `GET` | `/retention` | SEO admin | registered only when `retentionDays` is set |
+| `POST` | `/retention` | SEO admin | registered only when `retentionDays` is set |
 
 Expensive endpoints are rate limited to 10 requests per minute, keyed by user id and falling back to the
 client IP; the polled ones (`/audit`, `/suggest-links`) get 120 per minute instead.
@@ -412,10 +461,107 @@ npx seo-analyzer-uninstall
 
 The script runs three steps: it removes the package's imports and `seoAnalyzerPlugin(...)` calls from
 your source files, runs the removal command for your package manager, then regenerates the import map.
-It exits with code `1` and lists the failing commands if either of the last two did not complete. It
-also prints the collections you may want to drop from your database
-(`seo-score-history`, `seo-settings`, `seo-redirects`, `seo-performance`, `seo-logs`, `seo-gsc-auth`,
-`seo-rank-history`) — that part is deliberately left to you.
+It exits with code `1` and lists the failing commands if either of the last two did not complete.
+
+**It never touches your database**, and it prints what is left behind:
+
+- The seven plugin tables you may drop (`seo-gsc-auth`, `seo-settings`, `seo-redirects`,
+  `seo-score-history`, `seo-performance`, `seo-logs`, `seo-rank-history`). Drop **`seo-gsc-auth`
+  first**: it holds an encrypted Google OAuth refresh token and the connected account's email, and
+  removing the package does not revoke that grant — do that at
+  [myaccount.google.com/permissions](https://myaccount.google.com/permissions) too. `seo-logs` holds
+  visitor `referrer` and `userAgent` strings (no IP addresses).
+- The fields the plugin injected into **your** collections, which are *not* dropped and should not be
+  dropped blindly: `isCornerstone`, `focusKeyword`, the `focusKeywords` array table, and the `meta`
+  group. `meta.title` / `meta.description` are editorial content your editors wrote, and the group may
+  belong to `@payloadcms/plugin-seo` rather than to this plugin — see
+  [Database and updates](#database-and-updates). Removing any of them is a schema change:
+  `payload migrate:create`, then `payload migrate`.
+
+## Database and updates
+
+- This plugin adds collections and fields to your Payload config. It does not own the schema — your
+  app does.
+- **Payload does not let a plugin ship migrations.** `payload migrate` reads a single directory, and
+  it resolves it in the host app, never in a dependency (`payload/dist/database/migrations/readMigrationFiles.js`,
+  `findMigrationDir.js`). A migration file published inside an npm package is dead code.
+- **In development**, `push` syncs the schema for you — there is nothing to run.
+- **In production**, run `payload migrate:create` then `payload migrate`. Never `push`: it is skipped
+  as soon as `NODE_ENV=production`, and mixing it with migrations raises a data-loss warning
+  (`@payloadcms/drizzle/dist/migrate.js`).
+- Every release of this plugin states in its own migration section below whether it changes the
+  schema. None has since 1.19.0.
+
+### What this plugin writes into *your* tables
+
+The [collections listed above](#collections) are the plugin's own tables. But the analyzer fields
+(`isCornerstone` checkbox, `focusKeyword` text, `focusKeywords` array, `src/fields.ts`) and the `meta`
+group (`meta.title` text, `meta.description` textarea, `meta.image` upload, `src/metaFields.ts`) are
+injected into **every collection listed in the `collections` option**. Each slug you add to that list
+creates real columns in one of your own tables — plus a real array table for `focusKeywords` — exactly
+as if you had declared the fields by hand.
+
+So the migration you owe is triggered by *your* config, not by a version bump: after adding a slug to
+`collections`, run `payload migrate:create` + `payload migrate` in production.
+
+If the collection already carries a `meta` group — from `@payloadcms/plugin-seo`, or your own field —
+the plugin detects it, logs a warning and skips the group instead of adding a second one. Set
+`autoCreateMetaFields: false` to skip it unconditionally.
+
+These two field definitions are byte-identical to their 1.19.0 versions, so no upgrade of this plugin
+has ever owed you a migration by itself.
+
+## Migration to 4.0
+
+**No schema change.** 4.0.0 only changes access rules, validation and view guards. Do not generate a
+migration for it.
+
+The full account is in [CHANGELOG.md](CHANGELOG.md). What can change for you at runtime:
+
+1. **Sessions from an auth collection other than the admin panel's lose the nine admin views.** They
+   are redirected to `/admin/unauthorized`; anonymous visitors go to your real login route instead of
+   a hard-coded `/admin/login`. Only relevant if your config declares more than one `auth` collection.
+2. **Panel users promoted by the old RBAC fail-open lose their SEO-admin rights.** The fallback now
+   asks whether a role field is *present*, not whether it has a shape the plugin recognises. If your
+   users collection models `role` / `roles` as anything other than a plain string or an array of
+   strings, check who still writes to `seo-settings`, `seo-redirects` and `seo-gsc-auth`.
+3. **`POST /seo-logs` requires an SEO admin when no `seoLogsSecret` is configured**, and stops
+   creating rows past `SEO_LOGS_MAX_ROWS` (default 5000).
+4. **`peerDependencies` require Payload `>=3.79.1 <4.0.0`** for `payload`, `@payloadcms/next` and
+   `@payloadcms/ui`.
+
+## Migration to 3.0
+
+**No schema change.** 3.0.0 only changes access rules, validation and rate limiting. Do not generate a
+migration for it.
+
+The full account is in [CHANGELOG.md](CHANGELOG.md). The one item that leaves data behind:
+
+**External redirect destinations are refused unless you opt in** (`allowExternalRedirects`, default
+`false`). Rows stored *before* the upgrade stay editable — the gate only refuses a destination that
+actually **changes**, so an existing external redirect can still have its source path or its 301/302
+type edited (`src/collections/SeoRedirects.ts`, `src/helpers/redirectSafety.ts`). Nothing is rewritten
+or deleted for you; the legacy value simply survives. To review what you are grandfathering, list the
+rows whose destination is absolute:
+
+```bash
+# adjust the table name to your redirectsCollection slug
+sqlite3 your.db "SELECT id, \"from\", \"to\" FROM seo_redirects WHERE \"to\" LIKE 'http%';"
+```
+
+```sql
+-- Postgres
+SELECT id, "from", "to" FROM seo_redirects WHERE "to" LIKE 'http%';
+```
+
+Set `allowExternalRedirects: true` if you genuinely rely on cross-origin redirects; otherwise fix the
+rows the query returns, since any edit that touches their destination will now be refused.
+
+Other 3.0.0 changes that alter behaviour without touching data: the site-wide aggregation endpoints no
+longer publish drafts to any authenticated account, `seo-performance` / `seo-logs` /
+`seo-score-history` are no longer writable through the collection API by a plain panel user,
+`sitemap.xml` excludes `noindex` documents, and `?nocache=1` is ignored for a panel user without the
+admin role.
 
 ## Migration to 2.0
 

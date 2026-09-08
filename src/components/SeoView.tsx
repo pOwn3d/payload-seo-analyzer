@@ -1,12 +1,13 @@
 'use client'
 
-import React, { useEffect, useState, useMemo, useCallback } from 'react'
+import React, { useEffect, useState, useMemo, useCallback, useId } from 'react'
 import { ContentDecaySection } from './ContentDecaySection.js'
 import { useSeoLocale } from '../hooks/useSeoLocale.js'
 import { escapeHtml } from '../helpers/escapeHtml.js'
 import { getDashboardT } from '../dashboard-i18n.js'
 import type { DashboardTranslations } from '../dashboard-i18n.js'
 import { toCsv } from '../helpers/csv.js'
+import { LiveRegion } from './LiveRegion.js'
 
 // ---------------------------------------------------------------------------
 // Design tokens — uses Payload CSS variables for theme compatibility
@@ -193,17 +194,23 @@ function SortHeader({
 }) {
   const isActive = currentSort === sortKey
   return (
-    <span
+    <button
+      type="button"
       onClick={() => onSort(sortKey)}
       style={{
         cursor: 'pointer',
         userSelect: 'none',
+        background: 'none',
+        border: 'none',
+        padding: 0,
+        font: 'inherit',
+        textAlign: 'left',
         color: isActive ? V.text : V.textSecondary,
         fontWeight: isActive ? 800 : 600,
       }}
     >
       {label} {isActive && (currentDir === 'asc' ? '\u25B2' : '\u25BC')}
-    </span>
+    </button>
   )
 }
 
@@ -223,6 +230,11 @@ function InlineEditPanel({
   saving: boolean
   t: DashboardTranslations
 }) {
+  // One panel is rendered per expanded row: literal ids would collide the moment
+  // two rows are open at once.
+  const uid = useId()
+  const titleId = `${uid}-meta-title`
+  const descId = `${uid}-meta-desc`
   const [metaTitle, setMetaTitle] = useState(item.metaTitle || '')
   const [metaDescription, setMetaDescription] = useState(item.metaDescription || '')
 
@@ -253,7 +265,7 @@ function InlineEditPanel({
               marginBottom: 4,
             }}
           >
-            <label style={{ fontSize: 10, fontWeight: 700, color: V.textSecondary, textTransform: 'uppercase' }}>
+            <label htmlFor={titleId} style={{ fontSize: 10, fontWeight: 700, color: V.textSecondary, textTransform: 'uppercase' }}>
               {t.seoView.metaTitle}
             </label>
             <span
@@ -267,6 +279,7 @@ function InlineEditPanel({
             </span>
           </div>
           <input
+            id={titleId}
             type="text"
             value={metaTitle}
             onChange={(e) => setMetaTitle(e.target.value)}
@@ -293,7 +306,7 @@ function InlineEditPanel({
               marginBottom: 4,
             }}
           >
-            <label style={{ fontSize: 10, fontWeight: 700, color: V.textSecondary, textTransform: 'uppercase' }}>
+            <label htmlFor={descId} style={{ fontSize: 10, fontWeight: 700, color: V.textSecondary, textTransform: 'uppercase' }}>
               {t.seoView.metaDesc}
             </label>
             <span
@@ -307,6 +320,7 @@ function InlineEditPanel({
             </span>
           </div>
           <textarea
+            id={descId}
             value={metaDescription}
             onChange={(e) => setMetaDescription(e.target.value)}
             maxLength={170}
@@ -326,7 +340,7 @@ function InlineEditPanel({
 
         {/* Buttons */}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <button
+          <button type="button"
             onClick={onCancel}
             style={{
               ...btnBase,
@@ -336,7 +350,7 @@ function InlineEditPanel({
           >
             {t.common.cancel}
           </button>
-          <button
+          <button type="button"
             onClick={() => onSave(metaTitle, metaDescription)}
             disabled={saving}
             style={{
@@ -417,16 +431,37 @@ function TableRow({
       <div style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
         <input
           type="checkbox"
+          aria-label={item.title || item.slug}
           checked={selected}
           onChange={onToggle}
           style={{ cursor: 'pointer' }}
         />
       </div>
 
-      {/* Title + slug + A2 meta badges */}
+      {/* Title + slug + A2 meta badges.
+          The row <div> keeps its click handler as a mouse convenience, but the
+          title is a real <button>: it is what makes the expand/collapse
+          reachable from the keyboard. The row itself must NOT become a button —
+          it already contains a checkbox and an edit link, and interactive
+          elements cannot nest. */}
       <div style={{ overflow: 'hidden' }}>
-        <div
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            onRowClick()
+          }}
+          aria-expanded={expanded}
           style={{
+            display: 'block',
+            width: '100%',
+            background: 'none',
+            border: 'none',
+            padding: 0,
+            cursor: 'pointer',
+            textAlign: 'left',
+            fontFamily: 'inherit',
+            fontSize: 'inherit',
             fontWeight: 700,
             color: V.text,
             whiteSpace: 'nowrap',
@@ -449,7 +484,7 @@ function TableRow({
               {t.seoView.cornerstone}
             </span>
           )}
-        </div>
+        </button>
         <div style={{ fontSize: 10, color: V.textSecondary, marginTop: 1 }}>
           <span
             style={{
@@ -630,29 +665,26 @@ function TableRow({
 
       {/* Edit link */}
       <div style={{ textAlign: 'center' }} data-edit-link>
-        <span
-          role="link"
-          tabIndex={0}
+        {/* A real <a href>, not a span with role="link": it restores keyboard
+            activation, middle-click, "open in new tab" and the status bar. */}
+        <a
+          href={`/admin/collections/${item.collection}/${item.id}`}
           title={t.common.edit}
+          aria-label={`${t.common.edit} — ${item.title || item.slug}`}
           onMouseEnter={() => setEditHover(true)}
           onMouseLeave={() => setEditHover(false)}
-          onClick={(e) => {
-            e.stopPropagation()
-            window.location.href = `/admin/collections/${item.collection}/${item.id}`
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') window.location.href = `/admin/collections/${item.collection}/${item.id}`
-          }}
+          onClick={(e) => e.stopPropagation()}
           style={{
             cursor: 'pointer',
             fontSize: 15,
+            textDecoration: 'none',
             color: editHover ? V.blue : V.textSecondary,
             transition: 'color 0.15s',
             userSelect: 'none',
           }}
         >
           &#9998;
-        </span>
+        </a>
       </div>
     </div>
   )
@@ -716,7 +748,7 @@ function BulkActionBar({
         <span style={{ fontSize: 12, fontWeight: 700, color: V.text }}>
           {count} {t.common.selected}{count > 1 ? 's' : ''}
         </span>
-        <button
+        <button type="button"
           onClick={onDeselectAll}
           style={{ ...btnBase, backgroundColor: V.bg, color: V.textSecondary }}
         >
@@ -724,26 +756,26 @@ function BulkActionBar({
         </button>
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
-        <button
+        <button type="button"
           onClick={onExportCsv}
           style={{ ...btnBase, backgroundColor: V.cyan, color: '#000' }}
         >
           {t.common.exportCsv}
         </button>
-        <button
+        <button type="button"
           onClick={() => { if (!optimizing) onOptimizeMeta() }}
           disabled={optimizing}
           style={{ ...btnBase, backgroundColor: '#7c3aed', color: '#fff', opacity: optimizing ? 0.6 : 1 }}
         >
           {optimizing ? t.seoView.bulkOptimizing : `✨ ${t.seoView.bulkOptimizeMeta}`}
         </button>
-        <button
+        <button type="button"
           onClick={onMarkCornerstone}
           style={{ ...btnBase, backgroundColor: '#7c3aed', color: '#fff' }}
         >
           {t.seoView.markCornerstone}
         </button>
-        <button
+        <button type="button"
           onClick={onUnmarkCornerstone}
           style={{ ...btnBase, backgroundColor: V.bg, color: V.text }}
         >
@@ -1439,6 +1471,7 @@ export function SeoView() {
         }}
       >
         {building ? t.seoView.buildingAudit : t.seoView.loadingAudit}
+        <LiveRegion message={building ? t.seoView.buildingAudit : t.seoView.loadingAudit} />
       </div>
     )
   }
@@ -1450,7 +1483,7 @@ export function SeoView() {
         <div style={{ color: V.textSecondary, fontSize: 13, lineHeight: 1.6, maxWidth: 520, margin: '0 auto 18px' }}>
           {t.seoView.auditNotRun}
         </div>
-        <button
+        <button type="button"
           onClick={() => fetchAudit('run')}
           style={{ ...btnBase, backgroundColor: '#16a34a', color: '#fff', fontWeight: 700 }}
         >
@@ -1474,7 +1507,8 @@ export function SeoView() {
           {t.common.loadingError}
         </div>
         <div style={{ color: V.textSecondary, fontSize: 12, marginBottom: 16 }}>{error}</div>
-        <button
+        <LiveRegion assertive message={`${t.common.loadingError}: ${error}`} />
+        <button type="button"
           onClick={() => fetchAudit('refresh')}
           style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
         >
@@ -1512,9 +1546,12 @@ export function SeoView() {
           <p style={{ fontSize: 12, color: V.textSecondary, margin: '4px 0 0' }}>
             {stats?.totalPages || 0} {t.seoView.pagesAnalyzed}
           </p>
+          {/* The audit can run for minutes; without this the only signal that it
+              finished is a visual one. */}
+          <LiveRegion message={`${stats?.totalPages || 0} ${t.seoView.pagesAnalyzed}`} />
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button
+          <button type="button"
             onClick={handleOptimizeSite}
             disabled={bulkOptimizing || items.length === 0}
             title={t.seoView.optimizeSiteHint}
@@ -1522,19 +1559,19 @@ export function SeoView() {
           >
             {bulkOptimizing ? t.seoView.bulkOptimizing : `✨ ${t.seoView.optimizeSite}`}
           </button>
-          <button
+          <button type="button"
             onClick={() => fetchAudit('refresh')}
             style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
           >
             &#8635; {t.common.refresh}
           </button>
-          <button
+          <button type="button"
             onClick={handleExportCsv}
             style={{ ...btnBase, backgroundColor: V.cyan, color: '#000' }}
           >
             {t.common.exportCsv}
           </button>
-          <button
+          <button type="button"
             onClick={handleExportPdf}
             style={{ ...btnBase, backgroundColor: V.blue, color: '#fff' }}
           >
@@ -1561,7 +1598,7 @@ export function SeoView() {
           }}
         >
           <span>{t.seoView.bulkAppliedNote}</span>
-          <button
+          <button type="button"
             onClick={() => {
               setBulkApplied(false)
               fetchAudit('refresh')
@@ -1607,6 +1644,7 @@ export function SeoView() {
       >
         <input
           type="text"
+          aria-label={t.seoView.searchPlaceholder}
           placeholder={t.seoView.searchPlaceholder}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -1620,7 +1658,12 @@ export function SeoView() {
             backgroundColor: V.bg,
           }}
         />
-        <select value={filter} onChange={(e) => setFilter(e.target.value)} style={selectStyle}>
+        <select
+          aria-label={t.seoView.allCollections}
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          style={selectStyle}
+        >
           <option value="all">{t.seoView.allCollections}</option>
           {collections.map((c) => (
             <option key={c} value={c}>
@@ -1629,6 +1672,7 @@ export function SeoView() {
           ))}
         </select>
         <select
+          aria-label={t.seoView.allScores}
           value={scoreFilter}
           onChange={(e) => setScoreFilter(e.target.value as typeof scoreFilter)}
           style={selectStyle}
@@ -1652,7 +1696,7 @@ export function SeoView() {
         ]).map((qf) => {
           const isActive = quickFilter === qf.key
           return (
-            <button
+            <button type="button"
               key={qf.key}
               onClick={() => setQuickFilter(isActive ? 'none' : qf.key)}
               style={{
@@ -1716,6 +1760,7 @@ export function SeoView() {
           <div style={{ textAlign: 'center' }}>
             <input
               type="checkbox"
+              aria-label={allPageSelected ? t.common.deselectAll : t.sitemapAudit.selectAll}
               checked={allPageSelected}
               onChange={handleSelectAll}
               style={{ cursor: 'pointer' }}
@@ -1873,7 +1918,7 @@ export function SeoView() {
             fontSize: 12,
           }}
         >
-          <button
+          <button type="button"
             onClick={() => setCurrentPage(1)}
             disabled={currentPage === 1}
             style={{
@@ -1885,7 +1930,7 @@ export function SeoView() {
           >
             &laquo;
           </button>
-          <button
+          <button type="button"
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={currentPage === 1}
             style={{
@@ -1900,7 +1945,7 @@ export function SeoView() {
           <span style={{ color: V.textSecondary, fontWeight: 600, padding: '0 8px' }}>
             {t.common.page} {currentPage} / {totalPages}
           </span>
-          <button
+          <button type="button"
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
             style={{
@@ -1912,7 +1957,7 @@ export function SeoView() {
           >
             {t.common.next} &rsaquo;
           </button>
-          <button
+          <button type="button"
             onClick={() => setCurrentPage(totalPages)}
             disabled={currentPage === totalPages}
             style={{
@@ -2008,7 +2053,7 @@ export function SeoView() {
             </div>
 
             <div style={{ padding: '14px 20px', borderTop: `1px solid ${V.border}`, display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-              <button
+              <button type="button"
                 onClick={handleExportBulkPreviewCsv}
                 disabled={bulkPreview.results.length === 0}
                 style={{ ...btnBase, backgroundColor: V.cyan, color: '#000', opacity: bulkPreview.results.length === 0 ? 0.5 : 1 }}
@@ -2016,10 +2061,10 @@ export function SeoView() {
                 {t.seoView.bulkExport}
               </button>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => setBulkPreview(null)} disabled={bulkApplying} style={{ ...btnBase, backgroundColor: V.bg, color: V.text }}>
+                <button type="button" onClick={() => setBulkPreview(null)} disabled={bulkApplying} style={{ ...btnBase, backgroundColor: V.bg, color: V.text }}>
                   {t.seoView.bulkCancel}
                 </button>
-                <button
+                <button type="button"
                   onClick={handleBulkApplyPreview}
                   disabled={bulkApplying || bulkPreview.results.length === 0}
                   style={{ ...btnBase, backgroundColor: '#7c3aed', color: '#fff', opacity: bulkApplying || bulkPreview.results.length === 0 ? 0.6 : 1 }}

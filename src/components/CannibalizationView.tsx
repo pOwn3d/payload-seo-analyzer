@@ -92,19 +92,28 @@ function KeywordGroup({ conflict, t }: { conflict: Conflict; t: DashboardTransla
       }}
     >
       {/* Keyword header */}
-      <div
+      {/* A real <button>, not a div+role+tabIndex: keyboard activation, focus
+          ring and the disclosure role come for free. */}
+      <button
+        type="button"
         onClick={() => setOpen(!open)}
+        aria-expanded={open}
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
+          width: '100%',
+          textAlign: 'left',
+          font: 'inherit',
+          border: 'none',
           padding: '10px 14px',
           cursor: 'pointer',
           backgroundColor: badgeBg,
           userSelect: 'none',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* <span>, not <div>: a <button> only accepts phrasing content. */}
+        <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span
             style={{
               fontWeight: 800,
@@ -139,7 +148,7 @@ function KeywordGroup({ conflict, t }: { conflict: Conflict; t: DashboardTransla
           >
             {conflict.pages.length} {t.cannibalization.pages}
           </span>
-        </div>
+        </span>
         <span
           style={{
             fontSize: 10,
@@ -151,7 +160,7 @@ function KeywordGroup({ conflict, t }: { conflict: Conflict; t: DashboardTransla
         >
           {'\u25B6'}
         </span>
-      </div>
+      </button>
 
       {/* Pages table */}
       {open && (
@@ -395,7 +404,7 @@ export function CannibalizationView() {
         <div style={{ color: V.textSecondary, fontSize: 12, marginBottom: 16 }}>
           {error}
         </div>
-        <button
+        <button type="button"
           onClick={fetchData}
           style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
         >
@@ -465,13 +474,13 @@ export function CannibalizationView() {
               </span>
             </div>
           )}
-          <button
+          <button type="button"
             onClick={fetchData}
             style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
           >
             &#8635; {t.common.refresh}
           </button>
-          <button
+          <button type="button"
             onClick={handleExportCsv}
             disabled={filteredConflicts.length === 0}
             style={{
@@ -491,6 +500,7 @@ export function CannibalizationView() {
       <div style={{ marginBottom: 16 }}>
         <input
           type="text"
+          aria-label={t.cannibalization.searchPlaceholder}
           placeholder={t.cannibalization.searchPlaceholder}
           value={search}
           onChange={(e) => setSearch(e.target.value)}

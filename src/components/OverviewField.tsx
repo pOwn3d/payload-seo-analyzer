@@ -15,6 +15,7 @@ import React, { useMemo } from 'react'
 import { useFormFields } from '@payloadcms/ui'
 import { useSeoLocale } from '../hooks/useSeoLocale.js'
 import { getDashboardT } from '../dashboard-i18n.js'
+import { withSeoErrorBoundary } from './withSeoErrorBoundary.js'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -83,7 +84,7 @@ function getCompletenessLabel(count: number, ov: { incomplete: string; partial: 
 // Component
 // ---------------------------------------------------------------------------
 
-export function OverviewField({
+function OverviewFieldInner({
   titlePath = 'meta.title',
   descriptionPath = 'meta.description',
   imagePath = 'meta.image',
@@ -285,5 +286,14 @@ export function OverviewField({
     </div>
   )
 }
+
+
+/**
+ * Payload mounts this field from the import map on every edit screen, so the
+ * boundary must live in this module — the plugin never owns the parent form.
+ * A crash here degrades to a retryable notice instead of taking the whole
+ * document editor down.
+ */
+export const OverviewField = withSeoErrorBoundary(OverviewFieldInner, { viewName: 'OverviewField' })
 
 export default OverviewField

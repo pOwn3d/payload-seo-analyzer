@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState, useId } from 'react'
 import { useSeoLocale } from '../hooks/useSeoLocale.js'
 import { getDashboardT } from '../dashboard-i18n.js'
 import { CoreWebVitalsPanel } from './CoreWebVitalsPanel.js'
@@ -190,8 +190,29 @@ function SortTh({
 }) {
   const isActive = currentSort === field
   return (
-    <th onClick={() => onSort(field)} style={{ ...thStyle, ...style }}>
-      {label} {isActive ? (currentDir === 'asc' ? '\u2191' : '\u2193') : ''}
+    // aria-sort on the <th>, the click target as a real <button> INSIDE it:
+    // moving the handler onto the cell itself would have cost the column
+    // header its semantics for assistive technology.
+    <th
+      scope="col"
+      aria-sort={isActive ? (currentDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+      style={{ ...thStyle, ...style }}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(field)}
+        style={{
+          background: 'none',
+          border: 'none',
+          padding: 0,
+          font: 'inherit',
+          color: 'inherit',
+          textAlign: 'inherit',
+          cursor: 'pointer',
+        }}
+      >
+        {label} {isActive ? (currentDir === 'asc' ? '\u2191' : '\u2193') : ''}
+      </button>
     </th>
   )
 }
@@ -203,6 +224,10 @@ function SortTh({
 export function PerformanceView() {
   const locale = useSeoLocale()
   const t = getDashboardT(locale)
+  const uid = useId()
+  const fileId = `${uid}-import-file`
+  const csvId = `${uid}-import-csv`
+  const jsonId = `${uid}-import-json`
   const [period, setPeriod] = useState<Period>('30d')
   const [summary, setSummary] = useState<Summary | null>(null)
   const [topPages, setTopPages] = useState<TopPage[]>([])
@@ -484,7 +509,7 @@ export function PerformanceView() {
         <div style={{ color: V.textSecondary, fontSize: 12, marginBottom: 16 }}>
           {error}
         </div>
-        <button
+        <button type="button"
           onClick={fetchData}
           style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
         >
@@ -525,7 +550,7 @@ export function PerformanceView() {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {/* Period selector */}
           {(['7d', '30d', '90d'] as Period[]).map((p) => (
-            <button
+            <button type="button"
               key={p}
               onClick={() => setPeriod(p)}
               style={{
@@ -538,7 +563,7 @@ export function PerformanceView() {
               {periodLabels[p]}
             </button>
           ))}
-          <button
+          <button type="button"
             onClick={() => setShowImport(!showImport)}
             style={{
               ...btnBase,
@@ -548,14 +573,14 @@ export function PerformanceView() {
           >
             {showImport ? t.performance.closeImport : t.performance.import}
           </button>
-          <button
+          <button type="button"
             onClick={fetchData}
             style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
           >
             &#8635; {t.common.refresh}
           </button>
           {hasData && (
-            <button
+            <button type="button"
               onClick={handleExportCsv}
               style={{ ...btnBase, backgroundColor: V.cyan, color: '#000' }}
             >
@@ -597,11 +622,13 @@ export function PerformanceView() {
           {/* File picker (CSV or XLSX) */}
           <div style={{ marginBottom: 12 }}>
             <label
+              htmlFor={fileId}
               style={{ fontSize: 11, fontWeight: 700, color: V.textSecondary, display: 'block', marginBottom: 4 }}
             >
               {t.performance.fileType}
             </label>
             <input
+              id={fileId}
               type="file"
               accept=".csv,.tsv,.txt,.xlsx,.xls"
               onChange={handleFileUpload}
@@ -613,6 +640,7 @@ export function PerformanceView() {
           {csvText && (
             <div style={{ marginBottom: 12 }}>
               <label
+                htmlFor={csvId}
                 style={{
                   fontSize: 11,
                   fontWeight: 700,
@@ -624,6 +652,7 @@ export function PerformanceView() {
                 CSV ({csvText.split('\n').length} lines)
               </label>
               <textarea
+                id={csvId}
                 value={csvText}
                 onChange={(e) => setCsvText(e.target.value)}
                 rows={5}
@@ -674,6 +703,7 @@ export function PerformanceView() {
           {!csvText && !jsonText && (
             <div style={{ marginBottom: 12 }}>
               <label
+                htmlFor={jsonId}
                 style={{
                   fontSize: 11,
                   fontWeight: 700,
@@ -685,6 +715,7 @@ export function PerformanceView() {
                 {t.performance.pasteJsonHint}
               </label>
               <textarea
+                id={jsonId}
                 value={jsonText}
                 onChange={(e) => setJsonText(e.target.value)}
                 placeholder={'[\n  { "url": "/page", "query": "mot clé", "clicks": 10, "impressions": 100, "ctr": 10, "position": 3.5, "date": "2025-01-15" }\n]'}
@@ -707,7 +738,7 @@ export function PerformanceView() {
 
           {/* Import button */}
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <button
+            <button type="button"
               onClick={handleImport}
               disabled={importing || (!csvText.trim() && !jsonText.trim())}
               style={{
@@ -757,7 +788,7 @@ export function PerformanceView() {
           <p style={{ fontSize: 12, color: V.textSecondary, maxWidth: 500, margin: '0 auto 16px' }}>
             {t.performance.noDataDesc}
           </p>
-          <button
+          <button type="button"
             onClick={() => setShowImport(true)}
             style={{ ...btnBase, backgroundColor: V.cyan, color: '#000' }}
           >

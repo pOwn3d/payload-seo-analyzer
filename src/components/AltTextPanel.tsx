@@ -28,6 +28,7 @@ const S = {
     noKey: 'Clé API Claude requise (ANTHROPIC_API_KEY).',
     loading: 'Chargement…',
     refresh: 'Rafraîchir',
+    altLabel: 'Texte alternatif',
   },
   en: {
     title: 'AI image alt-text',
@@ -43,6 +44,7 @@ const S = {
     noKey: 'Claude API key required (ANTHROPIC_API_KEY).',
     loading: 'Loading…',
     refresh: 'Refresh',
+    altLabel: 'Alt text',
   },
 } as const
 
@@ -214,6 +216,7 @@ export function AltTextPanel({ locale }: { locale: 'fr' | 'en' }) {
                         </div>
                         {rs.alt !== undefined ? (
                           <input
+                            aria-label={`${s.altLabel} — ${item.filename}`}
                             value={rs.alt}
                             onChange={(e) => setRow(item.id, { alt: e.target.value })}
                             disabled={rs.applied}

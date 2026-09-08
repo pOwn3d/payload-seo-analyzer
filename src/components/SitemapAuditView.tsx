@@ -1,8 +1,9 @@
 'use client'
 
-import React, { useEffect, useState, useMemo, useCallback } from 'react'
+import React, { useEffect, useState, useMemo, useCallback, useId } from 'react'
 import { useSeoLocale } from '../hooks/useSeoLocale.js'
 import { getDashboardT } from '../dashboard-i18n.js'
+import { LiveRegion } from './LiveRegion.js'
 import { toCsv } from '../helpers/csv.js'
 
 // ---------------------------------------------------------------------------
@@ -292,28 +293,23 @@ function EditButton({ collection, id }: { collection: string; id: number | strin
   const t = getDashboardT(useSeoLocale())
   const [hover, setHover] = useState(false)
   return (
-    <span
-      role="link"
-      tabIndex={0}
+    <a
+      href={`/admin/collections/${collection}/${id}`}
       title={t.common.edit}
+      aria-label={t.common.edit}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      onClick={() => {
-        window.location.href = `/admin/collections/${collection}/${id}`
-      }}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') window.location.href = `/admin/collections/${collection}/${id}`
-      }}
       style={{
         cursor: 'pointer',
         fontSize: 15,
+        textDecoration: 'none',
         color: hover ? V.blue : V.textSecondary,
         transition: 'color 0.15s',
         userSelect: 'none',
       }}
     >
       &#9998;
-    </span>
+    </a>
   )
 }
 
@@ -326,16 +322,29 @@ function TabButton({
   count,
   color,
   onClick,
+  id,
+  panelId,
 }: {
   active: boolean
   label: string
   count: number
   color: string
   onClick: () => void
+  /** id of this tab, referenced by the panel's aria-labelledby */
+  id?: string
+  /** id of the panel this tab controls */
+  panelId?: string
 }) {
   const [hover, setHover] = useState(false)
   return (
-    <button
+    // Without role="tab" + aria-selected, the active tab was signalled by
+    // border, colour and font weight only — none of which a screen reader
+    // reports.
+    <button type="button"
+      role="tab"
+      id={id}
+      aria-selected={active}
+      aria-controls={panelId}
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
@@ -846,7 +855,7 @@ function BrokenTab({ links, onRefresh }: { links: BrokenLink[]; onRefresh: () =>
             </span>
           )}
           {selectedIds.size > 0 && (
-            <button
+            <button type="button"
               disabled={bulkLoading || selectedWithSuggestion === 0}
               onClick={handleBulkCreate}
               style={{
@@ -862,7 +871,7 @@ function BrokenTab({ links, onRefresh }: { links: BrokenLink[]; onRefresh: () =>
               {bulkLoading ? '...' : `301 selection (${selectedWithSuggestion})`}
             </button>
           )}
-          <button
+          <button type="button"
             disabled={bulkLoading || withSuggestionCount === 0}
             onClick={handleBulkCreateAll}
             style={{
@@ -894,6 +903,7 @@ function BrokenTab({ links, onRefresh }: { links: BrokenLink[]; onRefresh: () =>
       >
         <input
           type="checkbox"
+          aria-label={t.sitemapAudit.selectAll}
           checked={selectedIds.size === links.length && links.length > 0}
           onChange={toggleSelectAll}
           style={{ cursor: 'pointer' }}
@@ -917,6 +927,7 @@ function BrokenTab({ links, onRefresh }: { links: BrokenLink[]; onRefresh: () =>
           >
             <input
               type="checkbox"
+              aria-label={`${t.sitemapAudit.brokenLinks}: ${link.sourceSlug} \u2192 ${link.targetSlug}`}
               checked={isSelected}
               onChange={() => toggleSelect(key)}
               style={{ cursor: 'pointer', flexShrink: 0 }}
@@ -1001,6 +1012,7 @@ function BrokenTab({ links, onRefresh }: { links: BrokenLink[]; onRefresh: () =>
                       {!link.suggestedSlug && (
                         <input
                           type="text"
+                          aria-label={`${t.sitemapAudit.targetSlug} \u2014 ${link.targetSlug}`}
                           placeholder={t.sitemapAudit.targetSlug}
                           value={manualTo}
                           onChange={(e) =>
@@ -1017,7 +1029,7 @@ function BrokenTab({ links, onRefresh }: { links: BrokenLink[]; onRefresh: () =>
                           }}
                         />
                       )}
-                      <button
+                      <button type="button"
                         disabled={isLoading || (!link.suggestedSlug && !manualTo)}
                         onClick={() => {
                           const to = link.suggestedSlug || manualTo
@@ -1193,7 +1205,7 @@ function Logs404Tab() {
         <div style={{ color: V.red, fontWeight: 700, fontSize: 13, marginBottom: 8 }}>
           {t.common.loadingError}: {error}
         </div>
-        <button
+        <button type="button"
           onClick={fetchLogs}
           style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
         >
@@ -1234,7 +1246,7 @@ function Logs404Tab() {
         </span>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           {selectedIds.size > 0 && selectedWithInput > 0 && (
-            <button
+            <button type="button"
               disabled={bulkLoading}
               onClick={handleBulkRedirect}
               style={{
@@ -1250,7 +1262,7 @@ function Logs404Tab() {
               {bulkLoading ? '...' : `301 selection (${selectedWithInput})`}
             </button>
           )}
-          <button
+          <button type="button"
             onClick={fetchLogs}
             style={{ ...btnBase, fontSize: 10, padding: '4px 12px', backgroundColor: V.bgCard, color: V.text }}
           >
@@ -1274,6 +1286,7 @@ function Logs404Tab() {
       >
         <input
           type="checkbox"
+          aria-label={t.sitemapAudit.selectAll}
           checked={selectedIds.size === logs.length && logs.length > 0}
           onChange={toggleSelectAll}
           style={{ cursor: 'pointer' }}
@@ -1298,6 +1311,7 @@ function Logs404Tab() {
           >
             <input
               type="checkbox"
+              aria-label={log.url}
               checked={isSelected}
               onChange={() => toggleSelect(String(log.id))}
               style={{ cursor: 'pointer', flexShrink: 0 }}
@@ -1348,6 +1362,7 @@ function Logs404Tab() {
                 <>
                   <input
                     type="text"
+                    aria-label={`${t.sitemapAudit.targetSlug} \u2014 ${log.url}`}
                     placeholder={t.sitemapAudit.targetSlug}
                     value={manualTo}
                     onChange={(e) =>
@@ -1363,7 +1378,7 @@ function Logs404Tab() {
                       backgroundColor: V.bg,
                     }}
                   />
-                  <button
+                  <button type="button"
                     disabled={isLoading || !manualTo}
                     onClick={() => {
                       if (manualTo) {
@@ -1387,7 +1402,7 @@ function Logs404Tab() {
                   </button>
                 </>
               )}
-              <button
+              <button type="button"
                 onClick={() => handleIgnore(log.id)}
                 title={t.sitemapAudit.ignore}
                 style={{
@@ -1402,7 +1417,7 @@ function Logs404Tab() {
               >
                 &#128065;
               </button>
-              <button
+              <button type="button"
                 onClick={() => handleDelete(log.id)}
                 title={t.common.delete}
                 style={{
@@ -1496,7 +1511,7 @@ function ExternalLinksTab() {
         <div style={{ fontSize: 13, color: V.textSecondary, marginBottom: 16 }}>
           {t.sitemapAudit.checkExternalLinksDesc}
         </div>
-        <button
+        <button type="button"
           onClick={() => handleScan()}
           style={{
             ...btnBase,
@@ -1530,7 +1545,7 @@ function ExternalLinksTab() {
         <div style={{ color: V.red, fontWeight: 700, fontSize: 13, marginBottom: 8 }}>
           {t.common.loadingError}: {error}
         </div>
-        <button
+        <button type="button"
           onClick={() => handleScan()}
           style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
         >
@@ -1573,7 +1588,7 @@ function ExternalLinksTab() {
             const active = filter === f
             const label = f === 'all' ? t.sitemapAudit.all : f === 'broken' ? t.sitemapAudit.brokenLabel : t.common.ok
             return (
-              <button
+              <button type="button"
                 key={f}
                 onClick={() => setFilter(f)}
                 style={{
@@ -1594,7 +1609,7 @@ function ExternalLinksTab() {
           })}
           {/* Export CSV (broken only) */}
           {stats.broken + stats.timeout > 0 && (
-            <button
+            <button type="button"
               onClick={handleExportCSV}
               style={{
                 ...btnBase,
@@ -1608,7 +1623,7 @@ function ExternalLinksTab() {
             </button>
           )}
           {/* Rescan */}
-          <button
+          <button type="button"
             onClick={() => handleScan(true)}
             style={{
               ...btnBase,
@@ -1750,6 +1765,9 @@ function exportCSV(data: SitemapAuditData, t: ReturnType<typeof getDashboardT>) 
 // Main SitemapAuditView component
 // ---------------------------------------------------------------------------
 export function SitemapAuditView() {
+  // One base id per mount: the tab/panel wiring must not collide if the view
+  // is ever mounted twice on the same screen.
+  const uid = useId()
   const locale = useSeoLocale()
   const t = getDashboardT(locale)
   const [data, setData] = useState<SitemapAuditData | null>(null)
@@ -1856,6 +1874,7 @@ export function SitemapAuditView() {
         }}
       >
         {t.sitemapAudit.analyzingInternal}
+        <LiveRegion message={t.sitemapAudit.analyzingInternal} />
       </div>
     )
   }
@@ -1874,7 +1893,8 @@ export function SitemapAuditView() {
           {t.common.loadingError}
         </div>
         <div style={{ color: V.textSecondary, fontSize: 12, marginBottom: 16 }}>{error}</div>
-        <button
+        <LiveRegion assertive message={`${t.common.loadingError}: ${error}`} />
+        <button type="button"
           onClick={fetchData}
           style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
         >
@@ -1915,22 +1935,26 @@ export function SitemapAuditView() {
           <p style={{ fontSize: 12, color: V.textSecondary, margin: '4px 0 0' }}>
             {stats.totalPages} {t.common.page.toLowerCase()}s, {stats.totalLinks} {t.sitemapAudit.links}
           </p>
+          {/* The crawl runs for a while: announce that it is over. */}
+          <LiveRegion
+            message={`${stats.totalPages} ${t.common.page.toLowerCase()}s, ${stats.totalLinks} ${t.sitemapAudit.links}`}
+          />
         </div>
         {/* C6: Export buttons + Refresh */}
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          <button
+          <button type="button"
             onClick={() => exportJSON(data)}
             style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
           >
             {t.common.exportJson}
           </button>
-          <button
+          <button type="button"
             onClick={() => exportCSV(data, t)}
             style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
           >
             {t.common.exportCsv}
           </button>
-          <button
+          <button type="button"
             onClick={fetchData}
             style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
           >
@@ -1977,6 +2001,7 @@ export function SitemapAuditView() {
       <div style={{ marginBottom: 16 }}>
         <input
           type="text"
+          aria-label={t.sitemapAudit.searchPlaceholder}
           placeholder={t.sitemapAudit.searchPlaceholder}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -1994,6 +2019,8 @@ export function SitemapAuditView() {
 
       {/* Tabs */}
       <div
+        role="tablist"
+        aria-label={t.sitemapAudit.title}
         style={{
           display: 'flex',
           gap: 8,
@@ -2007,6 +2034,8 @@ export function SitemapAuditView() {
           count={filtered.orphanPages.length}
           color={V.red}
           onClick={() => setActiveTab('orphan')}
+          id={`${uid}-tab-orphan`}
+          panelId={`${uid}-panel-orphan`}
         />
         <TabButton
           active={activeTab === 'weak'}
@@ -2014,6 +2043,8 @@ export function SitemapAuditView() {
           count={filtered.weakPages.length}
           color={V.orange}
           onClick={() => setActiveTab('weak')}
+          id={`${uid}-tab-weak`}
+          panelId={`${uid}-panel-weak`}
         />
         <TabButton
           active={activeTab === 'hubs'}
@@ -2021,6 +2052,8 @@ export function SitemapAuditView() {
           count={filtered.linkHubs.length}
           color={V.purple}
           onClick={() => setActiveTab('hubs')}
+          id={`${uid}-tab-hubs`}
+          panelId={`${uid}-panel-hubs`}
         />
         <TabButton
           active={activeTab === 'broken'}
@@ -2028,6 +2061,8 @@ export function SitemapAuditView() {
           count={filtered.brokenLinks.length}
           color={V.red}
           onClick={() => setActiveTab('broken')}
+          id={`${uid}-tab-broken`}
+          panelId={`${uid}-panel-broken`}
         />
         <TabButton
           active={activeTab === 'logs404'}
@@ -2035,6 +2070,8 @@ export function SitemapAuditView() {
           count={logs404Count}
           color={V.orange}
           onClick={() => setActiveTab('logs404')}
+          id={`${uid}-tab-logs404`}
+          panelId={`${uid}-panel-logs404`}
         />
         <TabButton
           active={activeTab === 'external'}
@@ -2042,11 +2079,17 @@ export function SitemapAuditView() {
           count={0}
           color={V.cyan}
           onClick={() => setActiveTab('external')}
+          id={`${uid}-tab-external`}
+          panelId={`${uid}-panel-external`}
         />
       </div>
 
       {/* Tab content */}
       <div
+        role="tabpanel"
+        id={`${uid}-panel-${activeTab}`}
+        aria-labelledby={`${uid}-tab-${activeTab}`}
+        tabIndex={0}
         style={{
           border: `1px solid ${V.border}`,
           borderRadius: 10,

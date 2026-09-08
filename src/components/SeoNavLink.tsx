@@ -7,6 +7,7 @@ import React from 'react'
 import { usePathname } from 'next/navigation'
 import { useSeoLocale } from '../hooks/useSeoLocale.js'
 import { getDashboardT } from '../dashboard-i18n.js'
+import { withSeoErrorBoundary } from './withSeoErrorBoundary.js'
 
 interface NavItem {
   href: string
@@ -27,7 +28,7 @@ const svgProps = {
   'aria-hidden': true as const,
 }
 
-export default function SeoNavLink() {
+function SeoNavLinkInner() {
   const pathname = usePathname()
   const locale = useSeoLocale()
   const t = getDashboardT(locale)
@@ -180,3 +181,18 @@ export default function SeoNavLink() {
     </div>
   )
 }
+
+/**
+ * Payload mounts this from the import map on EVERY admin page (afterNavLinks),
+ * so a render error here would unmount the whole admin shell everywhere. The
+ * boundary has to live inside this module: the plugin never owns the parent.
+ *
+ * `fallback: null` — the nav link disappears rather than putting a permanent
+ * error panel across the sidebar of every screen.
+ */
+const SeoNavLink = withSeoErrorBoundary(SeoNavLinkInner, {
+  viewName: 'SeoNavLink',
+  fallback: null,
+})
+
+export default SeoNavLink

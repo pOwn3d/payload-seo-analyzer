@@ -12,10 +12,11 @@
 
 'use client'
 
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useState, useId } from 'react'
 import { useField, useDocumentInfo } from '@payloadcms/ui'
 import { useSeoLocale } from '../hooks/useSeoLocale.js'
 import { getDashboardT } from '../dashboard-i18n.js'
+import { withSeoErrorBoundary } from './withSeoErrorBoundary.js'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -80,13 +81,16 @@ function getProgressColor(len: number): string {
 // Component
 // ---------------------------------------------------------------------------
 
-export function MetaDescriptionField({
+function MetaDescriptionFieldInner({
   path,
   hasGenerateFn = false,
   basePath = '/api/seo-plugin',
 }: MetaDescriptionFieldProps) {
   const locale = useSeoLocale()
   const t = getDashboardT(locale)
+  // One instance per locale tab on a localized document: a literal id would
+  // point every tab's label at the first tab's input.
+  const fieldId = useId()
 
   const { value, setValue } = useField<string>({ path })
   const { collectionSlug, globalSlug, id: docId } = useDocumentInfo()
@@ -150,6 +154,7 @@ export function MetaDescriptionField({
         }}
       >
         <label
+          htmlFor={fieldId}
           style={{
             fontSize: 13,
             fontWeight: 700,
@@ -173,6 +178,7 @@ export function MetaDescriptionField({
       {/* Textarea + Generate button row */}
       <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
         <textarea
+          id={fieldId}
           value={value || ''}
           onChange={(e) => setValue(e.target.value)}
           placeholder={t.metaDescription.placeholder}
@@ -186,7 +192,10 @@ export function MetaDescriptionField({
             border: `2px solid ${C.border}`,
             backgroundColor: C.surfaceBg,
             color: C.textPrimary,
-            outline: 'none',
+            // No `outline: 'none'` here: this field renders on every page and post
+            // edit screen and nothing in this file draws a focus ring of its own,
+            // so suppressing the browser's would leave keyboard users with no
+            // indication of where they are (WCAG 2.4.7).
             resize: 'vertical' as const,
             lineHeight: 1.5,
             boxShadow: '2px 2px 0 0 var(--theme-border-color, rgba(0,0,0,1))',
@@ -292,5 +301,14 @@ export function MetaDescriptionField({
     </div>
   )
 }
+
+
+/**
+ * Payload mounts this field from the import map on every edit screen, so the
+ * boundary must live in this module — the plugin never owns the parent form.
+ * A crash here degrades to a retryable notice instead of taking the whole
+ * document editor down.
+ */
+export const MetaDescriptionField = withSeoErrorBoundary(MetaDescriptionFieldInner, { viewName: 'MetaDescriptionField' })
 
 export default MetaDescriptionField

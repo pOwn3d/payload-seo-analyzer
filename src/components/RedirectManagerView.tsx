@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react'
+import React, { useEffect, useState, useMemo, useCallback, useRef, useId } from 'react'
 import { useSeoLocale } from '../hooks/useSeoLocale.js'
 import { getDashboardT } from '../dashboard-i18n.js'
 import { toCsv } from '../helpers/csv.js'
@@ -98,7 +98,12 @@ function Toast({
   const bgColor = type === 'success' ? V.green : type === 'error' ? V.red : V.blue
 
   return (
+    // A toast that is only painted is invisible to a screen reader: the user
+    // fires an import and never learns it finished. `alert` interrupts for a
+    // failure, `status` waits for a pause for a success.
     <div
+      role={type === 'error' ? 'alert' : 'status'}
+      aria-live={type === 'error' ? 'assertive' : 'polite'}
       style={{
         position: 'fixed',
         bottom: 24,
@@ -172,6 +177,12 @@ function StatCard({
 export function RedirectManagerView() {
   const locale = useSeoLocale()
   const t = getDashboardT(locale)
+  // useId(), never a literal: duplicate ids would break the very association
+  // they create if the view is ever mounted twice.
+  const uid = useId()
+  const newFromId = `${uid}-new-from`
+  const newToId = `${uid}-new-to`
+  const newTypeId = `${uid}-new-type`
 
   const [redirects, setRedirects] = useState<Redirect[]>([])
   const [loading, setLoading] = useState(true)
@@ -539,7 +550,7 @@ export function RedirectManagerView() {
           {t.common.loadingError}
         </div>
         <div style={{ color: V.textSecondary, fontSize: 12, marginBottom: 16 }}>{error}</div>
-        <button
+        <button type="button"
           onClick={() => fetchRedirects(1)}
           style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
         >
@@ -579,19 +590,19 @@ export function RedirectManagerView() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button
+          <button type="button"
             onClick={() => fetchRedirects(currentPage)}
             style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
           >
             &#8635; {t.common.refresh}
           </button>
-          <button
+          <button type="button"
             onClick={handleExportCsv}
             style={{ ...btnBase, backgroundColor: V.cyan, color: '#000' }}
           >
             {t.common.exportCsv}
           </button>
-          <button
+          <button type="button"
             onClick={() => fileInputRef.current?.click()}
             style={{ ...btnBase, backgroundColor: V.blue, color: '#fff' }}
           >
@@ -600,6 +611,7 @@ export function RedirectManagerView() {
           <input
             ref={fileInputRef}
             type="file"
+            aria-label={t.redirectManager.importCsv}
             accept=".csv"
             onChange={handleCsvImport}
             style={{ display: 'none' }}
@@ -653,6 +665,7 @@ export function RedirectManagerView() {
         >
           <div style={{ flex: 1, minWidth: 180 }}>
             <label
+              htmlFor={newFromId}
               style={{
                 display: 'block',
                 fontSize: 10,
@@ -665,6 +678,7 @@ export function RedirectManagerView() {
               {t.redirectManager.sourceUrl}
             </label>
             <input
+              id={newFromId}
               type="text"
               value={newFrom}
               onChange={(e) => setNewFrom(e.target.value)}
@@ -677,6 +691,7 @@ export function RedirectManagerView() {
           </div>
           <div style={{ flex: 1, minWidth: 180 }}>
             <label
+              htmlFor={newToId}
               style={{
                 display: 'block',
                 fontSize: 10,
@@ -689,6 +704,7 @@ export function RedirectManagerView() {
               {t.redirectManager.destinationUrl}
             </label>
             <input
+              id={newToId}
               type="text"
               value={newTo}
               onChange={(e) => setNewTo(e.target.value)}
@@ -701,6 +717,7 @@ export function RedirectManagerView() {
           </div>
           <div style={{ minWidth: 80 }}>
             <label
+              htmlFor={newTypeId}
               style={{
                 display: 'block',
                 fontSize: 10,
@@ -713,6 +730,7 @@ export function RedirectManagerView() {
               {t.redirectManager.type}
             </label>
             <select
+              id={newTypeId}
               value={newType}
               onChange={(e) => setNewType(e.target.value)}
               style={selectStyle}
@@ -721,7 +739,7 @@ export function RedirectManagerView() {
               <option value="302">302</option>
             </select>
           </div>
-          <button
+          <button type="button"
             onClick={handleAdd}
             disabled={adding || !newFrom.trim() || !newTo.trim()}
             style={{
@@ -751,6 +769,7 @@ export function RedirectManagerView() {
         {/* Search */}
         <input
           type="text"
+          aria-label={t.redirectManager.searchPlaceholder}
           placeholder={t.redirectManager.searchPlaceholder}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -765,6 +784,7 @@ export function RedirectManagerView() {
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           <input
             type="text"
+            aria-label={`${t.redirectManager.test} — ${t.redirectManager.sourceUrl}`}
             placeholder={t.redirectManager.urlToTestPlaceholder}
             value={testUrl}
             onChange={(e) => {
@@ -776,7 +796,7 @@ export function RedirectManagerView() {
             }}
             style={{ ...inputStyle, minWidth: 180 }}
           />
-          <button
+          <button type="button"
             onClick={handleTestUrl}
             disabled={!testUrl.trim()}
             style={{
@@ -838,6 +858,7 @@ export function RedirectManagerView() {
           <div style={{ textAlign: 'center' }}>
             <input
               type="checkbox"
+              aria-label={allPageSelected ? t.common.deselectAll : t.sitemapAudit.selectAll}
               checked={allPageSelected}
               onChange={handleSelectAll}
               style={{ cursor: 'pointer' }}
@@ -889,17 +910,20 @@ export function RedirectManagerView() {
                     <div />
                     <input
                       type="text"
+                      aria-label={t.redirectManager.sourceFrom}
                       value={editFrom}
                       onChange={(e) => setEditFrom(e.target.value)}
                       style={{ ...inputStyle, width: '100%' }}
                     />
                     <input
                       type="text"
+                      aria-label={t.redirectManager.destinationTo}
                       value={editTo}
                       onChange={(e) => setEditTo(e.target.value)}
                       style={{ ...inputStyle, width: '100%' }}
                     />
                     <select
+                      aria-label={t.redirectManager.type}
                       value={editType}
                       onChange={(e) => setEditType(e.target.value)}
                       style={{ ...selectStyle, width: '100%' }}
@@ -909,7 +933,7 @@ export function RedirectManagerView() {
                     </select>
                     <div />
                     <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-                      <button
+                      <button type="button"
                         onClick={handleEditSave}
                         disabled={saving}
                         style={{
@@ -923,7 +947,7 @@ export function RedirectManagerView() {
                       >
                         {saving ? '...' : 'OK'}
                       </button>
-                      <button
+                      <button type="button"
                         onClick={() => setEditId(null)}
                         style={{
                           ...btnBase,
@@ -959,6 +983,7 @@ export function RedirectManagerView() {
                   <div style={{ textAlign: 'center' }}>
                     <input
                       type="checkbox"
+                      aria-label={`${t.redirectManager.sourceFrom}: ${r.from}`}
                       checked={isSelected}
                       onChange={() => {
                         setSelectedIds((prev) => {
@@ -1043,40 +1068,43 @@ export function RedirectManagerView() {
                       justifyContent: 'center',
                     }}
                   >
-                    <span
-                      role="button"
-                      tabIndex={0}
+                    {/* A real <button>: role+tabIndex+onKeyDown only ever
+                        emulated Enter, never Space, and never told assistive
+                        tech what the pencil glyph means. */}
+                    <button
+                      type="button"
                       title={t.common.modify}
+                      aria-label={`${t.common.modify} — ${r.from}`}
                       onClick={() => startEdit(r)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') startEdit(r)
-                      }}
                       style={{
                         cursor: 'pointer',
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
                         fontSize: 14,
                         color: V.textSecondary,
                         userSelect: 'none',
                       }}
                     >
                       &#9998;
-                    </span>
-                    <span
-                      role="button"
-                      tabIndex={0}
+                    </button>
+                    <button
+                      type="button"
                       title={t.common.delete}
+                      aria-label={`${t.common.delete} — ${r.from}`}
                       onClick={() => handleDelete(r.id)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleDelete(r.id)
-                      }}
                       style={{
                         cursor: 'pointer',
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
                         fontSize: 14,
                         color: V.red,
                         userSelect: 'none',
                       }}
                     >
                       &#10005;
-                    </span>
+                    </button>
                   </div>
                 </div>
               )
@@ -1097,7 +1125,7 @@ export function RedirectManagerView() {
             fontSize: 12,
           }}
         >
-          <button
+          <button type="button"
             onClick={() => setCurrentPage(1)}
             disabled={currentPage === 1}
             style={{
@@ -1109,7 +1137,7 @@ export function RedirectManagerView() {
           >
             &laquo;
           </button>
-          <button
+          <button type="button"
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={currentPage === 1}
             style={{
@@ -1130,7 +1158,7 @@ export function RedirectManagerView() {
           >
             {t.common.page} {currentPage} / {totalPages}
           </span>
-          <button
+          <button type="button"
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
             style={{
@@ -1142,7 +1170,7 @@ export function RedirectManagerView() {
           >
             {t.common.next} &rsaquo;
           </button>
-          <button
+          <button type="button"
             onClick={() => setCurrentPage(totalPages)}
             disabled={currentPage === totalPages}
             style={{
@@ -1180,14 +1208,14 @@ export function RedirectManagerView() {
             <span style={{ fontSize: 12, fontWeight: 700, color: V.text }}>
               {selectedIds.size} {t.common.selected}{selectedIds.size > 1 ? 's' : ''}
             </span>
-            <button
+            <button type="button"
               onClick={() => setSelectedIds(new Set())}
               style={{ ...btnBase, backgroundColor: V.bg, color: V.textSecondary }}
             >
               {t.common.deselectAll}
             </button>
           </div>
-          <button
+          <button type="button"
             onClick={handleBulkDelete}
             style={{
               ...btnBase,

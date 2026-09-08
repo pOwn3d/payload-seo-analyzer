@@ -108,6 +108,11 @@ export { createRedirectChainsHandler } from './endpoints/redirectChains.js'
 export { createDuplicateContentHandler } from './endpoints/duplicateContent.js'
 export { createAiRewriteHandler } from './endpoints/aiRewrite.js'
 
+// Retention — the purge helpers, for a host that would rather run the trim from
+// its own cron than let the plugin schedule it.
+export { purgeRetention, describeRetention, resolveRetention, RETENTION_TARGETS } from './retention.js'
+export type { RetentionConfig, RetentionCollection, PurgeResult } from './retention.js'
+
 // Re-export dashboard i18n for custom locale registration
 export { registerDashboardTranslations, getDashboardT } from './dashboard-i18n.js'
 export type { DashboardTranslations, DashboardLocale } from './dashboard-i18n.js'

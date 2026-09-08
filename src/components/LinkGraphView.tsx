@@ -508,7 +508,7 @@ export function LinkGraphView() {
     return (
       <div style={{ padding: '40px 20px', textAlign: 'center' }}>
         <div style={{ color: V.red, marginBottom: 12 }}>{T.common.error}: {error}</div>
-        <button
+        <button type="button"
           onClick={fetchData}
           style={{
             padding: '8px 16px',
@@ -640,21 +640,21 @@ export function LinkGraphView() {
         }}
       >
         {/* Zoom controls */}
-        <button
+        <button type="button"
           onClick={zoomIn}
           title={T.linkGraph.zoomIn}
           style={controlBtnStyle}
         >
           +
         </button>
-        <button
+        <button type="button"
           onClick={zoomOut}
           title={T.linkGraph.zoomOut}
           style={controlBtnStyle}
         >
           -
         </button>
-        <button
+        <button type="button"
           onClick={resetView}
           title={T.linkGraph.resetView}
           style={controlBtnStyle}
@@ -802,7 +802,13 @@ export function LinkGraphView() {
 
               return (
                 <g key={`n-${node.id}`}>
-                  {/* Node circle */}
+                  {/* Node circle.
+                      This one CANNOT become a <button>: HTML interactive
+                      elements are not valid inside <svg> (only through a
+                      <foreignObject>, which would break the graph layout). It
+                      is therefore the one place where role + tabIndex +
+                      onKeyDown is the correct answer rather than a shortcut —
+                      with an accessible name, which it did not have. */}
                   <circle
                     cx={node.x}
                     cy={node.y}
@@ -812,9 +818,18 @@ export function LinkGraphView() {
                     stroke={isHovered ? '#fff' : node.isHub ? V.orange : 'transparent'}
                     strokeWidth={isHovered ? 2.5 : node.isHub ? 1.5 : 0}
                     style={{ cursor: 'pointer', transition: 'r 0.15s, fill-opacity 0.15s' }}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={node.title}
                     onMouseEnter={(e) => handleNodeHover(node, e)}
                     onMouseLeave={handleNodeLeave}
                     onClick={() => handleNodeClick(node)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        handleNodeClick(node)
+                      }
+                    }}
                   />
 
                   {/* Label */}

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback, useMemo } from 'react'
+import React, { useState, useCallback, useMemo, useId } from 'react'
 import { useSeoLocale } from '../hooks/useSeoLocale.js'
 import { getDashboardT } from '../dashboard-i18n.js'
 import type { DashboardTranslations } from '../dashboard-i18n.js'
@@ -596,6 +596,9 @@ function Toast({ message, onClose }: { message: string; onClose: () => void }) {
 export function SchemaBuilderView() {
   const locale = useSeoLocale()
   const t = getDashboardT(locale)
+  // One base id per mount; every generated field id hangs off it, so two mounts
+  // of this view never collide.
+  const uid = useId()
 
   const [selectedType, setSelectedType] = useState<string>('LocalBusiness')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -700,7 +703,7 @@ export function SchemaBuilderView() {
                 <span style={{ fontSize: 11, fontWeight: 700, color: V.textSecondary }}>
                   #{idx + 1}
                 </span>
-                <button
+                <button type="button"
                   onClick={() => removeArrayItem(field.name, idx)}
                   style={{
                     ...btnBase,
@@ -716,12 +719,13 @@ export function SchemaBuilderView() {
               </div>
               {(field.subFields || []).map((subField) => (
                 <div key={`${fieldKey}-${idx}-${subField.name}`} style={{ marginBottom: 10 }}>
-                  <label style={labelStyle}>
+                  <label style={labelStyle} htmlFor={`${uid}-${fieldKey}-${idx}-${subField.name}`}>
                     {subField.label}
                     {subField.required && <span style={{ color: V.red, marginLeft: 4 }}>*</span>}
                   </label>
                   {subField.type === 'textarea' ? (
                     <textarea
+                      id={`${uid}-${fieldKey}-${idx}-${subField.name}`}
                       value={(item[subField.name] as string) || ''}
                       onChange={(e) => updateArrayItem(field.name, idx, subField.name, e.target.value)}
                       placeholder={subField.placeholder}
@@ -730,6 +734,7 @@ export function SchemaBuilderView() {
                     />
                   ) : (
                     <input
+                      id={`${uid}-${fieldKey}-${idx}-${subField.name}`}
                       type={subField.type === 'number' ? 'number' : 'text'}
                       value={(item[subField.name] as string) || ''}
                       onChange={(e) => updateArrayItem(field.name, idx, subField.name, e.target.value)}
@@ -741,7 +746,7 @@ export function SchemaBuilderView() {
               ))}
             </div>
           ))}
-          <button
+          <button type="button"
             onClick={() => addArrayItem(field.name)}
             style={{
               ...btnBase,
@@ -769,12 +774,13 @@ export function SchemaBuilderView() {
 
     return (
       <div key={fieldKey} style={{ marginBottom: 14 }}>
-        <label style={labelStyle}>
+        <label style={labelStyle} htmlFor={`${uid}-${fieldKey}`}>
           {field.label}
           {field.required && <span style={{ color: V.red, marginLeft: 4 }}>*</span>}
         </label>
         {field.type === 'textarea' ? (
           <textarea
+            id={`${uid}-${fieldKey}`}
             value={currentValue}
             onChange={(e) => onChangeHandler(e.target.value)}
             placeholder={field.placeholder}
@@ -783,6 +789,7 @@ export function SchemaBuilderView() {
           />
         ) : field.type === 'select' ? (
           <select
+            id={`${uid}-${fieldKey}`}
             value={currentValue}
             onChange={(e) => onChangeHandler(e.target.value)}
             style={inputStyle}
@@ -796,6 +803,7 @@ export function SchemaBuilderView() {
           </select>
         ) : field.type === 'datetime' ? (
           <input
+            id={`${uid}-${fieldKey}`}
             type="datetime-local"
             value={currentValue}
             onChange={(e) => onChangeHandler(e.target.value)}
@@ -803,6 +811,7 @@ export function SchemaBuilderView() {
           />
         ) : (
           <input
+            id={`${uid}-${fieldKey}`}
             type={field.type === 'number' ? 'number' : 'text'}
             value={currentValue}
             onChange={(e) => onChangeHandler(e.target.value)}
@@ -847,7 +856,7 @@ export function SchemaBuilderView() {
         {Object.entries(schemaTypes).map(([key, typeDef]) => {
           const isSelected = selectedType === key
           return (
-            <button
+            <button type="button"
               key={key}
               onClick={() => handleTypeChange(key)}
               style={{
@@ -956,7 +965,7 @@ export function SchemaBuilderView() {
               marginTop: 14,
             }}
           >
-            <button
+            <button type="button"
               onClick={() => copyToClipboard(jsonString, 'JSON-LD')}
               style={{
                 ...btnBase,
@@ -971,7 +980,7 @@ export function SchemaBuilderView() {
             >
               {t.schemaBuilder.copyJsonLd}
             </button>
-            <button
+            <button type="button"
               onClick={() => copyToClipboard(scriptTag, 'Script tag')}
               style={{
                 ...btnBase,

@@ -93,7 +93,7 @@ export function ContentDecaySection({ items }: { items: AuditItem[] }) {
 
   return (
     <div style={{ marginBottom: 16 }}>
-      <button
+      <button type="button"
         onClick={() => setOpen(!open)}
         style={{
           display: 'flex',
@@ -313,7 +313,7 @@ export function ContentDecaySection({ items }: { items: AuditItem[] }) {
                           {t.contentDecay.reviewed}
                         </span>
                       ) : (
-                        <button
+                        <button type="button"
                           onClick={() => handleMarkReviewed(item)}
                           disabled={markingReviewed === key}
                           style={{

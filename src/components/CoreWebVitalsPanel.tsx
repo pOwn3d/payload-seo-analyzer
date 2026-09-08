@@ -20,6 +20,7 @@ const S = {
     title: 'Core Web Vitals',
     subtitle: 'LCP / INP / CLS réels via PageSpeed Insights — informationnel, hors du score SEO (tie-breaker).',
     urlPlaceholder: 'https://votre-site.fr/page-a-tester',
+    urlLabel: 'URL à tester',
     test: 'Tester',
     testing: 'Analyse en cours…',
     mobile: 'Mobile',
@@ -38,6 +39,7 @@ const S = {
     title: 'Core Web Vitals',
     subtitle: 'Real LCP / INP / CLS via PageSpeed Insights — informational, outside the SEO score (tie-breaker).',
     urlPlaceholder: 'https://your-site.com/page-to-test',
+    urlLabel: 'URL to test',
     test: 'Test',
     testing: 'Analyzing…',
     mobile: 'Mobile',
@@ -179,6 +181,7 @@ export function CoreWebVitalsPanel({ locale }: { locale: 'fr' | 'en' }) {
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 12 }}>
         <input
           type="url"
+          aria-label={s.urlLabel}
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           placeholder={s.urlPlaceholder}
@@ -200,7 +203,7 @@ export function CoreWebVitalsPanel({ locale }: { locale: 'fr' | 'en' }) {
         </button>
       </div>
 
-      {error && <div style={{ color: C.red, fontSize: 13, fontWeight: 600 }}>{error}</div>}
+      {error && <div role="alert" style={{ color: C.red, fontSize: 13, fontWeight: 600 }}>{error}</div>}
 
       {data && (
         <div>

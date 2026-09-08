@@ -170,7 +170,7 @@ export function CtrOpportunitiesPanel({ locale }: { locale: 'fr' | 'en' }) {
         {!notConnected && <button type="button" onClick={() => void load()} style={btn(C.sub)}>{s.refresh}</button>}
       </div>
 
-      {error && <div style={{ color: C.red, fontSize: 13, fontWeight: 600, marginTop: 10 }}>{error}</div>}
+      {error && <div role="alert" style={{ color: C.red, fontSize: 13, fontWeight: 600, marginTop: 10 }}>{error}</div>}
       {notConnected && <div style={{ marginTop: 12, fontSize: 13, color: C.sub }}>{s.needGsc}</div>}
       {loading && !notConnected && <div style={{ marginTop: 12, fontSize: 13, color: C.sub }}>{s.loading}</div>}
       {!loading && !notConnected && opps && opps.length === 0 && <div style={{ marginTop: 12, fontSize: 13, color: C.sub }}>{s.none}</div>}

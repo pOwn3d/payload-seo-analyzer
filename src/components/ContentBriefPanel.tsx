@@ -18,6 +18,7 @@ const S = {
     title: 'Brief de contenu IA',
     subtitle: 'Génère un plan rédactionnel optimisé pour un mot-clé (plan, entités, questions, longueur cible).',
     placeholder: 'Mot-clé cible (ex : plombier paris)',
+    keywordLabel: 'Mot-clé cible',
     generate: 'Générer le brief',
     generating: 'Génération…',
     outline: 'Plan suggéré',
@@ -34,6 +35,7 @@ const S = {
     title: 'AI content brief',
     subtitle: 'Generate an optimized writing brief for a keyword (outline, entities, questions, target length).',
     placeholder: 'Target keyword (e.g. paris plumber)',
+    keywordLabel: 'Target keyword',
     generate: 'Generate brief',
     generating: 'Generating…',
     outline: 'Suggested outline',
@@ -119,6 +121,7 @@ export function ContentBriefPanel({ locale }: { locale: 'fr' | 'en' }) {
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <input
+          aria-label={s.keywordLabel}
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           onKeyDown={(e) => {
@@ -156,7 +159,7 @@ export function ContentBriefPanel({ locale }: { locale: 'fr' | 'en' }) {
         </button>
       </div>
 
-      {error && <div style={{ color: C.red, fontSize: 13, fontWeight: 600, marginTop: 10 }}>{error}</div>}
+      {error && <div role="alert" style={{ color: C.red, fontSize: 13, fontWeight: 600, marginTop: 10 }}>{error}</div>}
 
       {brief && (
         <div style={{ marginTop: 8 }}>

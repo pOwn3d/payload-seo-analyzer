@@ -13,6 +13,7 @@ import {
 import { SeoSocialPreview } from './SeoSocialPreview.js'
 import { useSeoLocale } from '../hooks/useSeoLocale.js'
 import { getDashboardT, type DashboardTranslations } from '../dashboard-i18n.js'
+import { withSeoErrorBoundary } from './withSeoErrorBoundary.js'
 
 // ---------------------------------------------------------------------------
 // Color palette (neubrutalist — matches custom.scss)
@@ -87,6 +88,12 @@ const styles = {
     }) as React.CSSProperties,
 
   categoryHeader: {
+    // These headers render as <button> (keyboard + screen-reader support);
+    // these four properties strip the native button look.
+    width: '100%',
+    boxSizing: 'border-box' as const,
+    textAlign: 'left' as const,
+    fontFamily: 'inherit',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -104,6 +111,10 @@ const styles = {
   } as React.CSSProperties,
 
   groupHeader: {
+    width: '100%',
+    boxSizing: 'border-box' as const,
+    textAlign: 'left' as const,
+    fontFamily: 'inherit',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -293,7 +304,7 @@ function GroupSubSection({
 
   return (
     <div style={{ marginBottom: 2 }}>
-      <div onClick={() => setOpen(!open)} style={styles.groupHeader}>
+      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} style={styles.groupHeader}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: C.textPrimary }}>
           <span
             style={{
@@ -334,7 +345,7 @@ function GroupSubSection({
         >
           {'\u25B6'}
         </span>
-      </div>
+      </button>
 
       {open && (
         <div style={{ paddingLeft: 8 }}>
@@ -453,8 +464,10 @@ function CategorySection({
 
   return (
     <div style={{ marginBottom: 8 }}>
-      <div
+      <button
+        type="button"
         onClick={() => setOpen(!open)}
+        aria-expanded={open}
         style={{
           ...styles.categoryHeader,
           backgroundColor: getCategoryBg(category),
@@ -484,7 +497,7 @@ function CategorySection({
         >
           {'\u25B6'}
         </span>
-      </div>
+      </button>
 
       {open && (
         <div style={{ paddingLeft: 4 }}>
@@ -672,7 +685,7 @@ function AiDiffRow({
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
-const SeoAnalyzer: React.FC = () => {
+const SeoAnalyzerInner: React.FC = () => {
   const locale = useSeoLocale()
   const t = getDashboardT(locale)
   const [formFields, dispatchFields] = useAllFormFields()
@@ -1649,12 +1662,19 @@ const SeoAnalyzer: React.FC = () => {
             overflow: 'hidden',
           }}
         >
-          <div
+          <button
+            type="button"
             onClick={() => setSuggestionsOpen(!suggestionsOpen)}
+            aria-expanded={suggestionsOpen}
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
+              width: '100%',
+              boxSizing: 'border-box' as const,
+              textAlign: 'left' as const,
+              fontFamily: 'inherit',
+              border: 'none',
               padding: '10px 14px',
               cursor: 'pointer',
               fontWeight: 800,
@@ -1683,7 +1703,7 @@ const SeoAnalyzer: React.FC = () => {
             >
               {'\u25B6'}
             </span>
-          </div>
+          </button>
           {suggestionsOpen && (
             <div style={{ padding: '8px 14px 12px' }}>
               {suggestions.map((suggestion, idx) => (
@@ -1779,13 +1799,18 @@ const SeoAnalyzer: React.FC = () => {
                 : ` ${t.seoAnalyzer.diluteRanking}`}
             </div>
             <div style={{ marginTop: 6 }}>
-              <div
+              <button
+                type="button"
                 onClick={() => setCannibalizationExpanded(!cannibalizationExpanded)}
+                aria-expanded={cannibalizationExpanded}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 4,
                   cursor: 'pointer',
+                  background: 'none',
+                  border: 'none',
+                  fontFamily: 'inherit',
                   fontSize: 10,
                   fontWeight: 700,
                   color: C.cyan,
@@ -1804,7 +1829,7 @@ const SeoAnalyzer: React.FC = () => {
                   {'\u25B6'}
                 </span>
                 {t.seoAnalyzer.viewPages} ({keywordUsage.pages.length})
-              </div>
+              </button>
               {cannibalizationExpanded && (
                 <div
                   style={{
@@ -1888,12 +1913,19 @@ const SeoAnalyzer: React.FC = () => {
             overflow: 'hidden',
           }}
         >
-          <div
+          <button
+            type="button"
             onClick={() => setLinkingSectionOpen(!linkingSectionOpen)}
+            aria-expanded={linkingSectionOpen}
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
+              width: '100%',
+              boxSizing: 'border-box' as const,
+              textAlign: 'left' as const,
+              fontFamily: 'inherit',
+              border: 'none',
               padding: '10px 14px',
               cursor: 'pointer',
               fontWeight: 800,
@@ -1922,7 +1954,7 @@ const SeoAnalyzer: React.FC = () => {
             >
               {'\u25B6'}
             </span>
-          </div>
+          </button>
           {linkingSectionOpen && (
             <div style={{ padding: '8px 14px 12px' }}>
               {linkSuggestionsLoading && (
@@ -2029,5 +2061,15 @@ const SeoAnalyzer: React.FC = () => {
     </div>
   )
 }
+
+
+/**
+ * Registered as the `seoAnalyzer` UI field on every target collection, so
+ * Payload mounts it from the import map inside the document form. The boundary
+ * lives here because the plugin never owns that parent: without it, one bad
+ * analysis result takes down the whole edit screen, sidebar and save button
+ * included.
+ */
+const SeoAnalyzer = withSeoErrorBoundary(SeoAnalyzerInner, { viewName: 'SeoAnalyzerField' })
 
 export default SeoAnalyzer

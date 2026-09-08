@@ -204,7 +204,7 @@ export function GscPanel({ locale }: { locale: 'fr' | 'en' }) {
         </span>
       </div>
 
-      {error && <div style={{ color: C.red, fontSize: 13, fontWeight: 600, marginTop: 10 }}>{error}</div>}
+      {error && <div role="alert" style={{ color: C.red, fontSize: 13, fontWeight: 600, marginTop: 10 }}>{error}</div>}
 
       {!status.configured && (
         <div style={{ marginTop: 12, fontSize: 13, color: C.sub, lineHeight: 1.5 }}>

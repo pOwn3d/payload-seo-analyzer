@@ -190,7 +190,7 @@ export function AlertsPanel({ locale }: { locale: 'fr' | 'en' }) {
         )}
       </div>
 
-      {error && <div style={{ color: C.red, fontSize: 13, fontWeight: 600, marginTop: 10 }}>{error}</div>}
+      {error && <div role="alert" style={{ color: C.red, fontSize: 13, fontWeight: 600, marginTop: 10 }}>{error}</div>}
       {notice && <div style={{ color: C.green, fontSize: 13, fontWeight: 600, marginTop: 10 }}>{notice}</div>}
 
       {config && (

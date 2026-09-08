@@ -246,6 +246,46 @@ function run(cmd, cwd) {
 
 // ── Main ──────────────────────────────────────────────────
 
+/**
+ * What an uninstall LEAVES BEHIND, as plain printable lines.
+ *
+ * Exported and pure on purpose: this text is the only place a user is told that a
+ * live Google OAuth refresh token survives the uninstall, and that the `meta` group
+ * may be editorial content owned by another plugin. Both are easy to get wrong in a
+ * hurry, so the wording is under test (scripts/__tests__/uninstall.test.mjs).
+ *
+ * The script itself never touches the database — everything below is manual.
+ */
+export function leftoverNotice() {
+  return [
+    'Left behind \u2014 this script never touches your database.',
+    '',
+    '1. Plugin tables you may drop (nothing outside the plugin reads them):',
+    '     - seo-gsc-auth      \u2190 DROP THIS ONE FIRST. It stores an ENCRYPTED GOOGLE OAUTH',
+    '                           REFRESH TOKEN plus the connected account email. Removing the',
+    '                           package does not revoke it. Revoke the grant as well at',
+    '                           https://myaccount.google.com/permissions',
+    '     - seo-settings',
+    '     - seo-redirects     \u2190 your 301/302 rules stop being served once it is gone',
+    '     - seo-score-history',
+    '     - seo-performance',
+    '     - seo-logs          \u2190 holds visitor referrer and user-agent strings (no IP addresses)',
+    '     - seo-rank-history',
+    '',
+    '2. Fields the plugin injected into YOUR collections \u2014 do NOT drop them blindly.',
+    '   They are columns in your own tables:',
+    '     - isCornerstone, focusKeyword, focusKeywords (its own array table): plugin data,',
+    '       safe to drop once you no longer want it.',
+    '     - the meta group (meta.title, meta.description, meta.image): EDITORIAL CONTENT.',
+    '       Dropping it deletes the meta titles and descriptions your editors wrote, and it',
+    '       may not even be ours \u2014 when @payloadcms/plugin-seo (or your own meta group) is',
+    '       present the plugin detects it and never creates one. Keep it unless you are sure.',
+    '',
+    '   Removing any of those fields is a schema change: run `payload migrate:create`,',
+    '   then `payload migrate` in production. Never `push`.',
+  ]
+}
+
 function main() {
   // Determine project root
   const projectDir = process.env.INIT_CWD || process.cwd()
@@ -317,14 +357,9 @@ function main() {
 
   console.log('  \x1b[32m✓ Uninstall complete!\x1b[0m')
   console.log('')
-  console.log('  \x1b[36mOptional:\x1b[0m Drop plugin collections from your database:')
-  console.log('  \x1b[90m  - seo-score-history')
-  console.log('    - seo-settings')
-  console.log('    - seo-redirects')
-  console.log('    - seo-performance')
-  console.log('    - seo-logs')
-  console.log('    - seo-gsc-auth')
-  console.log('    - seo-rank-history\x1b[0m')
+  for (const line of leftoverNotice()) {
+    console.log(line === '' ? '' : `  ${line}`)
+  }
   console.log('')
   return 0
 }

@@ -16,6 +16,7 @@ import React, { useCallback, useState } from 'react'
 import { useField, useDocumentInfo } from '@payloadcms/ui'
 import { useSeoLocale } from '../hooks/useSeoLocale.js'
 import { getDashboardT } from '../dashboard-i18n.js'
+import { withSeoErrorBoundary } from './withSeoErrorBoundary.js'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -50,7 +51,7 @@ const C = {
 // Component
 // ---------------------------------------------------------------------------
 
-export function MetaImageField({
+function MetaImageFieldInner({
   path,
   hasGenerateFn = false,
   basePath = '/api/seo-plugin',
@@ -228,5 +229,14 @@ export function MetaImageField({
     </div>
   )
 }
+
+
+/**
+ * Payload mounts this field from the import map on every edit screen, so the
+ * boundary must live in this module — the plugin never owns the parent form.
+ * A crash here degrades to a retryable notice instead of taking the whole
+ * document editor down.
+ */
+export const MetaImageField = withSeoErrorBoundary(MetaImageFieldInner, { viewName: 'MetaImageField' })
 
 export default MetaImageField

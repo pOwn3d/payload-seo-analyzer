@@ -135,7 +135,7 @@ function ExpandableList({ items, label, seeLessLabel }: { items: string[]; label
         </div>
       ))}
       {hasMore && (
-        <button
+        <button type="button"
           onClick={() => setExpanded(!expanded)}
           style={{
             background: 'none',
@@ -314,7 +314,7 @@ export function KeywordResearchView() {
         <div style={{ color: V.textSecondary, fontSize: 12, marginBottom: 16 }}>
           {error}
         </div>
-        <button
+        <button type="button"
           onClick={fetchData}
           style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
         >
@@ -397,13 +397,13 @@ export function KeywordResearchView() {
               </span>
             </div>
           )}
-          <button
+          <button type="button"
             onClick={fetchData}
             style={{ ...btnBase, backgroundColor: V.bgCard, color: V.text }}
           >
             &#8635; {t.common.refresh}
           </button>
-          <button
+          <button type="button"
             onClick={handleExportCsv}
             disabled={filteredSuggestions.length === 0}
             style={{
@@ -432,8 +432,12 @@ export function KeywordResearchView() {
         }}
       >
         {filterTabs.map((tab) => (
-          <button
+          // aria-pressed, not role="tab": these buttons FILTER one table, they
+          // do not swap panels. Declaring a tablist with no tabpanel would
+          // announce a structure that does not exist.
+          <button type="button"
             key={tab.key}
+            aria-pressed={activeTab === tab.key}
             onClick={() => setActiveTab(tab.key)}
             style={{
               ...btnBase,
@@ -454,6 +458,7 @@ export function KeywordResearchView() {
       <div style={{ marginBottom: 16 }}>
         <input
           type="text"
+          aria-label={t.keywordResearch.searchPlaceholder}
           placeholder={t.keywordResearch.searchPlaceholder}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
