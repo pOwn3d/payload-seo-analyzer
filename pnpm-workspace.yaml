@@ -14,3 +14,20 @@ allowBuilds:
   # Transitive optional of payload (image processing). Never invoked by this
   # package's build or tests, and it ships prebuilt binaries anyway.
   sharp: false
+
+# Advisories carried by the build toolchain, not by anything this package ships.
+# `sass` is pinned by Payload and Next, and it drags an `immutable` and a
+# `picomatch` that GitHub flags high; `vite` arrives through vitest. None of the
+# three reaches a consumer — `dependencies` is empty, so the published tarball
+# has no runtime dependency at all — but a security workflow that is red every
+# single run is a gate nobody reads. Forcing the patched patch-level here fixes
+# the finding instead of muting it. Review when Payload moves off sass 1.77.
+overrides:
+  immutable: '>=4.3.9'
+  picomatch: '>=2.3.2'
+  vite: '>=6.4.3'
+  postcss: '>=8.5.18'
+  undici: '>=7.29.0'
+  nanoid: '>=3.3.18'
+  fast-uri: '>=3.1.6'
+  sharp: '>=0.35.0'
