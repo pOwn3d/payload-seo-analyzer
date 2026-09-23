@@ -11,20 +11,22 @@ export function seoFields(): Field[] {
       name: 'isCornerstone',
       type: 'checkbox',
       defaultValue: false,
-      label: 'Contenu pilier (Cornerstone)',
+      label: { en: 'Cornerstone content', fr: 'Contenu pilier (Cornerstone)' },
       admin: {
-        description:
-          'Les contenus piliers sont les pages les plus importantes du site et doivent être bien maillées.',
+        description: {
+          en: 'Cornerstone content is the most important content on your site and should be well linked.',
+          fr: 'Les contenus piliers sont les pages les plus importantes du site et doivent être bien maillées.',
+        },
         position: 'sidebar',
       },
     },
     {
       name: 'focusKeyword',
       type: 'text',
-      label: 'Mot-clé SEO principal',
+      label: { en: 'Primary SEO keyword', fr: 'Mot-clé SEO principal' },
       admin: {
         position: 'sidebar',
-        description: "Mot-clé cible pour l'analyse SEO",
+        description: { en: 'Target keyword for SEO analysis', fr: "Mot-clé cible pour l'analyse SEO" },
       },
     },
     {
@@ -39,7 +41,7 @@ export function seoFields(): Field[] {
     },
     {
       type: 'collapsible',
-      label: 'Mots-clés secondaires (SEO)',
+      label: { en: 'Secondary keywords (SEO)', fr: 'Mots-clés secondaires (SEO)' },
       admin: { initCollapsed: true },
       fields: [
         {
@@ -47,7 +49,10 @@ export function seoFields(): Field[] {
           type: 'array',
           maxRows: 3,
           admin: {
-            description: 'Mots-clés secondaires (en plus du mot-clé principal)',
+            description: {
+              en: 'Secondary keywords (in addition to the primary keyword)',
+              fr: 'Mots-clés secondaires (en plus du mot-clé principal)',
+            },
           },
           fields: [
             {

@@ -1567,10 +1567,10 @@ const en: SeoTranslations = {
 
 const translations: Record<SeoLocale, SeoTranslations> = { fr, en }
 
-/** Get translations for a locale. Falls back to French. */
+/** Get translations for a locale. Falls back to English. */
 export function getTranslations(locale?: string): SeoTranslations {
-  const key = (locale?.startsWith('en') ? 'en' : 'fr') as SeoLocale
-  return translations[key] || translations.fr
+  const key = (locale?.startsWith('fr') ? 'fr' : 'en') as SeoLocale
+  return translations[key] || translations.en
 }
 
 /** Shorthand: get a translation value by dot-path */

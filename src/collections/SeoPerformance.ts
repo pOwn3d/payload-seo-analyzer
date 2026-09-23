@@ -96,7 +96,7 @@ export function createSeoPerformanceCollection(): CollectionConfig {
         options: [
           { label: 'Import CSV', value: 'csv' },
           { label: 'API', value: 'api' },
-          { label: 'Manuel', value: 'manual' },
+          { label: { en: 'Manual', fr: 'Manuel' }, value: 'manual' },
         ],
         admin: {
           description: 'Data source (csv, api, or manual)',

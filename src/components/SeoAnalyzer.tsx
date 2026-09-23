@@ -917,24 +917,27 @@ const SeoAnalyzerInner: React.FC = () => {
       if (blockIdx > 100) break // safety
     }
 
-    const result = analyzeSeo({
-      metaTitle,
-      metaDescription,
-      metaImage,
-      slug,
-      focusKeyword,
-      focusKeywords: focusKeywords.length > 0 ? focusKeywords : undefined,
-      heroTitle,
-      heroRichText,
-      heroLinks: heroLinks.length > 0 ? heroLinks : undefined,
-      heroMedia: heroMedia || undefined,
-      blocks: blocks.length > 0 ? blocks : undefined,
-      content: content || undefined,
-      isPost,
-      isCornerstone: !!isCornerstone,
-      updatedAt: updatedAt || undefined,
-      contentLastReviewed: contentLastReviewed || undefined,
-    })
+    const result = analyzeSeo(
+      {
+        metaTitle,
+        metaDescription,
+        metaImage,
+        slug,
+        focusKeyword,
+        focusKeywords: focusKeywords.length > 0 ? focusKeywords : undefined,
+        heroTitle,
+        heroRichText,
+        heroLinks: heroLinks.length > 0 ? heroLinks : undefined,
+        heroMedia: heroMedia || undefined,
+        blocks: blocks.length > 0 ? blocks : undefined,
+        content: content || undefined,
+        isPost,
+        isCornerstone: !!isCornerstone,
+        updatedAt: updatedAt || undefined,
+        contentLastReviewed: contentLastReviewed || undefined,
+      },
+      { locale },
+    )
 
     // Compute word count from the content check (reuse the check message or compute separately)
     let wc = 0

@@ -9,6 +9,7 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 // default — so this stub matches its behaviour rather than replacing it.
 vi.mock('@payloadcms/ui', () => ({
   useLocale: () => ({ code: 'fr' }),
+  useTranslation: () => ({ i18n: { language: 'fr' } }),
 }))
 
 import { SerpPreview } from '../components/SerpPreview.js'
