@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useState } from 'react'
+import { useSeoFeature } from '../hooks/useSeoLocale.js'
 
 const C = {
   text: 'var(--theme-text, #1a1a1a)',
@@ -79,6 +80,7 @@ interface GscRow {
 }
 
 export function GscPanel({ locale }: { locale: 'fr' | 'en' }) {
+  const gscEnabled = useSeoFeature('gscApi')
   const s = S[locale] ?? S.fr
   const [status, setStatus] = useState<GscStatus | null>(null)
   const [busy, setBusy] = useState(false)
@@ -89,6 +91,12 @@ export function GscPanel({ locale }: { locale: 'fr' | 'en' }) {
 
   const loadStatus = useCallback(async () => {
     setError(null)
+    if (gscEnabled === false) {
+      // features.gscApi is off, so the endpoint is not registered: calling it would
+      // only make the browser log a 404 on every visit. Same state as a 404.
+      setStatus({ configured: false, connected: false, connectedEmail: null, connectedAt: null, propertyUrl: null, redirectUri: null })
+      return
+    }
     try {
       const res = await fetch('/api/seo-plugin/gsc/status', { credentials: 'include' })
       if (res.status === 404) {
@@ -102,7 +110,7 @@ export function GscPanel({ locale }: { locale: 'fr' | 'en' }) {
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Network error')
     }
-  }, [])
+  }, [gscEnabled])
 
   useEffect(() => {
     void loadStatus()

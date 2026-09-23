@@ -13,8 +13,8 @@ import {
   FLESCH_SCORE_PASS,
   SLUG_MAX_LENGTH,
 } from '../constants.js'
-import { useSeoLocale } from '../hooks/useSeoLocale.js'
-import { getDashboardT } from '../dashboard-i18n.js'
+import { useDashboardT } from '../hooks/useSeoLocale.js'
+import { type DashboardTranslations } from '../dashboard-i18n.js'
 
 // ---------------------------------------------------------------------------
 // Design tokens — uses Payload CSS variables for theme compatibility
@@ -57,7 +57,7 @@ const RULE_GROUP_KEYS = [
   'ecommerce',
 ] as const
 
-function getRuleGroups(t: ReturnType<typeof getDashboardT>): Array<{ value: string; label: string }> {
+function getRuleGroups(t: DashboardTranslations): Array<{ value: string; label: string }> {
   const labelMap: Record<string, string> = {
     'title': t.seoConfig.ruleGroupTitle,
     'meta-description': t.seoConfig.ruleGroupMetaDescription,
@@ -84,7 +84,7 @@ function getRuleGroups(t: ReturnType<typeof getDashboardT>): Array<{ value: stri
 // Threshold definitions (field name, label, default value)
 // Built dynamically from i18n translations
 // ---------------------------------------------------------------------------
-function getThresholdFields(t: ReturnType<typeof getDashboardT>): Array<{ name: string; label: string; defaultValue: number }> {
+function getThresholdFields(t: DashboardTranslations): Array<{ name: string; label: string; defaultValue: number }> {
   return [
     { name: 'titleLengthMin', label: t.seoConfig.thresholdTitleMin, defaultValue: TITLE_LENGTH_MIN },
     { name: 'titleLengthMax', label: t.seoConfig.thresholdTitleMax, defaultValue: TITLE_LENGTH_MAX },
@@ -248,8 +248,7 @@ function Toast({ message, type, onClose }: { message: string; type: 'success' | 
 // Main SeoConfigView component
 // ---------------------------------------------------------------------------
 export function SeoConfigView() {
-  const locale = useSeoLocale()
-  const t = getDashboardT(locale)
+  const t = useDashboardT()
   // useId(), never a literal id: nothing forbids a host from mounting this view
   // twice (a custom route reusing the component), and duplicate ids break the
   // very label association they are meant to create.

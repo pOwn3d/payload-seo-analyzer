@@ -1,8 +1,7 @@
 'use client'
 
 import React, { useState, useMemo } from 'react'
-import { useSeoLocale } from '../hooks/useSeoLocale.js'
-import { getDashboardT } from '../dashboard-i18n.js'
+import { useDashboardT } from '../hooks/useSeoLocale.js'
 
 // Design tokens — uses Payload CSS variables for theme compatibility
 const V = {
@@ -28,8 +27,7 @@ interface AuditItem {
 }
 
 export function ContentDecaySection({ items }: { items: AuditItem[] }) {
-  const locale = useSeoLocale()
-  const t = getDashboardT(locale)
+  const t = useDashboardT()
   const [open, setOpen] = useState(false)
   const [markingReviewed, setMarkingReviewed] = useState<string | null>(null)
   const [reviewedKeys, setReviewedKeys] = useState<Set<string>>(new Set())

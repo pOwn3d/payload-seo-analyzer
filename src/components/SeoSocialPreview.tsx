@@ -1,8 +1,7 @@
 'use client'
 
 import React, { useState, useId } from 'react'
-import { useSeoLocale } from '../hooks/useSeoLocale.js'
-import { getDashboardT } from '../dashboard-i18n.js'
+import { useDashboardT } from '../hooks/useSeoLocale.js'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -52,8 +51,7 @@ export function SeoSocialPreview({
   imageUrl,
   hostname,
 }: SeoSocialPreviewProps) {
-  const locale = useSeoLocale()
-  const t = getDashboardT(locale)
+  const t = useDashboardT()
   const [open, setOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<'facebook' | 'twitter'>('facebook')
   // This component is rendered inside the document editor, once per locale tab

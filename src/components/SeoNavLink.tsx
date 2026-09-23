@@ -5,8 +5,7 @@
 import React from 'react'
 // @ts-ignore — next is a peer dependency
 import { usePathname } from 'next/navigation'
-import { useSeoLocale } from '../hooks/useSeoLocale.js'
-import { getDashboardT } from '../dashboard-i18n.js'
+import { useDashboardT } from '../hooks/useSeoLocale.js'
 import { withSeoErrorBoundary } from './withSeoErrorBoundary.js'
 
 interface NavItem {
@@ -30,8 +29,7 @@ const svgProps = {
 
 function SeoNavLinkInner() {
   const pathname = usePathname()
-  const locale = useSeoLocale()
-  const t = getDashboardT(locale)
+  const t = useDashboardT()
 
   // Detect admin route prefix from current pathname (works with custom admin routes)
   const adminPrefix = pathname?.match(/^(\/[^/]+)\//)?.[1] || '/admin'

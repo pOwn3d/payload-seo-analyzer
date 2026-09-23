@@ -1,8 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useMemo, useState, useId } from 'react'
-import { useSeoLocale } from '../hooks/useSeoLocale.js'
-import { getDashboardT } from '../dashboard-i18n.js'
+import { useDashboardT, useSeoLocale } from '../hooks/useSeoLocale.js'
 import { CoreWebVitalsPanel } from './CoreWebVitalsPanel.js'
 import { HealthPanel } from './HealthPanel.js'
 import { IndexationHygienePanel } from './IndexationHygienePanel.js'
@@ -223,7 +222,7 @@ function SortTh({
 
 export function PerformanceView() {
   const locale = useSeoLocale()
-  const t = getDashboardT(locale)
+  const t = useDashboardT()
   const uid = useId()
   const fileId = `${uid}-import-file`
   const csvId = `${uid}-import-csv`

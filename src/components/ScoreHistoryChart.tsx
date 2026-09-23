@@ -1,8 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, useMemo, useId } from 'react'
-import { useSeoLocale } from '../hooks/useSeoLocale.js'
-import { getDashboardT } from '../dashboard-i18n.js'
+import { useDashboardT } from '../hooks/useSeoLocale.js'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -231,8 +230,7 @@ function Sparkline({
 // ---------------------------------------------------------------------------
 
 const ScoreHistoryChart: React.FC<ScoreHistoryChartProps> = ({ documentId, collection }) => {
-  const locale = useSeoLocale()
-  const t = getDashboardT(locale)
+  const t = useDashboardT()
   const [data, setData] = useState<HistoryResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)

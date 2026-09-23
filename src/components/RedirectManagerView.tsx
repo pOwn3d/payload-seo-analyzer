@@ -1,8 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, useMemo, useCallback, useRef, useId } from 'react'
-import { useSeoLocale } from '../hooks/useSeoLocale.js'
-import { getDashboardT } from '../dashboard-i18n.js'
+import { useDashboardT, useSeoLocale } from '../hooks/useSeoLocale.js'
 import { toCsv } from '../helpers/csv.js'
 
 // ---------------------------------------------------------------------------
@@ -176,7 +175,7 @@ function StatCard({
 // ---------------------------------------------------------------------------
 export function RedirectManagerView() {
   const locale = useSeoLocale()
-  const t = getDashboardT(locale)
+  const t = useDashboardT()
   // useId(), never a literal: duplicate ids would break the very association
   // they create if the view is ever mounted twice.
   const uid = useId()

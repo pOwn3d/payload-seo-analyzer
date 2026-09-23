@@ -243,6 +243,7 @@ function buildSeoConfig(pluginConfig: SeoPluginConfig): SeoConfig {
     ...(pluginConfig.overrideWeights && { overrideWeights: pluginConfig.overrideWeights }),
     ...(pluginConfig.thresholds && { thresholds: pluginConfig.thresholds }),
     ...(pluginConfig.locale && { locale: pluginConfig.locale }),
+    ...(pluginConfig.localeMapping && { localeMapping: pluginConfig.localeMapping }),
     ...(pluginConfig.collectionRoutes && { collectionRoutes: pluginConfig.collectionRoutes }),
   }
 }
@@ -924,6 +925,22 @@ export const seoAnalyzerPlugin =
       for (const [locale, translations] of Object.entries(pluginConfig.customTranslations)) {
         registerDashboardTranslations(locale, translations)
       }
+    }
+
+    // The admin components run in the browser with their own module copies, so
+    // what they need from this config travels in `admin.custom`, which is part of
+    // the client config: the feature flags (a panel then never calls an endpoint
+    // that was not registered) and the custom dashboard translations (the
+    // registry above lives in this server module). Read by hooks/useSeoLocale.ts.
+    if (!config.admin) config.admin = {}
+    const adminCustom = (config.admin.custom ?? {}) as Record<string, unknown>
+    config.admin.custom = {
+      ...adminCustom,
+      seoAnalyzer: {
+        ...((adminCustom.seoAnalyzer as Record<string, unknown> | undefined) ?? {}),
+        features,
+        ...(pluginConfig.customTranslations && { customTranslations: pluginConfig.customTranslations }),
+      },
     }
 
     // 5. Add cache warm-up on server init

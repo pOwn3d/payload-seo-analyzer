@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useState } from 'react'
+import { useSeoFeature } from '../hooks/useSeoLocale.js'
 
 const C = {
   text: 'var(--theme-text, #1a1a1a)',
@@ -75,6 +76,7 @@ interface Config {
 }
 
 export function AlertsPanel({ locale }: { locale: 'fr' | 'en' }) {
+  const alertsEnabled = useSeoFeature('alerts')
   const s = S[locale] ?? S.fr
   const [digest, setDigest] = useState<Digest | null>(null)
   const [config, setConfig] = useState<Config | null>(null)
@@ -87,6 +89,13 @@ export function AlertsPanel({ locale }: { locale: 'fr' | 'en' }) {
     setLoading(true)
     setError(null)
     try {
+      if (alertsEnabled === false) {
+        // features.alerts is off, so the endpoint is not registered: calling it
+        // would only make the browser log a 404 on every visit. Same state as a 404.
+        setConfig({ webhookConfigured: false, emailConfigured: false, scoreDrop: 0, positionDrop: 0, windowHours: 0 })
+        setDigest(null)
+        return
+      }
       const res = await fetch('/api/seo-plugin/alerts-digest', { credentials: 'include', cache: 'no-store' })
       if (res.status === 404 || res.status === 403) {
         // Feature not enabled (features.alerts) or insufficient rights — show the hint, not an error.
@@ -106,7 +115,7 @@ export function AlertsPanel({ locale }: { locale: 'fr' | 'en' }) {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [alertsEnabled])
 
   useEffect(() => {
     void load()

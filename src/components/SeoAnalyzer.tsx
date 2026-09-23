@@ -11,8 +11,8 @@ import {
   type RuleGroup,
 } from '../index.js'
 import { SeoSocialPreview } from './SeoSocialPreview.js'
-import { useSeoAnalysisLocale, useSeoLocale, type SeoAnalysisLocaleOptions } from '../hooks/useSeoLocale.js'
-import { getDashboardT, type DashboardTranslations } from '../dashboard-i18n.js'
+import { useDashboardT, useSeoAnalysisLocale, type SeoAnalysisLocaleOptions } from '../hooks/useSeoLocale.js'
+import { type DashboardTranslations } from '../dashboard-i18n.js'
 import { withSeoErrorBoundary } from './withSeoErrorBoundary.js'
 
 // ---------------------------------------------------------------------------
@@ -691,9 +691,8 @@ interface SeoAnalyzerFieldProps {
 }
 
 const SeoAnalyzerInner: React.FC<SeoAnalyzerFieldProps> = ({ field }) => {
-  const locale = useSeoLocale()
   const analysisLocale = useSeoAnalysisLocale(field?.admin?.custom)
-  const t = getDashboardT(locale)
+  const t = useDashboardT()
   const [formFields, dispatchFields] = useAllFormFields()
   const initialScoreRef = useRef<number | null>(null)
   const [suggestionsOpen, setSuggestionsOpen] = useState(true)

@@ -1,8 +1,8 @@
 'use client'
 
 import React, { useEffect, useState, useMemo, useCallback, useId } from 'react'
-import { useSeoLocale } from '../hooks/useSeoLocale.js'
-import { getDashboardT } from '../dashboard-i18n.js'
+import { useDashboardT, useSeoLocale } from '../hooks/useSeoLocale.js'
+import { type DashboardTranslations } from '../dashboard-i18n.js'
 import { LiveRegion } from './LiveRegion.js'
 import { toCsv } from '../helpers/csv.js'
 
@@ -290,7 +290,7 @@ function CollectionBadge({ collection, articleLabel }: { collection: string; art
 // EditButton sub-component
 // ---------------------------------------------------------------------------
 function EditButton({ collection, id }: { collection: string; id: number | string }) {
-  const t = getDashboardT(useSeoLocale())
+  const t = useDashboardT()
   const [hover, setHover] = useState(false)
   return (
     <a
@@ -421,8 +421,7 @@ const rowStyle: React.CSSProperties = {
 // OrphanTab (C3: score badge, C5: hover preview)
 // ---------------------------------------------------------------------------
 function OrphanTab({ pages, scoreMap }: { pages: OrphanPage[]; scoreMap: Map<string, number> }) {
-  const locale = useSeoLocale()
-  const t = getDashboardT(locale)
+  const t = useDashboardT()
   if (pages.length === 0) {
     return <EmptyState message={t.sitemapAudit.noOrphanedPages} />
   }
@@ -497,8 +496,7 @@ function OrphanTab({ pages, scoreMap }: { pages: OrphanPage[]; scoreMap: Map<str
 // WeakTab (C3: score badge, C4: anchor text, C5: hover preview)
 // ---------------------------------------------------------------------------
 function WeakTab({ pages, scoreMap }: { pages: WeakPage[]; scoreMap: Map<string, number> }) {
-  const locale = useSeoLocale()
-  const t = getDashboardT(locale)
+  const t = useDashboardT()
   if (pages.length === 0) {
     return <EmptyState message={t.sitemapAudit.noFragilePages} />
   }
@@ -596,8 +594,7 @@ function WeakTab({ pages, scoreMap }: { pages: WeakPage[]; scoreMap: Map<string,
 // HubsTab
 // ---------------------------------------------------------------------------
 function HubsTab({ hubs }: { hubs: LinkHub[] }) {
-  const locale = useSeoLocale()
-  const t = getDashboardT(locale)
+  const t = useDashboardT()
   if (hubs.length === 0) {
     return <EmptyState message={t.sitemapAudit.noLinkHubs} />
   }
@@ -666,8 +663,7 @@ function HubsTab({ hubs }: { hubs: LinkHub[] }) {
 // BrokenTab (C1: suggestions, C2: redirect button, C5: hover preview, bulk)
 // ---------------------------------------------------------------------------
 function BrokenTab({ links, onRefresh }: { links: BrokenLink[]; onRefresh: () => void }) {
-  const locale = useSeoLocale()
-  const t = getDashboardT(locale)
+  const t = useDashboardT()
   const [createdRedirects, setCreatedRedirects] = useState<Set<string>>(new Set())
   const [loadingRedirects, setLoadingRedirects] = useState<Set<string>>(new Set())
   const [manualInputs, setManualInputs] = useState<Record<string, string>>({})
@@ -1077,7 +1073,7 @@ interface SeoLog {
 
 function Logs404Tab() {
   const locale = useSeoLocale()
-  const t = getDashboardT(locale)
+  const t = useDashboardT()
   const [logs, setLogs] = useState<SeoLog[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -1446,8 +1442,7 @@ function Logs404Tab() {
 type ExternalFilter = 'all' | 'broken' | 'ok'
 
 function ExternalLinksTab() {
-  const locale = useSeoLocale()
-  const t = getDashboardT(locale)
+  const t = useDashboardT()
   const [data, setData] = useState<ExternalLinksData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -1731,7 +1726,7 @@ function exportJSON(data: SitemapAuditData) {
   URL.revokeObjectURL(url)
 }
 
-function exportCSV(data: SitemapAuditData, t: ReturnType<typeof getDashboardT>) {
+function exportCSV(data: SitemapAuditData, t: DashboardTranslations) {
   const rows: string[][] = [['type', 'slug', 'title', 'collection', 'details']]
 
   for (const p of data.orphanPages) {
@@ -1768,8 +1763,7 @@ export function SitemapAuditView() {
   // One base id per mount: the tab/panel wiring must not collide if the view
   // is ever mounted twice on the same screen.
   const uid = useId()
-  const locale = useSeoLocale()
-  const t = getDashboardT(locale)
+  const t = useDashboardT()
   const [data, setData] = useState<SitemapAuditData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useState } from 'react'
+import { useSeoFeature } from '../hooks/useSeoLocale.js'
 
 const C = {
   text: 'var(--theme-text, #1a1a1a)',
@@ -63,6 +64,7 @@ interface Mover {
 }
 
 export function RankTrackingPanel({ locale }: { locale: 'fr' | 'en' }) {
+  const gscEnabled = useSeoFeature('gscApi')
   const s = S[locale] ?? S.fr
   const [movers, setMovers] = useState<Mover[] | null>(null)
   const [lastSnapshot, setLastSnapshot] = useState<string | null>(null)
@@ -75,6 +77,13 @@ export function RankTrackingPanel({ locale }: { locale: 'fr' | 'en' }) {
     setLoading(true)
     setError(null)
     try {
+      if (gscEnabled === false) {
+        // features.gscApi is off, so the endpoint is not registered: calling it
+        // would only make the browser log a 404 on every visit. Same state as a 404.
+        setNotConnected(true)
+        setMovers(null)
+        return
+      }
       const res = await fetch('/api/seo-plugin/rank-history', { credentials: 'include', cache: 'no-store' })
       // 404 = endpoint not registered (features.gscApi off) · 403/409 = not admin / not connected.
       if (res.status === 404 || res.status === 403 || res.status === 409) {
@@ -94,7 +103,7 @@ export function RankTrackingPanel({ locale }: { locale: 'fr' | 'en' }) {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [gscEnabled])
 
   useEffect(() => {
     void load()

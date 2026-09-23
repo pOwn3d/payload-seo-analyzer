@@ -8,13 +8,22 @@ import { renderHook, cleanup } from '@testing-library/react'
 // exposed by useTranslation().
 let contentLocale: { code?: string } = {}
 let uiLanguage: string | undefined
+// useConfig() has no default context: undefined outside the admin provider tree.
+let configContext: { config: { admin?: { custom?: Record<string, unknown> } } } | undefined
 
 vi.mock('@payloadcms/ui', () => ({
   useLocale: () => contentLocale,
   useTranslation: () => ({ i18n: { language: uiLanguage } }),
+  useConfig: () => configContext,
 }))
 
-import { useSeoAnalysisLocale, useSeoLocale, type SeoAnalysisLocaleOptions } from '../hooks/useSeoLocale.js'
+import {
+  useDashboardT,
+  useSeoAnalysisLocale,
+  useSeoLocale,
+  type SeoAnalysisLocaleOptions,
+} from '../hooks/useSeoLocale.js'
+import { getDashboardT, resolveDashboardT } from '../dashboard-i18n.js'
 
 function setLocales(contentCode: string | undefined, uiLang: string | undefined) {
   contentLocale = contentCode ? { code: contentCode } : {}
@@ -80,6 +89,50 @@ describe('useSeoAnalysisLocale — sidebar analysis language', () => {
   it('applies localeMapping to the content locale', () => {
     expect(analysisLocale('de', 'en', { localeMapping: { de: 'en' } })).toBe('en')
     expect(analysisLocale('de', 'en')).toBe('fr')
+  })
+})
+
+describe('useDashboardT — dashboard strings', () => {
+  const czech = { common: { loading: 'Načítání...' } }
+
+  function dashboardT(uiLang: string | undefined, customTranslations?: Record<string, unknown>) {
+    uiLanguage = uiLang
+    configContext = customTranslations
+      ? { config: { admin: { custom: { seoAnalyzer: { customTranslations } } } } }
+      : { config: {} }
+    return renderHook(() => useDashboardT()).result.current
+  }
+
+  it('serves a language added through customTranslations, forwarded in admin.custom', () => {
+    const t = dashboardT('cs', { cs: czech })
+    expect(t.common.loading).toBe('Načítání...')
+    // Keys the custom entry leaves out fall back to English.
+    expect(t.common.save).toBe(getDashboardT('en').common.save)
+  })
+
+  it('keeps the built-in French and English otherwise', () => {
+    expect(dashboardT('fr')).toBe(getDashboardT('fr'))
+    expect(dashboardT('de', { cs: czech })).toBe(getDashboardT('en'))
+  })
+
+  it('does not throw outside the admin provider tree', () => {
+    uiLanguage = 'fr'
+    configContext = undefined
+    expect(renderHook(() => useDashboardT()).result.current).toBe(getDashboardT('fr'))
+  })
+})
+
+describe('resolveDashboardT', () => {
+  it('falls back from a region to its base language', () => {
+    expect(resolveDashboardT('pt-BR', { pt: { common: { loading: 'Carregando...' } } }).common.loading).toBe(
+      'Carregando...',
+    )
+  })
+
+  it('layers a French override over the built-in French, not over English', () => {
+    const t = resolveDashboardT('fr', { fr: { common: { loading: 'Patientez…' } } })
+    expect(t.common.loading).toBe('Patientez…')
+    expect(t.common.save).toBe(getDashboardT('fr').common.save)
   })
 })
 

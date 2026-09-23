@@ -16,6 +16,7 @@ import { buildSeoInputFromDoc } from '../endpoints/validate.js'
 import { countWords } from '../helpers.js'
 import { extractDocContent } from '../helpers/extractDocContent.js'
 import { seoCache } from '../cache.js'
+import { loadMergedConfig } from '../helpers/loadMergedConfig.js'
 
 /** Minimum interval between snapshots in milliseconds (1 hour) */
 const RATE_LIMIT_MS = 60 * 60 * 1000
@@ -78,9 +79,14 @@ export function createTrackSeoScoreHook(seoConfig?: SeoConfig): CollectionAfterC
           }
         }
 
-        // Build SEO input and run analysis
+        // Build SEO input and run analysis with the dashboard's config: SeoSettings
+        // merged in and the locale of the saved document resolved, or the history
+        // drifts from the scores shown everywhere else.
         const seoInput = buildSeoInputFromDoc(doc, collectionSlug)
-        const analysis = analyzeSeo(seoInput, seoConfig)
+        const { config: mergedConfig } = await loadMergedConfig(req.payload, seoConfig, {
+          reqLocale: req.locale as string | undefined,
+        })
+        const analysis = analyzeSeo(seoInput, mergedConfig)
 
         // Compute word count using shared extraction helper
         const wordCount = countWords(extractDocContent(doc).text)
@@ -176,7 +182,10 @@ export function createTrackSeoScoreGlobalHook(seoConfig?: SeoConfig): GlobalAfte
           ...buildSeoInputFromDoc(doc, discriminator),
           isGlobal: true,
         }
-        const analysis = analyzeSeo(seoInput, seoConfig)
+        const { config: mergedConfig } = await loadMergedConfig(req.payload, seoConfig, {
+          reqLocale: req.locale as string | undefined,
+        })
+        const analysis = analyzeSeo(seoInput, mergedConfig)
 
         // Compute word count using shared extraction helper
         const wordCount = countWords(extractDocContent(doc).text)

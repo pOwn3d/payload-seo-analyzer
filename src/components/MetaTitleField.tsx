@@ -14,18 +14,16 @@
 
 import React, { useCallback, useState, useId } from 'react'
 import { useField, useDocumentInfo } from '@payloadcms/ui'
-import { useSeoLocale } from '../hooks/useSeoLocale.js'
-import { getDashboardT } from '../dashboard-i18n.js'
+import { useDashboardT } from '../hooks/useSeoLocale.js'
 import { withSeoErrorBoundary } from './withSeoErrorBoundary.js'
+import { resolveMetaFieldOptions, type MetaFieldOptionProps } from './metaFieldOptions.js'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-interface MetaTitleFieldProps {
+interface MetaTitleFieldProps extends MetaFieldOptionProps {
   path: string
-  hasGenerateFn?: boolean
-  basePath?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -81,13 +79,10 @@ function getProgressColor(len: number): string {
 // Component
 // ---------------------------------------------------------------------------
 
-function MetaTitleFieldInner({
-  path,
-  hasGenerateFn = false,
-  basePath = '/api/seo-plugin',
-}: MetaTitleFieldProps) {
-  const locale = useSeoLocale()
-  const t = getDashboardT(locale)
+function MetaTitleFieldInner(props: MetaTitleFieldProps) {
+  const { path } = props
+  const { hasGenerateFn, basePath } = resolveMetaFieldOptions(props)
+  const t = useDashboardT()
   // One instance per locale tab on a localized document: a literal id would
   // point every tab's label at the first tab's input.
   const fieldId = useId()

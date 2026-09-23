@@ -154,7 +154,7 @@ Every field of `SeoPluginConfig`. All are optional.
 | `overrideWeights` | `Partial<Record<RuleGroup, number>>` | — | Force the weight of every check in a group. |
 | `thresholds` | `SeoThresholds` | constants | Numeric overrides (see below). |
 | `localSeoSlugs` | `string[]` | — | Extra slugs to treat as local-SEO pages. |
-| `endpointBasePath` | `string` | `'/seo-plugin'` | Path prefix for the REST endpoints, under `/api`. |
+| `endpointBasePath` | `string` | `'/seo-plugin'` | Path prefix for the REST endpoints, under `/api`. **Keep the default if you use the admin views or the editor sidebar:** apart from the meta fields' generate buttons, they still call `/api/seo-plugin`. |
 | `addDashboardView` | `boolean` | `true` | Set `false` to register no admin view at all. |
 | `addSitemapAuditView` | `boolean` | `true` | Set `false` to drop only `/admin/sitemap-audit`. |
 | `trackScoreHistory` | `boolean` | `true` | Adds `seo-score-history` plus the `afterChange` hook that feeds it. |
@@ -294,7 +294,7 @@ analyzer sidebar, the `validate` endpoint and the meta fields are always active.
 
 ## API Endpoints
 
-All paths are relative to `/api/seo-plugin` (change the prefix with `endpointBasePath`). "Authenticated"
+All paths are relative to `/api/seo-plugin` (change the prefix with `endpointBasePath`, for API-only use — see [Plugin options](#plugin-options)). "Authenticated"
 means a logged-in **admin-panel** user — a session on another auth collection (front-office customers,
 members, subscribers) does **not** qualify, even though Payload populates `req.user` for it on every
 route. The panel collection is `config.admin.user`; widen it with `SEO_ADMIN_USER_COLLECTIONS` if

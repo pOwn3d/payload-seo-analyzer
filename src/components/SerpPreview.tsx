@@ -1,8 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { useSeoLocale } from '../hooks/useSeoLocale.js'
-import { getDashboardT } from '../dashboard-i18n.js'
+import { useDashboardT } from '../hooks/useSeoLocale.js'
 import { withSeoErrorBoundary } from './withSeoErrorBoundary.js'
 
 // ---------------------------------------------------------------------------
@@ -91,8 +90,7 @@ function SerpPreviewInner({
   hostname,
   favicon,
 }: SerpPreviewProps) {
-  const locale = useSeoLocale()
-  const t = getDashboardT(locale)
+  const t = useDashboardT()
   const [open, setOpen] = useState(false)
   const [device, setDevice] = useState<DeviceMode>('desktop')
 

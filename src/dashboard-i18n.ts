@@ -1890,3 +1890,20 @@ function deepMergeTranslations(
 export function getDashboardT(locale: DashboardLocale): DashboardTranslations {
   return translations[locale] || translations.en || translations.fr
 }
+
+/**
+ * Dashboard strings for an admin UI language, given the plugin's
+ * `customTranslations` (keyed by language, e.g. 'cs' or 'pt-BR'; a region falls
+ * back to its base language). A custom entry is layered over the built-in French
+ * for French, over English for every other language; without one, the built-in
+ * French or English is returned.
+ */
+export function resolveDashboardT(
+  language: string | undefined,
+  custom?: Record<string, Partial<DashboardTranslations>>,
+): DashboardTranslations {
+  const base = language?.split(/[-_]/)[0]
+  const builtIn = translations[base === 'fr' ? 'fr' : 'en']
+  const override = language ? (custom?.[language] ?? (base ? custom?.[base] : undefined)) : undefined
+  return override ? deepMergeTranslations(builtIn, override) : builtIn
+}

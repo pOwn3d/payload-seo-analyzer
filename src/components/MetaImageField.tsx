@@ -14,18 +14,16 @@
 
 import React, { useCallback, useState } from 'react'
 import { useField, useDocumentInfo } from '@payloadcms/ui'
-import { useSeoLocale } from '../hooks/useSeoLocale.js'
-import { getDashboardT } from '../dashboard-i18n.js'
+import { useDashboardT } from '../hooks/useSeoLocale.js'
 import { withSeoErrorBoundary } from './withSeoErrorBoundary.js'
+import { resolveMetaFieldOptions, type MetaFieldOptionProps } from './metaFieldOptions.js'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-interface MetaImageFieldProps {
+interface MetaImageFieldProps extends MetaFieldOptionProps {
   path: string
-  hasGenerateFn?: boolean
-  basePath?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -51,13 +49,10 @@ const C = {
 // Component
 // ---------------------------------------------------------------------------
 
-function MetaImageFieldInner({
-  path,
-  hasGenerateFn = false,
-  basePath = '/api/seo-plugin',
-}: MetaImageFieldProps) {
-  const locale = useSeoLocale()
-  const t = getDashboardT(locale)
+function MetaImageFieldInner(props: MetaImageFieldProps) {
+  const { path } = props
+  const { hasGenerateFn, basePath } = resolveMetaFieldOptions(props)
+  const t = useDashboardT()
 
   const { value, setValue } = useField<string | number | null>({ path })
   const { collectionSlug, globalSlug, id: docId } = useDocumentInfo()

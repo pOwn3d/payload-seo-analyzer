@@ -132,6 +132,22 @@ describe('seoAnalyzerPlugin — integration (config transform)', () => {
     expect(findField(pages.fields, 'seoAnalyzer')?.admin?.custom).toEqual({ locale: 'en', localeMapping })
   })
 
+  // The server-side registry never reaches the browser: the admin components only
+  // see customTranslations through the client config.
+  it('forwards customTranslations to the client config, keeping existing admin.custom keys', () => {
+    const customTranslations = { cs: { common: { loading: 'Načítání...' } } }
+    const base = baseConfig()
+    base.admin.custom = { host: true, seoAnalyzer: { other: 1 } }
+    const out = seoAnalyzerPlugin({ collections: ['pages'], customTranslations })(base)
+    expect(out.admin.custom).toMatchObject({ host: true, seoAnalyzer: { other: 1, customTranslations } })
+  })
+
+  // The panels skip the endpoints of a disabled feature instead of logging a 404.
+  it('forwards the resolved feature flags to the client config', () => {
+    const out = run({ collections: ['pages'], features: { gscApi: false, alerts: true } })
+    expect(out.admin.custom.seoAnalyzer.features).toMatchObject({ gscApi: false, alerts: true, dashboard: true })
+  })
+
   it('leaves the analyzer field without locale keys when none is configured', () => {
     const out = run({ collections: ['pages', 'posts'] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

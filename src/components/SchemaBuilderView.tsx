@@ -1,8 +1,7 @@
 'use client'
 
 import React, { useState, useCallback, useMemo, useId } from 'react'
-import { useSeoLocale } from '../hooks/useSeoLocale.js'
-import { getDashboardT } from '../dashboard-i18n.js'
+import { useDashboardT } from '../hooks/useSeoLocale.js'
 import type { DashboardTranslations } from '../dashboard-i18n.js'
 
 // ---------------------------------------------------------------------------
@@ -594,8 +593,7 @@ function Toast({ message, onClose }: { message: string; onClose: () => void }) {
 // ---------------------------------------------------------------------------
 
 export function SchemaBuilderView() {
-  const locale = useSeoLocale()
-  const t = getDashboardT(locale)
+  const t = useDashboardT()
   // One base id per mount; every generated field id hangs off it, so two mounts
   // of this view never collide.
   const uid = useId()

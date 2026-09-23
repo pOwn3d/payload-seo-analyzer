@@ -1,8 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { useSeoLocale } from '../hooks/useSeoLocale.js'
-import { getDashboardT } from '../dashboard-i18n.js'
+import { useDashboardT } from '../hooks/useSeoLocale.js'
 import type { DashboardTranslations } from '../dashboard-i18n.js'
 import { toCsv } from '../helpers/csv.js'
 
@@ -290,8 +289,7 @@ function KeywordGroup({ conflict, t }: { conflict: Conflict; t: DashboardTransla
 // Main CannibalizationView component
 // ---------------------------------------------------------------------------
 export function CannibalizationView() {
-  const locale = useSeoLocale()
-  const t = getDashboardT(locale)
+  const t = useDashboardT()
 
   const [conflicts, setConflicts] = useState<Conflict[]>([])
   const [stats, setStats] = useState<Stats | null>(null)

@@ -1,8 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { useSeoLocale } from '../hooks/useSeoLocale.js'
-import { getDashboardT } from '../dashboard-i18n.js'
+import { useDashboardT, useSeoLocale } from '../hooks/useSeoLocale.js'
 import { ContentBriefPanel } from './ContentBriefPanel.js'
 import { toCsv } from '../helpers/csv.js'
 
@@ -162,7 +161,7 @@ function ExpandableList({ items, label, seeLessLabel }: { items: string[]; label
 
 export function KeywordResearchView() {
   const locale = useSeoLocale()
-  const t = getDashboardT(locale)
+  const t = useDashboardT()
 
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [stats, setStats] = useState<Stats | null>(null)

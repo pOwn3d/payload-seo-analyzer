@@ -163,6 +163,12 @@ export interface SeoConfig {
   /** Locale for language-specific analysis (default: 'fr') */
   locale?: 'fr' | 'en'
   /**
+   * Maps Payload locale codes onto the analysis locale. Read by the plugin's
+   * endpoints and hooks when they resolve the locale of a request (see
+   * `resolveAnalysisLocale`); `analyzeSeo()` itself only reads `locale`.
+   */
+  localeMapping?: Record<string, 'fr' | 'en'>
+  /**
    * Public route prefix per collection, used when generating URLs
    * (sitemap, canonical, JSON-LD, llms.txt, IndexNow).
    * Defaults to `{ posts: 'posts' }`. Set `{ posts: '' }` if your posts are

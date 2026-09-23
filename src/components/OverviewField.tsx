@@ -13,8 +13,7 @@
 
 import React, { useMemo } from 'react'
 import { useFormFields } from '@payloadcms/ui'
-import { useSeoLocale } from '../hooks/useSeoLocale.js'
-import { getDashboardT } from '../dashboard-i18n.js'
+import { useDashboardT } from '../hooks/useSeoLocale.js'
 import { withSeoErrorBoundary } from './withSeoErrorBoundary.js'
 
 // ---------------------------------------------------------------------------
@@ -89,8 +88,7 @@ function OverviewFieldInner({
   descriptionPath = 'meta.description',
   imagePath = 'meta.image',
 }: OverviewFieldProps) {
-  const locale = useSeoLocale()
-  const t = getDashboardT(locale)
+  const t = useDashboardT()
 
   // Read all three meta field values reactively
   const formFields = useFormFields(([fields]) => ({

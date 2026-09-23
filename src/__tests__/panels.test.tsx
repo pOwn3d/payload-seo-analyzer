@@ -1,6 +1,18 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, cleanup } from '@testing-library/react'
+
+// @payloadcms/ui imports CSS the jsdom loader cannot parse. The panels only read
+// the plugin's feature flags from the client config (`admin.custom`): left
+// undefined here, as for a component mounted outside the plugin, they probe the
+// endpoint and treat a 404 as "feature off".
+let features: Record<string, boolean> | undefined
+vi.mock('@payloadcms/ui', () => ({
+  useConfig: () => ({ config: { admin: { custom: { seoAnalyzer: { features } } } } }),
+  useLocale: () => ({}),
+  useTranslation: () => ({ i18n: { language: 'fr' } }),
+}))
+
 import { RankTrackingPanel } from '../components/RankTrackingPanel.js'
 import { CtrOpportunitiesPanel } from '../components/CtrOpportunitiesPanel.js'
 import { AlertsPanel } from '../components/AlertsPanel.js'
@@ -22,6 +34,27 @@ afterEach(() => {
 })
 beforeEach(() => {
   vi.restoreAllMocks()
+  features = undefined
+})
+
+describe('UI panels — feature flags from the client config', () => {
+  // A registered-nowhere endpoint still costs a request and a 404 in the
+  // browser console on every visit to the Performance view.
+  it('does not call the endpoints of a disabled feature', async () => {
+    features = { gscApi: false, alerts: false }
+    mockFetch(500, {})
+    render(
+      <>
+        <RankTrackingPanel locale="fr" />
+        <CtrOpportunitiesPanel locale="fr" />
+        <AlertsPanel locale="fr" />
+      </>,
+    )
+    expect((await screen.findAllByText(/Connectez Google Search Console/i)).length).toBe(2)
+    expect(await screen.findByText(/Aucun canal configuré/i)).toBeTruthy()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((globalThis as any).fetch).not.toHaveBeenCalled()
+  })
 })
 
 describe('UI panels — render smoke (jsdom)', () => {

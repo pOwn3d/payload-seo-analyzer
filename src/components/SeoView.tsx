@@ -2,9 +2,8 @@
 
 import React, { useEffect, useState, useMemo, useCallback, useId } from 'react'
 import { ContentDecaySection } from './ContentDecaySection.js'
-import { useSeoLocale } from '../hooks/useSeoLocale.js'
+import { useDashboardT, useSeoLocale } from '../hooks/useSeoLocale.js'
 import { escapeHtml } from '../helpers/escapeHtml.js'
-import { getDashboardT } from '../dashboard-i18n.js'
 import type { DashboardTranslations } from '../dashboard-i18n.js'
 import { toCsv } from '../helpers/csv.js'
 import { LiveRegion } from './LiveRegion.js'
@@ -791,7 +790,7 @@ function BulkActionBar({
 // ---------------------------------------------------------------------------
 export function SeoView() {
   const locale = useSeoLocale()
-  const t = getDashboardT(locale)
+  const t = useDashboardT()
   const [items, setItems] = useState<AuditItem[]>([])
   const [stats, setStats] = useState<AuditStats | null>(null)
   const [loading, setLoading] = useState(true)

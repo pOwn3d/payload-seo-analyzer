@@ -1,6 +1,6 @@
 /**
  * Shared helper: loads SEO settings from DB and merges with plugin config.
- * Used by both validate.ts and audit.ts endpoints.
+ * Used by the analysis endpoints (validate, audit, AI) and the score-history hook.
  */
 
 import type { SeoConfig } from '../types.js'
@@ -73,12 +73,14 @@ export async function loadMergedConfig(
     // SeoSettings collection might not exist yet — use plugin config as-is
   }
 
-  // Resolve locale from Payload's i18n (if locale options provided)
-  if (options?.reqLocale || options?.localeMapping) {
+  // Resolve locale from Payload's i18n. The mapping defaults to the plugin's own
+  // `localeMapping`, so every endpoint honours it without threading it through.
+  const localeMapping = options?.localeMapping ?? pluginConfig?.localeMapping
+  if (options?.reqLocale || localeMapping) {
     const effectiveLocale = resolveAnalysisLocale({
-      reqLocale: options.reqLocale,
+      reqLocale: options?.reqLocale,
       pluginLocale: mergedConfig.locale,
-      customMapping: options.localeMapping,
+      customMapping: localeMapping,
     })
     mergedConfig = { ...mergedConfig, locale: effectiveLocale }
   }
