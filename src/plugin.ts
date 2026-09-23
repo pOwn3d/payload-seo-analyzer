@@ -256,6 +256,7 @@ export const seoAnalyzerPlugin =
     const targetGlobals = pluginConfig.globals ?? []
     const basePath = pluginConfig.endpointBasePath ?? '/seo-plugin'
     const seoConfig = buildSeoConfig(pluginConfig)
+    const analyzerLocaleOptions = { locale: pluginConfig.locale, localeMapping: pluginConfig.localeMapping }
 
     // Resolve feature flags — all default to true
     const features: Required<SeoFeatures> = {
@@ -375,7 +376,7 @@ export const seoAnalyzerPlugin =
           const hasSeoMeta = hasExistingSeoMeta(existingFields)
 
           // Determine which fields to add
-          const fieldsToAdd = [...seoFields()]
+          const fieldsToAdd = [...seoFields(analyzerLocaleOptions)]
 
           // Auto-create meta fields if:
           // - @payloadcms/plugin-seo is NOT detected
@@ -445,7 +446,7 @@ export const seoAnalyzerPlugin =
         const existingFields = global.fields || []
         const hasSeoMeta = hasExistingSeoMeta(existingFields)
 
-        const fieldsToAdd = [...seoFields()]
+        const fieldsToAdd = [...seoFields(analyzerLocaleOptions)]
         if (!hasSeoMeta && pluginConfig.autoCreateMetaFields !== false) {
           fieldsToAdd.push(...buildMetaFields())
         }

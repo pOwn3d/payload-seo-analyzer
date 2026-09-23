@@ -11,7 +11,7 @@ import {
   type RuleGroup,
 } from '../index.js'
 import { SeoSocialPreview } from './SeoSocialPreview.js'
-import { useSeoLocale } from '../hooks/useSeoLocale.js'
+import { useSeoAnalysisLocale, useSeoLocale, type SeoAnalysisLocaleOptions } from '../hooks/useSeoLocale.js'
 import { getDashboardT, type DashboardTranslations } from '../dashboard-i18n.js'
 import { withSeoErrorBoundary } from './withSeoErrorBoundary.js'
 
@@ -685,8 +685,14 @@ function AiDiffRow({
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
-const SeoAnalyzerInner: React.FC = () => {
+interface SeoAnalyzerFieldProps {
+  /** Client field config; `admin.custom` carries the plugin's locale options (see seoFields()). */
+  field?: { admin?: { custom?: SeoAnalysisLocaleOptions } }
+}
+
+const SeoAnalyzerInner: React.FC<SeoAnalyzerFieldProps> = ({ field }) => {
   const locale = useSeoLocale()
+  const analysisLocale = useSeoAnalysisLocale(field?.admin?.custom)
   const t = getDashboardT(locale)
   const [formFields, dispatchFields] = useAllFormFields()
   const initialScoreRef = useRef<number | null>(null)
@@ -936,7 +942,7 @@ const SeoAnalyzerInner: React.FC = () => {
         updatedAt: updatedAt || undefined,
         contentLastReviewed: contentLastReviewed || undefined,
       },
-      { locale },
+      { locale: analysisLocale },
     )
 
     // Compute word count from the content check (reuse the check message or compute separately)
@@ -948,7 +954,7 @@ const SeoAnalyzerInner: React.FC = () => {
     }
 
     return { analysis: result, wordCount: wc }
-  }, [formFields, focusKeyword, focusKeywords, isCornerstone, updatedAt, contentLastReviewed, getFieldValue])
+  }, [formFields, focusKeyword, focusKeywords, isCornerstone, updatedAt, contentLastReviewed, getFieldValue, analysisLocale])
 
   // Social preview data — extracted from form state
   const socialPreviewData = useMemo(() => {

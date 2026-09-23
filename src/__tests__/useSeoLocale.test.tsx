@@ -1,13 +1,12 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, vi } from 'vitest'
-import React from 'react'
 import { renderHook, cleanup } from '@testing-library/react'
 
 // @payloadcms/ui is a peer dependency whose entry point imports CSS, which the
 // node/jsdom loader cannot parse. `contentLocale` stands in for useLocale()
-// (undefined on mono-locale projects) and `uiLanguage` for the admin UI
-// language exposed by useTranslation().
-let contentLocale: { code: string } | undefined
+// (`{}` on mono-locale projects) and `uiLanguage` for the admin UI language
+// exposed by useTranslation().
+let contentLocale: { code?: string } = {}
 let uiLanguage: string | undefined
 
 vi.mock('@payloadcms/ui', () => ({
@@ -15,41 +14,72 @@ vi.mock('@payloadcms/ui', () => ({
   useTranslation: () => ({ i18n: { language: uiLanguage } }),
 }))
 
-import { useSeoLocale } from '../hooks/useSeoLocale.js'
+import { useSeoAnalysisLocale, useSeoLocale, type SeoAnalysisLocaleOptions } from '../hooks/useSeoLocale.js'
 
-function resolved(contentCode: string | undefined, uiLang: string | undefined) {
-  contentLocale = contentCode ? { code: contentCode } : undefined
+function setLocales(contentCode: string | undefined, uiLang: string | undefined) {
+  contentLocale = contentCode ? { code: contentCode } : {}
   uiLanguage = uiLang
+}
+
+function uiLocale(contentCode: string | undefined, uiLang: string | undefined) {
+  setLocales(contentCode, uiLang)
   return renderHook(() => useSeoLocale()).result.current
+}
+
+function analysisLocale(
+  contentCode: string | undefined,
+  uiLang: string | undefined,
+  options?: SeoAnalysisLocaleOptions,
+) {
+  setLocales(contentCode, uiLang)
+  return renderHook(() => useSeoAnalysisLocale(options)).result.current
 }
 
 afterEach(cleanup)
 
-describe('useSeoLocale', () => {
-  it('returns fr for an explicit French content locale', () => {
-    expect(resolved('fr', 'en')).toBe('fr')
-    expect(resolved('fr-FR', 'en')).toBe('fr')
-    expect(resolved('fr_CA', undefined)).toBe('fr')
+describe('useSeoLocale — UI language', () => {
+  it('follows the admin UI language, not the content locale', () => {
+    expect(uiLocale('en', 'fr')).toBe('fr')
+    expect(uiLocale('fr', 'en')).toBe('en')
   })
 
-  it('returns en for an English content locale', () => {
-    expect(resolved('en', undefined)).toBe('en')
-    expect(resolved('en-US', 'fr')).toBe('en')
+  it('returns fr only for an explicit French admin language', () => {
+    expect(uiLocale(undefined, 'fr')).toBe('fr')
+    expect(uiLocale(undefined, 'fr-FR')).toBe('fr')
+    expect(uiLocale(undefined, 'fr_CA')).toBe('fr')
   })
 
-  it('returns en for any other content locale instead of falling back to fr', () => {
-    expect(resolved('de', 'de')).toBe('en')
-    expect(resolved('es-ES', 'es')).toBe('en')
+  it('falls back to en for any other or missing admin language', () => {
+    expect(uiLocale(undefined, 'en')).toBe('en')
+    expect(uiLocale(undefined, 'de')).toBe('en')
+    expect(uiLocale(undefined, 'frisian')).toBe('en')
+    expect(uiLocale(undefined, undefined)).toBe('en')
+  })
+})
+
+describe('useSeoAnalysisLocale — sidebar analysis language', () => {
+  it('never follows the admin UI language: a mono-locale site keeps the fr default', () => {
+    // English admin, no localization, no plugin locale: the server audit
+    // analyses in French, so the sidebar must too.
+    expect(analysisLocale(undefined, 'en')).toBe('fr')
+    expect(analysisLocale(undefined, 'de')).toBe('fr')
   })
 
-  it('falls back to the admin UI language when the content locale is unset', () => {
-    expect(resolved(undefined, 'fr')).toBe('fr')
-    expect(resolved(undefined, 'en')).toBe('en')
-    expect(resolved(undefined, 'de')).toBe('en')
+  it('honours the plugin locale over everything, as the server does', () => {
+    expect(analysisLocale(undefined, 'fr', { locale: 'en' })).toBe('en')
+    expect(analysisLocale('fr', 'fr', { locale: 'en' })).toBe('en')
+    expect(analysisLocale('en', 'en', { locale: 'fr' })).toBe('fr')
   })
 
-  it('defaults to en when neither locale is set', () => {
-    expect(resolved(undefined, undefined)).toBe('en')
+  it('follows the content locale when no plugin locale is set', () => {
+    expect(analysisLocale('en', 'fr')).toBe('en')
+    expect(analysisLocale('en-US', 'fr')).toBe('en')
+    expect(analysisLocale('fr', 'en')).toBe('fr')
+  })
+
+  it('applies localeMapping to the content locale', () => {
+    expect(analysisLocale('de', 'en', { localeMapping: { de: 'en' } })).toBe('en')
+    expect(analysisLocale('de', 'en')).toBe('fr')
   })
 })
 

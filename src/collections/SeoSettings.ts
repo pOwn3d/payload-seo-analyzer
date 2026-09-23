@@ -40,14 +40,14 @@ export function createSeoSettingsCollection(): CollectionConfig {
         admin: {
           description: {
             en: 'Used for the brand check in titles',
-            fr: 'Utilise pour la verification de marque dans les titres',
+            fr: 'Utilisé pour la vérification de marque dans les titres',
           },
         },
       },
       {
         name: 'ignoredSlugs',
         type: 'array',
-        label: { en: 'Ignored slugs', fr: 'Slugs ignores' },
+        label: { en: 'Ignored slugs', fr: 'Slugs ignorés' },
         admin: {
           description: {
             en: 'Pages excluded from the SEO audit (e.g. legal-notice, terms)',
@@ -66,11 +66,11 @@ export function createSeoSettingsCollection(): CollectionConfig {
         name: 'disabledRules',
         type: 'select',
         hasMany: true,
-        label: { en: 'Disabled rules', fr: 'Regles desactivees' },
+        label: { en: 'Disabled rules', fr: 'Règles désactivées' },
         admin: {
           description: {
             en: 'Rule groups to ignore during analysis',
-            fr: "Groupes de regles a ignorer lors de l'analyse",
+            fr: "Groupes de règles à ignorer lors de l'analyse",
           },
         },
         options: [
@@ -81,39 +81,39 @@ export function createSeoSettingsCollection(): CollectionConfig {
           { label: { en: 'Content', fr: 'Contenu' }, value: 'content' },
           { label: 'Images', value: 'images' },
           { label: { en: 'Links', fr: 'Liens' }, value: 'linking' },
-          { label: { en: 'Social networks', fr: 'Reseaux sociaux' }, value: 'social' },
-          { label: { en: 'Structured data', fr: 'Donnees structurees' }, value: 'schema' },
-          { label: { en: 'Readability', fr: 'Lisibilite' }, value: 'readability' },
-          { label: { en: 'Quality', fr: 'Qualite' }, value: 'quality' },
-          { label: { en: 'Secondary keywords', fr: 'Mots-cles secondaires' }, value: 'secondary-keywords' },
+          { label: { en: 'Social networks', fr: 'Réseaux sociaux' }, value: 'social' },
+          { label: { en: 'Structured data', fr: 'Données structurées' }, value: 'schema' },
+          { label: { en: 'Readability', fr: 'Lisibilité' }, value: 'readability' },
+          { label: { en: 'Quality', fr: 'Qualité' }, value: 'quality' },
+          { label: { en: 'Secondary keywords', fr: 'Mots-clés secondaires' }, value: 'secondary-keywords' },
           { label: { en: 'Cornerstone content', fr: 'Contenu pilier' }, value: 'cornerstone' },
-          { label: { en: 'Freshness', fr: 'Fraicheur' }, value: 'freshness' },
+          { label: { en: 'Freshness', fr: 'Fraîcheur' }, value: 'freshness' },
           { label: { en: 'Technical', fr: 'Technique' }, value: 'technical' },
-          { label: { en: 'Accessibility', fr: 'Accessibilite' }, value: 'accessibility' },
+          { label: { en: 'Accessibility', fr: 'Accessibilité' }, value: 'accessibility' },
           { label: 'E-commerce', value: 'ecommerce' },
         ],
       },
       {
         name: 'thresholds',
         type: 'group',
-        label: { en: 'Custom thresholds', fr: 'Seuils personnalises' },
+        label: { en: 'Custom thresholds', fr: 'Seuils personnalisés' },
         admin: {
           description: {
             en: 'Leave empty to use the default values',
-            fr: 'Laissez vide pour utiliser les valeurs par defaut',
+            fr: 'Laissez vide pour utiliser les valeurs par défaut',
           },
         },
         fields: [
-          { name: 'titleLengthMin', type: 'number', label: { en: 'Title — min length', fr: 'Titre — longueur min' }, admin: { description: { en: 'Default: 30', fr: 'Defaut: 30' } } },
-          { name: 'titleLengthMax', type: 'number', label: { en: 'Title — max length', fr: 'Titre — longueur max' }, admin: { description: { en: 'Default: 60', fr: 'Defaut: 60' } } },
-          { name: 'metaDescLengthMin', type: 'number', label: { en: 'Meta desc — min length', fr: 'Meta desc — longueur min' }, admin: { description: { en: 'Default: 120', fr: 'Defaut: 120' } } },
-          { name: 'metaDescLengthMax', type: 'number', label: { en: 'Meta desc — max length', fr: 'Meta desc — longueur max' }, admin: { description: { en: 'Default: 160', fr: 'Defaut: 160' } } },
-          { name: 'minWordsGeneric', type: 'number', label: { en: 'Min words (pages)', fr: 'Mots min (pages)' }, admin: { description: { en: 'Default: 300', fr: 'Defaut: 300' } } },
-          { name: 'minWordsPost', type: 'number', label: { en: 'Min words (posts)', fr: 'Mots min (articles)' }, admin: { description: { en: 'Default: 800', fr: 'Defaut: 800' } } },
-          { name: 'keywordDensityMin', type: 'number', label: { en: 'Min keyword density (%)', fr: 'Densite mot-cle min (%)' }, admin: { description: { en: 'Default: 0.5', fr: 'Defaut: 0.5' } } },
-          { name: 'keywordDensityMax', type: 'number', label: { en: 'Max keyword density (%)', fr: 'Densite mot-cle max (%)' }, admin: { description: { en: 'Default: 3', fr: 'Defaut: 3' } } },
-          { name: 'fleschScorePass', type: 'number', label: { en: 'Min Flesch score', fr: 'Score Flesch min' }, admin: { description: { en: 'Default: 40', fr: 'Defaut: 40' } } },
-          { name: 'slugMaxLength', type: 'number', label: { en: 'Max slug length', fr: 'Longueur max slug' }, admin: { description: { en: 'Default: 75', fr: 'Defaut: 75' } } },
+          { name: 'titleLengthMin', type: 'number', label: { en: 'Title — min length', fr: 'Titre — longueur min' }, admin: { description: { en: 'Default: 30', fr: 'Défaut : 30' } } },
+          { name: 'titleLengthMax', type: 'number', label: { en: 'Title — max length', fr: 'Titre — longueur max' }, admin: { description: { en: 'Default: 60', fr: 'Défaut : 60' } } },
+          { name: 'metaDescLengthMin', type: 'number', label: { en: 'Meta desc — min length', fr: 'Meta desc — longueur min' }, admin: { description: { en: 'Default: 120', fr: 'Défaut : 120' } } },
+          { name: 'metaDescLengthMax', type: 'number', label: { en: 'Meta desc — max length', fr: 'Meta desc — longueur max' }, admin: { description: { en: 'Default: 160', fr: 'Défaut : 160' } } },
+          { name: 'minWordsGeneric', type: 'number', label: { en: 'Min words (pages)', fr: 'Mots min (pages)' }, admin: { description: { en: 'Default: 300', fr: 'Défaut : 300' } } },
+          { name: 'minWordsPost', type: 'number', label: { en: 'Min words (posts)', fr: 'Mots min (articles)' }, admin: { description: { en: 'Default: 800', fr: 'Défaut : 800' } } },
+          { name: 'keywordDensityMin', type: 'number', label: { en: 'Min keyword density (%)', fr: 'Densité mot-clé min (%)' }, admin: { description: { en: 'Default: 0.5', fr: 'Défaut : 0.5' } } },
+          { name: 'keywordDensityMax', type: 'number', label: { en: 'Max keyword density (%)', fr: 'Densité mot-clé max (%)' }, admin: { description: { en: 'Default: 3', fr: 'Défaut : 3' } } },
+          { name: 'fleschScorePass', type: 'number', label: { en: 'Min Flesch score', fr: 'Score Flesch min' }, admin: { description: { en: 'Default: 40', fr: 'Défaut : 40' } } },
+          { name: 'slugMaxLength', type: 'number', label: { en: 'Max slug length', fr: 'Longueur max slug' }, admin: { description: { en: 'Default: 75', fr: 'Défaut : 75' } } },
         ],
       },
       {
@@ -128,7 +128,7 @@ export function createSeoSettingsCollection(): CollectionConfig {
             admin: {
               description: {
                 en: 'Pages to exclude from sitemap generation',
-                fr: 'Pages a exclure de la generation du sitemap',
+                fr: 'Pages à exclure de la génération du sitemap',
               },
             },
             fields: [{ name: 'slug', type: 'text', required: true }],
@@ -136,7 +136,7 @@ export function createSeoSettingsCollection(): CollectionConfig {
           {
             name: 'defaultChangefreq',
             type: 'select',
-            label: { en: 'Default frequency', fr: 'Frequence par defaut' },
+            label: { en: 'Default frequency', fr: 'Fréquence par défaut' },
             defaultValue: 'weekly',
             options: [
               { label: { en: 'Daily', fr: 'Quotidien' }, value: 'daily' },
@@ -148,22 +148,22 @@ export function createSeoSettingsCollection(): CollectionConfig {
           {
             name: 'defaultPriority',
             type: 'number',
-            label: { en: 'Default priority', fr: 'Priorite par defaut' },
+            label: { en: 'Default priority', fr: 'Priorité par défaut' },
             min: 0,
             max: 1,
             admin: {
               step: 0.1,
-              description: { en: 'Value between 0 and 1 (default: 0.5)', fr: 'Valeur entre 0 et 1 (defaut: 0.5)' },
+              description: { en: 'Value between 0 and 1 (default: 0.5)', fr: 'Valeur entre 0 et 1 (défaut : 0.5)' },
             },
           },
           {
             name: 'priorityOverrides',
             type: 'array',
-            label: { en: 'Custom priorities', fr: 'Priorites personnalisees' },
+            label: { en: 'Custom priorities', fr: 'Priorités personnalisées' },
             admin: {
               description: {
                 en: 'Set the priority for specific slug patterns',
-                fr: 'Definir la priorite pour des patterns de slugs specifiques',
+                fr: 'Définir la priorité pour des patterns de slugs spécifiques',
               },
             },
             fields: [
@@ -212,7 +212,7 @@ export function createSeoSettingsCollection(): CollectionConfig {
           {
             name: 'separator',
             type: 'select',
-            label: { en: 'Separator', fr: 'Separateur' },
+            label: { en: 'Separator', fr: 'Séparateur' },
             defaultValue: '>',
             options: [
               { label: '>', value: '>' },

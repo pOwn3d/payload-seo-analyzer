@@ -4,8 +4,20 @@
  */
 
 import type { Field } from 'payload'
+import type { SeoAnalysisLocaleOptions } from './hooks/useSeoLocale.js'
 
-export function seoFields(): Field[] {
+/**
+ * @param options - `locale` and `localeMapping` from the plugin config, forwarded
+ * to the sidebar analyzer through `admin.custom` so it resolves the analysis
+ * locale exactly like the server endpoints do.
+ */
+export function seoFields(options: SeoAnalysisLocaleOptions = {}): Field[] {
+  // Defined keys only: an explicit `undefined` would be serialised to the client.
+  const analyzerCustom: SeoAnalysisLocaleOptions = {
+    ...(options.locale && { locale: options.locale }),
+    ...(options.localeMapping && { localeMapping: options.localeMapping }),
+  }
+
   return [
     {
       name: 'isCornerstone',
@@ -37,6 +49,7 @@ export function seoFields(): Field[] {
         components: {
           Field: '@consilioweb/payload-seo-analyzer/client#SeoAnalyzerField',
         },
+        custom: analyzerCustom,
       },
     },
     {

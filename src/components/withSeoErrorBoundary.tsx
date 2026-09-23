@@ -3,7 +3,7 @@
  *
  * Kept apart from ErrorBoundary.tsx on purpose: the boundary itself must stay
  * free of Payload imports so it can be unit-tested without an admin provider
- * tree. Everything that needs `useLocale()` lives here.
+ * tree. Everything that needs `useTranslation()` lives here.
  *
  * 'use client' is prepended to the whole client bundle by tsup.
  */
@@ -18,10 +18,10 @@ export type LocalizedSeoErrorBoundaryProps = Omit<SeoErrorBoundaryProps, 'labels
 /**
  * `SeoErrorBoundary` with the plugin's own FR/EN strings wired in.
  *
- * Safe to mount above anything: `useLocale()` is `use(LocaleContext)` with a
- * `{}` default in @payloadcms/ui, so it never throws outside a provider — which
- * matters, because nothing catches an error thrown by the boundary's own
- * wrapper.
+ * Safe to mount above anything: `useTranslation()` is `use(Context)` with a
+ * default `i18n` (language 'en') in @payloadcms/ui, so it never throws outside
+ * a provider — which matters, because nothing catches an error thrown by the
+ * boundary's own wrapper.
  */
 export function LocalizedSeoErrorBoundary(props: LocalizedSeoErrorBoundaryProps) {
   const locale = useSeoLocale()

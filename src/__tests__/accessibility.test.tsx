@@ -4,11 +4,10 @@ import React from 'react'
 import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 
 // @payloadcms/ui is a peer dependency whose entry point imports CSS, which the
-// node/jsdom loader cannot parse. Only `useLocale` is reached from here (through
-// useSeoLocale), and in the real admin it is `use(LocaleContext)` with a `{}`
-// default — so this stub matches its behaviour rather than replacing it.
+// node/jsdom loader cannot parse. Only `useTranslation` is reached from here
+// (through useSeoLocale), and in the real admin it is `use(Context)` with a
+// default `i18n` — so this stub matches its behaviour rather than replacing it.
 vi.mock('@payloadcms/ui', () => ({
-  useLocale: () => ({ code: 'fr' }),
   useTranslation: () => ({ i18n: { language: 'fr' } }),
 }))
 

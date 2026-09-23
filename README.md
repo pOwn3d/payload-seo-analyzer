@@ -145,7 +145,7 @@ Every field of `SeoPluginConfig`. All are optional.
 | `globals` | `string[]` | `[]` | Globals that get SEO fields and are analyzed. |
 | `siteUrl` | `string` | `NEXT_PUBLIC_SERVER_URL` / `PAYLOAD_PUBLIC_SERVER_URL` | Base URL for canonicals, sitemaps, JSON-LD and GSC. |
 | `siteName` | `string` | — | Used by the "brand duplicated in title" check. |
-| `locale` | `'fr' \| 'en'` | `'fr'` | Language of the analysis (readability, stop words, messages). |
+| `locale` | `'fr' \| 'en'` | `'fr'` | Language of the analysis (readability, stop words, check messages), in the editor sidebar and on the dashboard alike. The plugin's own interface follows the Payload admin language instead. |
 | `localeMapping` | `Record<string, 'fr' \| 'en'>` | — | Maps your Payload locale codes onto the analysis locale. |
 | `collectionRoutes` | `Record<string, string>` | `{ posts: 'posts' }` | Public route prefix per collection, used by every URL the plugin generates. Set `{ posts: '' }` if posts are served flat at `/<slug>`. |
 | `knownRoutes` | `string[]` | `[]` | Dynamic routes with no matching document slug, so they are not reported as broken links or orphans. |

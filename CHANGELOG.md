@@ -5,6 +5,30 @@ All notable changes to `@consilioweb/payload-seo-analyzer` will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **The plugin's interface follows the Payload admin language.** Dashboards, the editor sidebar,
+  the meta fields and the labels of `seoFields()`, `seo-settings` and `seo-performance` are in
+  French only when the admin language is French (`fr`, `fr-*`, `fr_*`), and in English otherwise.
+  Until now every language but English, and every project without localization, got French.
+  **A French-speaking team whose admin still runs on Payload's default English will now see the
+  plugin in English**: add `fr` to `i18n.supportedLanguages` to keep it in French. The analysis
+  language is not affected (see below). Contributed by @anatolykoptev in #17.
+
+### Fixed
+
+- **The editor sidebar honours `locale` and `localeMapping`.** It called `analyzeSeo()` without a
+  config, so it always analysed in French: a site configured with `locale: 'en'` got the French
+  readability formula, stop words and messages in the sidebar while the dashboard used English. The
+  sidebar now resolves the analysis language with the server's cascade (`locale`, then
+  `localeMapping`, then the document's content locale, then `'fr'`) and never from the admin
+  language, so an English-speaking admin on a French site keeps the French analysis and the same
+  score as the dashboard.
+- `getTranslations()` falls back to English, not French, for an unknown or missing locale.
+- The French labels of `seo-settings` have their accents back.
+
 ## [4.1.0] - 2026-09-08
 
 **Not a security release — nothing here fixes a vulnerability.** 3.0.0 and 4.0.0 closed the holes;
@@ -1365,6 +1389,7 @@ Four premium-tier features that close the gaps vs Yoast Premium / RankMath Pro.
 - Content freshness tracking
 - Uninstall script (`npx seo-analyzer-uninstall`)
 
+[Unreleased]: https://github.com/pOwn3d/payload-seo-analyzer/compare/v4.1.0...HEAD
 [4.1.0]: https://github.com/pOwn3d/payload-seo-analyzer/compare/v4.0.0...v4.1.0
 [4.0.0]: https://github.com/pOwn3d/payload-seo-analyzer/compare/v3.0.0...v4.0.0
 [1.7.0]: https://github.com/pOwn3d/payload-seo-analyzer/compare/v1.4.4...v1.7.0

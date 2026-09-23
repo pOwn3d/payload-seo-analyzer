@@ -121,7 +121,35 @@ describe('seoAnalyzerPlugin — integration (config transform)', () => {
     const out = run({ collections: ['pages', 'posts'] })
     expect(typeof out.onInit).toBe('function')
   })
+
+  // The sidebar analyses on the client, where the plugin config is not available:
+  // without these options it would ignore `locale` and disagree with the server audit.
+  it('forwards locale and localeMapping to the sidebar analyzer field', () => {
+    const localeMapping = { de: 'en' as const }
+    const out = run({ collections: ['pages', 'posts'], locale: 'en', localeMapping })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pages = out.collections.find((c: any) => c.slug === 'pages')
+    expect(findField(pages.fields, 'seoAnalyzer')?.admin?.custom).toEqual({ locale: 'en', localeMapping })
+  })
+
+  it('leaves the analyzer field without locale keys when none is configured', () => {
+    const out = run({ collections: ['pages', 'posts'] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pages = out.collections.find((c: any) => c.slug === 'pages')
+    expect(findField(pages.fields, 'seoAnalyzer')?.admin?.custom).toEqual({})
+  })
 })
+
+// Depth-first search through tabs, collapsibles and groups.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function findField(fields: any[] = [], name: string): any {
+  for (const field of fields) {
+    if (field?.name === name) return field
+    const nested = findField([...(field?.fields ?? []), ...(field?.tabs ?? [])], name)
+    if (nested) return nested
+  }
+  return undefined
+}
 
 describe('seoAnalyzerPlugin — retention purge (opt-in)', () => {
   it('registers no retention route at all without the option', () => {
