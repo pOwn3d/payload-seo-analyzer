@@ -2,7 +2,7 @@
   "name": "seo-analyzer-e2e-ui",
   "private": true,
   "type": "module",
-  "description": "Browser-driven e2e harness: boots a real Next.js 15 + Payload v3 admin with the SEO plugin mounted, logs in, and smoke-tests every plugin admin view (renders without uncaught errors or 5xx). Self-contained sub-project — installed and run independently of the plugin's unit suite.",
+  "description": "Browser-driven e2e harness: boots a real Next.js 15 + Payload v3 admin with the SEO plugin mounted, logs in, and smoke-tests every plugin admin view (renders without uncaught errors or 5xx). Self-contained sub-project \u2014 installed and run independently of the plugin's unit suite.",
   "scripts": {
     "dev": "next dev -p 3456",
     "build": "next build",
@@ -12,23 +12,24 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:report": "playwright show-report",
-    "playwright:install": "playwright install chromium"
+    "playwright:install": "playwright install chromium",
+    "pack:plugin": "cd ../.. && pnpm build && npm pack --pack-destination e2e/ui && mv e2e/ui/consilioweb-payload-seo-analyzer-*.tgz e2e/ui/plugin.tgz && cd e2e/ui && npm install --no-save --no-audit --no-fund ./plugin.tgz"
   },
   "dependencies": {
-    "@consilioweb/payload-seo-analyzer": "file:../../consilioweb-payload-seo-analyzer-1.20.0.tgz",
-    "@payloadcms/db-sqlite": "3.77.0",
-    "@payloadcms/next": "3.77.0",
-    "@payloadcms/richtext-lexical": "3.77.0",
-    "@payloadcms/ui": "3.77.0",
+    "@consilioweb/payload-seo-analyzer": "file:./plugin.tgz",
+    "@payloadcms/db-sqlite": "3.90.1",
+    "@payloadcms/next": "3.90.1",
+    "@payloadcms/richtext-lexical": "3.90.1",
+    "@payloadcms/ui": "3.90.1",
     "graphql": "^16.8.1",
-    "next": "15.4.11",
-    "payload": "3.77.0",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "sharp": "^0.34.1"
+    "next": "16.3.6",
+    "payload": "3.90.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "sharp": "^0.35.4"
   },
   "devDependencies": {
-    "@playwright/test": "^1.51.1",
+    "@playwright/test": "^1.63.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "typescript": "^5.5.0"

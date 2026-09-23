@@ -55,6 +55,10 @@ export default buildConfig({
       collections: ['pages', 'posts'],
       siteName: 'E2E UI Harness',
       siteUrl: serverURL,
+      // Backs the "Generate" button on the meta title (document-sidebar.spec.ts).
+      generateTitle: ({ doc }) => `${String(doc?.title ?? '')} | E2E UI Harness`,
+      // No `locale` and no i18n config on purpose: an English admin (Payload's
+      // default) on a mono-locale site must still get the French analysis.
     }),
   ],
   sharp,

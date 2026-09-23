@@ -10,8 +10,12 @@ import { BASE_URL, STORAGE_STATE } from './tests/helpers/constants'
  */
 export default defineConfig({
   testDir: './tests',
-  // The smoke tests are read-only against a shared server — safe to parallelize.
-  fullyParallel: true,
+  // One worker: every test is the same admin, and the plugin caps its expensive
+  // endpoints at 10 requests/min per user, shared across them. Parallel workers
+  // trip that cap and get a 429 — which the smoke test rightly treats as a
+  // failure, since a 429 on a legitimate pass is a real bug (see the audit poll).
+  fullyParallel: false,
+  workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   // Generous per-test timeout: Next.js dev compiles the heavy admin views on first hit
@@ -20,10 +24,14 @@ export default defineConfig({
   expect: { timeout: 30_000 },
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : [['list'], ['html', { open: 'never' }]],
   use: {
+    // PW_CHANNEL=chrome drives the locally installed Google Chrome instead of
+    // Playwright's own build, for machines that cannot download it.
+    ...(process.env.PW_CHANNEL ? { channel: process.env.PW_CHANNEL } : {}),
     baseURL: BASE_URL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    // Video needs Playwright's ffmpeg, downloaded from the same CDN as its browser.
+    video: process.env.PW_CHANNEL ? 'off' : 'retain-on-failure',
   },
   projects: [
     {

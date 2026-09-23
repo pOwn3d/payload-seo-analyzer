@@ -3,8 +3,8 @@
  *
  * Runs once before the smoke tests (declared as a dependency of the "chromium"
  * project in playwright.config.ts). It:
- *   1. Creates the first admin user via Payload's create-first-user flow
- *      (idempotent — logs in instead if the user already exists),
+ *   1. Creates the first admin user through Payload's first-register endpoint
+ *      when the admin asks for one, then logs in through the login endpoint,
  *   2. Persists the authenticated browser state to STORAGE_STATE, and
  *   3. Best-effort seeds a couple of pages/posts so the data-driven views
  *      (cannibalization, link-graph, keyword-research) have something to render.
@@ -13,27 +13,35 @@
  * so it never opens a second SQLite connection (avoids SQLITE_BUSY).
  */
 import { expect, test as setup } from '@playwright/test'
-import { ADMIN, STORAGE_STATE } from './helpers/constants'
+import { ADMIN, API_HEADERS, STORAGE_STATE } from './helpers/constants'
 
 setup('create admin, authenticate and seed', async ({ page }) => {
+  // First hit compiles the admin and lets Payload initialise the SQLite schema.
   await page.goto('/admin')
-
-  // Unauthenticated users are redirected to /admin/login, or to
-  // /admin/create-first-user when the database has no users yet.
   await page.waitForURL(/\/admin\/(login|create-first-user)/, { timeout: 90_000 })
 
-  const isFirstRun = page.url().includes('create-first-user')
-
-  await page.locator('#field-email').fill(ADMIN.email)
-  await page.locator('#field-password').fill(ADMIN.password)
-  if (isFirstRun) {
-    await page.locator('#field-confirm-password').fill(ADMIN.password)
+  // Authenticate through Payload's REST endpoints rather than the forms: the
+  // create-first-user form re-renders when its server-side form state lands,
+  // which wipes a password typed just before and fails the submit at random.
+  // `page.request` shares the browser context's cookies, so the session sticks.
+  // Ask Payload whether a first user exists: the URL is no guide, since the
+  // admin passes through /admin/login before redirecting to create-first-user.
+  const init = await page.request.get('/api/users/init')
+  expect(init.ok(), await init.text()).toBeTruthy()
+  if (!(await init.json()).initialized) {
+    const registered = await page.request.post('/api/users/first-register', {
+      data: { email: ADMIN.email, password: ADMIN.password, 'confirm-password': ADMIN.password },
+    })
+    expect(registered.ok(), await registered.text()).toBeTruthy()
   }
-  await page.locator('.form-submit button').first().click()
+  const login = await page.request.post('/api/users/login', {
+    data: { email: ADMIN.email, password: ADMIN.password },
+  })
+  expect(login.ok(), await login.text()).toBeTruthy()
 
-  // A successful submit lands on the dashboard (root /admin). A failed login
-  // stays on /admin/login — waiting for the dashboard URL surfaces that as a
-  // clear timeout instead of a confusing later failure.
+  // The admin now opens on the dashboard: this is the check that the session
+  // cookie is the one the admin reads, not just that the API accepted it.
+  await page.goto('/admin')
   await page.waitForURL(/\/admin\/?$/, { timeout: 240_000 })
   await expect(page.locator('.template-default, .dashboard').first()).toBeVisible({ timeout: 60_000 })
 
@@ -57,10 +65,11 @@ setup('create admin, authenticate and seed', async ({ page }) => {
     for (const { collection, data } of seedDocs) {
       const existing = await page.request.get(
         `/api/${collection}?where[slug][equals]=${encodeURIComponent(String(data.slug))}&limit=1`,
+        { headers: API_HEADERS },
       )
       const found = existing.ok() ? ((await existing.json())?.totalDocs ?? 0) : 0
       if (found === 0) {
-        await page.request.post(`/api/${collection}`, { data })
+        await page.request.post(`/api/${collection}`, { data, headers: API_HEADERS })
       }
     }
   } catch (err) {

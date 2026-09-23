@@ -9,6 +9,13 @@ export const ADMIN = {
   password: process.env.E2E_ADMIN_PASSWORD || 'test-Password-123!',
 }
 
+/**
+ * Headers for REST calls made with `page.request`. Payload (3.90+) only honours
+ * the session cookie on an API request that names its origin — without it the
+ * request runs anonymously and every write is refused.
+ */
+export const API_HEADERS = { Origin: new URL(BASE_URL).origin }
+
 /** Where the authenticated browser state is persisted (reused by every spec). */
 export const STORAGE_STATE = 'playwright/.auth/admin.json'
 
