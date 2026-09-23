@@ -5,6 +5,50 @@ All notable changes to `@consilioweb/payload-seo-analyzer` will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.2.1] - 2026-09-23
+
+Fixes what 4.2.0 left inconsistent, plus four defects found by running the plugin in a real admin
+for the first time since 1.20. **4.2.0 is deprecated**: with `localeMapping` set, its sidebar could
+score a document differently from the dashboard. It was also published by hand, so it carries no
+provenance attestation; 4.2.1 is published by the CI, with one, like 4.1.0.
+
+### Fixed
+
+- **`localeMapping` is honoured on the server.** The option was typed and documented but never
+  reached the endpoints: `validate`, the dashboard audit, `ai-optimize` and `ai-optimize-bulk` all
+  resolved the analysis locale without it. It now travels in the plugin's `SeoConfig`, so every
+  endpoint applies it, and the editor sidebar (which honours it since 4.2.0) agrees with them again.
+- **The score history uses the dashboard's config.** Snapshots were scored with the bare plugin
+  config: `seo-settings` (disabled rules, thresholds, site name) and the locale of the saved
+  document were ignored, so the history drifted from the scores shown everywhere else.
+- **The meta fields' "Generate" buttons appear.** `metaFields()` put `hasGenerateFn` and the endpoint
+  base path in `admin.custom`, which Payload hands to a component as `field.admin.custom`, while the
+  title, description and image fields read them as top-level props: the button never showed, even
+  with `generateTitle` configured, and a custom `endpointBasePath` was ignored.
+- **`customTranslations` reach the admin.** They were registered in the server module only, while
+  the admin components run in the browser with their own copy of the registry, so no custom language
+  ever displayed. They now travel in the client config, and the dashboard follows the admin language
+  for any language they define (a region falls back to its base language).
+- **The Performance view no longer calls the endpoints of disabled features.** The Search Console,
+  rank tracking, CTR and alerts panels probed their endpoints and treated the 404 as "off", which
+  logged four 404s in the browser console on every visit to a default install. The resolved feature
+  flags now travel in the client config and those panels skip the call.
+- The package no longer ships `scripts/verify-dist-imports.mjs`, a build-time check.
+
+### Known issue
+
+- **`endpointBasePath` is still ignored by the admin views and the editor sidebar**, which call
+  `/api/seo-plugin` directly. Keep the default prefix if you use them; the README says so.
+
+### Development
+
+- The Payload dev toolchain moves to 3.90.1 (`payload`, `@payloadcms/ui` and `@payloadcms/next`
+  together), vitest to 4.1.11, and `dompurify` and `yaml` are forced to their patched versions. The
+  published tarball has no runtime dependency and `dist/` was byte-for-byte identical.
+- The admin e2e harness runs on Next 16 and Payload 3.90.1 against the working copy
+  (`npm run pack:plugin`), and a new spec opens a real post to check the editor sidebar and the
+  "Generate" button. Run against 4.2.0, it fails on both; see `e2e/README.md`.
+
 ## [4.2.0] - 2026-09-23
 
 ### Changed
@@ -1389,6 +1433,7 @@ Four premium-tier features that close the gaps vs Yoast Premium / RankMath Pro.
 - Content freshness tracking
 - Uninstall script (`npx seo-analyzer-uninstall`)
 
+[4.2.1]: https://github.com/pOwn3d/payload-seo-analyzer/compare/v4.2.0...v4.2.1
 [4.2.0]: https://github.com/pOwn3d/payload-seo-analyzer/compare/v4.1.0...v4.2.0
 [4.1.0]: https://github.com/pOwn3d/payload-seo-analyzer/compare/v4.0.0...v4.1.0
 [4.0.0]: https://github.com/pOwn3d/payload-seo-analyzer/compare/v3.0.0...v4.0.0
