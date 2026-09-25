@@ -660,4 +660,4 @@ If this plugin saves you time, consider buying me a coffee.
 
 ## License
 
-MIT — see [LICENSE](LICENSE). Built and maintained by [ConsilioWEB](https://consilioweb.fr).
+MIT — see [LICENSE](LICENSE). Built and maintained by [ConsilioWEB](https://consilioweb.fr/services/developpement-web/payload-cms).
