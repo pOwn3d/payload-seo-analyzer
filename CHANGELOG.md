@@ -5,6 +5,24 @@ All notable changes to `@consilioweb/payload-seo-analyzer` will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.2.2] - 2026-09-29
+
+No change to options or schema: nothing to migrate.
+
+### Fixed
+
+- **The health endpoint reports the model the AI endpoints run.** With `SEO_AI_MODEL` unset it
+  announced `claude-opus-4-8`, while `ai-optimize`, `ai-alt-text` and `ai-content-brief` all ran
+  `claude-sonnet-4-6`. The default is now defined once, in `helpers/aiModel`, and read by the four
+  of them; the doc comments that still named Opus as the default are corrected. The model that runs
+  does not change: Sonnet 4.6 unless `SEO_AI_MODEL` says otherwise.
+
+### Changed
+
+- **The README credit links to the page about Payload CMS development.** It pointed to the root
+  of consilioweb.fr; it now points to https://consilioweb.fr/services/developpement-web/payload-cms,
+  the subject of this package.
+
 ## [4.2.1] - 2026-09-23
 
 Fixes what 4.2.0 left inconsistent, plus four defects found by running the plugin in a real admin
@@ -1433,6 +1451,7 @@ Four premium-tier features that close the gaps vs Yoast Premium / RankMath Pro.
 - Content freshness tracking
 - Uninstall script (`npx seo-analyzer-uninstall`)
 
+[4.2.2]: https://github.com/pOwn3d/payload-seo-analyzer/compare/v4.2.1...v4.2.2
 [4.2.1]: https://github.com/pOwn3d/payload-seo-analyzer/compare/v4.2.0...v4.2.1
 [4.2.0]: https://github.com/pOwn3d/payload-seo-analyzer/compare/v4.1.0...v4.2.0
 [4.1.0]: https://github.com/pOwn3d/payload-seo-analyzer/compare/v4.0.0...v4.1.0
